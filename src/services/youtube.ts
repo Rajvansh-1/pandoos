@@ -58,13 +58,18 @@ export async function searchTracks(query: string): Promise<Track[]> {
     return Promise.resolve(MOOD_SEEDS[moodId]);
   }
 
+  // Force pure song results
+  const apiQuery = query.toLowerCase().includes('song') || query.toLowerCase().includes('audio') || query.toLowerCase().includes('music')
+    ? query 
+    : `${query} official audio song`;
+
   let res: Response | null = null;
   
   // Local DEV fallback so `npm run dev` works without Vercel CLI
   if (import.meta.env.DEV && import.meta.env.VITE_YOUTUBE_API_KEY) {
     const ytUrl = new URL('https://www.googleapis.com/youtube/v3/search');
     ytUrl.searchParams.set('part', 'snippet');
-    ytUrl.searchParams.set('q', query);
+    ytUrl.searchParams.set('q', apiQuery);
     ytUrl.searchParams.set('type', 'video');
     ytUrl.searchParams.set('videoCategoryId', '10'); // Music
     ytUrl.searchParams.set('maxResults', '15');
@@ -72,7 +77,7 @@ export async function searchTracks(query: string): Promise<Track[]> {
     res = await fetch(ytUrl.toString());
   } else {
     // Production uses serverless proxy + caching
-    res = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=music`);
+    res = await fetch(`/api/search?q=${encodeURIComponent(apiQuery)}&type=music`);
   }
 
   if (res && res.ok) {

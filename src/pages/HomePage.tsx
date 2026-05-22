@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Sparkles, TrendingUp, Music, Clock, Zap, Brain, Dumbbell, Moon, Compass, Heart, Radio, Flame } from 'lucide-react';
@@ -39,6 +39,9 @@ const GENRE_LABELS: Record<string, string> = {
   rock: 'Rock 🎸', acoustic: 'Acoustic 🎻', pop: 'Pop ✨',
 };
 
+import { PandaChatModal } from '@/features/panda/components/PandaChatModal';
+import { useWeatherContext } from '@/hooks/useWeatherContext';
+
 const getGreeting = () => {
   const h = new Date().getHours();
   return h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening';
@@ -49,6 +52,29 @@ export function HomePage() {
   const [customQuery, setCustomQuery] = useState(MOODS[0].query);
   const [userInput, setUserInput] = useState('');
   const [greeting] = useState(getGreeting);
+  const [hasManuallyChangedMood, setHasManuallyChangedMood] = useState(false);
+  
+  const weather = useWeatherContext();
+
+  // Weather-based auto-mood
+  useEffect(() => {
+    if (weather.isLoading || weather.error || hasManuallyChangedMood) return;
+    
+    let suggestedMood = MOODS[0];
+    const hour = new Date().getHours();
+    
+    if (weather.isRaining) suggestedMood = MOODS.find(m => m.id === 'chill') || MOODS[0];
+    else if (weather.isSunny) suggestedMood = MOODS.find(m => m.id === 'happy') || MOODS[0];
+    else if (hour >= 22 || hour <= 4) suggestedMood = MOODS.find(m => m.id === 'latenight') || MOODS[0];
+    else if (hour >= 5 && hour <= 9) suggestedMood = MOODS.find(m => m.id === 'focus') || MOODS[0];
+    
+    setSelectedMood(suggestedMood);
+    setCustomQuery(suggestedMood.query);
+  }, [weather.isLoading, weather.error, hasManuallyChangedMood]);
+
+  // Panda Chat State
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatInitialMessage, setChatInitialMessage] = useState('');
 
   const playTrack = usePlayerStore(s => s.playTrack);
   const history = usePlayerStore(s => s.history);
@@ -109,31 +135,14 @@ export function HomePage() {
   const handleMoodClick = (mood: typeof MOODS[0]) => {
     setSelectedMood(mood);
     setCustomQuery(mood.query);
+    setHasManuallyChangedMood(true);
   };
 
   const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim()) return;
-    
-    const query = userInput + ' music vibes';
-    const normalized = userInput.toLowerCase();
-    
-    // Robust emotion detection for Panda graphic
-    let moodId = 'chill'; // default fallback
-    if (normalized.includes('sad') || normalized.includes('saad') || normalized.includes('cry') || normalized.includes('break')) moodId = 'heartbroken';
-    else if (normalized.includes('work') || normalized.includes('gym')) moodId = 'workout';
-    else if (normalized.includes('sleep') || normalized.includes('bed')) moodId = 'sleepy';
-    else if (normalized.includes('love') || normalized.includes('romanc')) moodId = 'romantic';
-    else if (normalized.includes('party') || normalized.includes('dance')) moodId = 'energy';
-    else if (normalized.includes('happy') || normalized.includes('good')) moodId = 'happy';
-    else if (normalized.includes('focus') || normalized.includes('study')) moodId = 'focus';
-    else if (normalized.includes('bolly')) moodId = 'bollywood';
-    else if (normalized.includes('desi') || normalized.includes('punjab')) moodId = 'desi';
-    else if (normalized.includes('sufi')) moodId = 'sufi';
-    else if (normalized.includes('night') || normalized.includes('late')) moodId = 'latenight';
-    
-    setSelectedMood({ id: moodId, label: 'Custom', query: userInput } as any);
-    setCustomQuery(query);
+    setChatInitialMessage(userInput);
+    setIsChatOpen(true);
     setUserInput('');
   };
 
@@ -156,12 +165,19 @@ export function HomePage() {
             {greeting}{user ? <span className="text-brand-primary">, {user.username}</span> : ''}
             <span className="inline-block animate-[wave_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
           </h1>
-          {isPersonalized && (
-            <p className="text-white/50 text-sm mt-1 flex items-center gap-1">
-              <Sparkles size={12} className="text-brand-primary" />
-              Personalized for your taste · {topGenres.slice(0, 3).map(g => GENRE_LABELS[g] ?? g).join(' · ')}
-            </p>
-          )}
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {isPersonalized && (
+              <p className="text-white/50 text-sm flex items-center gap-1">
+                <Sparkles size={12} className="text-brand-primary" />
+                Personalized for your taste
+              </p>
+            )}
+            {!weather.isLoading && weather.temp !== null && (
+              <span className="text-xs font-bold bg-white/5 text-white/70 px-2 py-0.5 rounded-md border border-white/10 backdrop-blur-md flex items-center gap-1">
+                {weather.isSunny ? '☀️' : weather.isRaining ? '🌧️' : '☁️'} {Math.round(weather.temp)}°C
+              </span>
+            )}
+          </div>
         </div>
         <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center shadow-glow-sm cursor-pointer hover:scale-105 transition-transform">
           <span className="text-white font-bold text-lg">P</span>
@@ -174,9 +190,17 @@ export function HomePage() {
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="relative z-10 w-36 h-36 md:w-44 md:h-44 rounded-full glass-mood border border-white/20 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)] mb-6"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsChatOpen(true)}
+          className="relative z-10 w-36 h-36 md:w-44 md:h-44 rounded-full glass-mood border border-white/20 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)] mb-6 cursor-pointer group"
         >
           <PandaMascot size={140} emotion={selectedMood.id} />
+          
+          {/* Subtle "Talk to me" tooltip */}
+          <div className="absolute -top-3 -right-2 bg-brand-primary text-white text-xs font-bold px-3 py-1.5 rounded-2xl rounded-bl-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-glow-sm pointer-events-none transform -rotate-6">
+            Talk to me! 💬
+          </div>
         </motion.div>
 
         <h2 className="text-3xl md:text-5xl font-display font-extrabold text-white mb-4 text-center tracking-tight drop-shadow-lg">
@@ -415,6 +439,12 @@ export function HomePage() {
           <div className="w-24 h-[2px] mt-4 bg-gradient-to-r from-transparent via-brand-primary/50 to-transparent rounded-full" />
         </motion.div>
       </footer>
+
+      <PandaChatModal 
+        isOpen={isChatOpen} 
+        onClose={() => setIsChatOpen(false)} 
+        initialMessage={chatInitialMessage} 
+      />
 
     </div>
   );

@@ -10,6 +10,7 @@ import { BadgeRevealModal } from '@/features/profile/BadgeRevealModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
+import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow';
 
 const HomePage = React.lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })));
 const SearchPage = React.lazy(() => import('@/pages/SearchPage').then(m => ({ default: m.SearchPage })));
@@ -88,6 +89,7 @@ export function App() {
       <OfflineIndicator />
       {/* Global Badge Reveal Modal — renders on top of everything */}
       <BadgeRevealModal />
+      <OnboardingFlow />
     </>
   );
 }
