@@ -33,16 +33,11 @@ export function FullscreenPlayer() {
       isOpen={isPlayerOpen} 
       onClose={closePlayer} 
       fullScreen 
-      className="bg-black border-none shadow-none"
+      className="mood-bg border-none shadow-none"
     >
-      {/* Base solid background fallback */}
-      <div className="absolute inset-0 bg-[#111] -z-20" />
-
-      {/* Base Mood Color (Driven by Color Extractor) - NO black overlays */}
-      <div className="absolute inset-0 bg-brand-primary opacity-60 transition-colors duration-1000 ease-in-out -z-10" />
-      
       {/* Top light bloom for extra pop */}
-      <div className="absolute top-0 inset-x-0 h-[60vh] bg-brand-primary blur-[100px] transition-colors duration-1000 ease-in-out -z-10 pointer-events-none mix-blend-screen opacity-50" />
+      <div className="absolute top-0 inset-x-0 h-[60vh] bg-brand-primary blur-[100px] transition-colors duration-1000 ease-in-out pointer-events-none mix-blend-screen opacity-50 z-0" />
+
 
       {/* Main Content: Flexible vertical stack */}
       <div className="w-full h-full flex flex-col pb-safe">
@@ -69,11 +64,11 @@ export function FullscreenPlayer() {
         </div>
 
         {/* Top Spacer */}
-        <div className="flex-grow max-h-[6vh]" />
+        <div className="flex-grow max-h-[4vh] shrink" />
 
-        {/* Massive Vinyl Player (Responsive Square) */}
-        <div className="w-full flex items-center justify-center relative shrink-0">
-          <div className="relative w-[82vw] max-w-[320px] md:max-w-[440px] aspect-square flex items-center justify-center">
+        {/* Massive Vinyl Player (Responsive Square constrained by height) */}
+        <div className="w-full flex-1 min-h-0 flex items-center justify-center relative px-6">
+          <div className="relative h-full max-h-[380px] md:max-h-[480px] aspect-square flex items-center justify-center max-w-full">
             <VinylRecord 
               track={currentTrack} 
               isPlaying={isPlaying} 
@@ -87,7 +82,7 @@ export function FullscreenPlayer() {
         </div>
 
         {/* Middle Spacer */}
-        <div className="flex-grow max-h-[8vh]" />
+        <div className="flex-grow max-h-[6vh] shrink" />
 
         {/* Bottom Controls Area (Clean Stack) */}
         <div className="w-full flex flex-col items-center justify-center gap-5 pb-6 px-6 md:px-12 shrink-0">

@@ -1,5 +1,4 @@
-import React, { useEffect, useRef } from 'react';
-import gsap from 'gsap';
+import React from 'react';
 import { cn } from '@/utils/cn';
 
 interface TonearmProps {
@@ -8,31 +7,20 @@ interface TonearmProps {
 }
 
 export function Tonearm({ isPlaying, className }: TonearmProps) {
-  const armRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!armRef.current) return;
-
-    if (isPlaying) {
-      gsap.to(armRef.current, {
-        rotation: 22,
-        duration: 0.8,
-        ease: 'power2.out',
-      });
-    } else {
-      gsap.to(armRef.current, {
-        rotation: 0,
-        duration: 1.2,
-        ease: 'power2.inOut',
-      });
-    }
-  }, [isPlaying]);
-
   return (
     <div 
-      ref={armRef}
-      className={cn("absolute origin-[80%_15%] will-animate z-20 pointer-events-none", className)}
-      style={{ width: '40%', height: '100%', filter: 'drop-shadow(10px 20px 15px rgba(0,0,0,0.6))' }}
+      className={cn(
+        "absolute origin-[80%_15%] will-change-transform transform-gpu z-20 pointer-events-none", 
+        className
+      )}
+      style={{ 
+        width: '40%', 
+        height: '100%', 
+        transform: isPlaying ? 'rotate(22deg)' : 'rotate(0deg)',
+        transition: isPlaying 
+          ? 'transform 800ms cubic-bezier(0.2, 0.8, 0.2, 1)' 
+          : 'transform 1200ms cubic-bezier(0.4, 0, 0.2, 1)'
+      }}
     >
       <svg 
         viewBox="0 0 100 300" 
@@ -41,6 +29,9 @@ export function Tonearm({ isPlaying, className }: TonearmProps) {
         className="w-full h-full"
       >
         <defs>
+          <filter id="armShadow" x="-20%" y="-20%" width="150%" height="150%">
+            <feDropShadow dx="10" dy="20" stdDeviation="15" floodColor="#000" floodOpacity="0.6"/>
+          </filter>
           <linearGradient id="chrome" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#e5e5e5" />
             <stop offset="25%" stopColor="#ffffff" />
@@ -60,6 +51,9 @@ export function Tonearm({ isPlaying, className }: TonearmProps) {
             <stop offset="100%" stopColor="transparent" />
           </linearGradient>
         </defs>
+
+        {/* Group with SVG drop-shadow filter (much faster than CSS drop-shadow) */}
+        <g filter="url(#armShadow)">
 
         {/* Pivot Base */}
         <circle cx="80" cy="45" r="28" fill="url(#darkMetal)" stroke="#111" strokeWidth="2" />
@@ -101,6 +95,7 @@ export function Tonearm({ isPlaying, className }: TonearmProps) {
         <circle cx="20" cy="258" r="1.5" fill="#fff" />
         {/* Glow effect */}
         <circle cx="20" cy="258" r="6" fill="#ef4444" opacity="0.4" filter="blur(2px)" />
+        </g>
       </svg>
     </div>
   );
