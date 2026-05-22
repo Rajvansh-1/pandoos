@@ -25,6 +25,7 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
   const [input, setInput] = useState(initialMessage);
   const [isTyping, setIsTyping] = useState(false);
   const [currentQuery, setCurrentQuery] = useState('');
+  const [chatEmotion, setChatEmotion] = useState('chill');
   
   const bottomRef = useRef<HTMLDivElement>(null);
   
@@ -43,14 +44,13 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // When search results come back, Panda plays the first one and adds a message
   useEffect(() => {
     if (currentQuery && !isLoading && searchResults && searchResults.length > 0) {
       setIsTyping(false);
       const track = searchResults[0];
       setMessages(prev => [
         ...prev,
-        { id: Date.now().toString(), sender: 'panda', text: `I found the perfect track for you: "${track.title}". Playing it now! 🎧`, isAction: true }
+        { id: Date.now().toString(), sender: 'panda', text: `Found it! Playing "${track.title}" and queued ${searchResults.length - 1} relevant tracks! 🎧`, isAction: true }
       ]);
       playTrack(track, searchResults);
       setCurrentQuery(''); // Reset so we don't trigger again
@@ -74,13 +74,56 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
 
     // Simple NLP / keyword extraction to form a query
     const lower = text.toLowerCase();
-    let query = text + ' music vibes'; // fallback
+    let query = text; // default to exact search
     let reply = "Let me dig into my bamboo forest for that...";
+    let newEmotion = 'focus';
     
-    if (lower.includes('sad') || lower.includes('cry')) { reply = "I'm here for you. Let's play something to let it out. 🌧️"; query = "sad emotional acoustic"; }
-    else if (lower.includes('workout') || lower.includes('gym')) { reply = "Time to crush it! Let's get pumped! 🏋️‍♂️"; query = "heavy workout gym phonk"; }
-    else if (lower.includes('happy') || lower.includes('good mood')) { reply = "Awesome! Let's keep the good vibes rolling! ☀️"; query = "happy feel good uplifting pop"; }
-    else if (lower.includes('sleep') || lower.includes('bed')) { reply = "Shh... time to rest. Here's some ambient magic. 💤"; query = "sleep ambient delta waves"; }
+    if (lower.includes('sad') || lower.includes('cry') || lower.includes('heartbreak')) { 
+      reply = "I'm here for you. Let's play some sad songs to let it out. 🌧️"; 
+      query = "sad emotional acoustic heartbreak"; 
+      newEmotion = 'heartbroken';
+    }
+    else if (lower.includes('workout') || lower.includes('gym')) { 
+      reply = "Time to crush it! Let's get pumped! 🏋️‍♂️"; 
+      query = "heavy workout gym phonk"; 
+      newEmotion = 'workout';
+    }
+    else if (lower.includes('happy') || lower.includes('good mood') || lower.includes('dance')) { 
+      reply = "Awesome! Let's keep the good vibes rolling and dance! ☀️"; 
+      query = "happy feel good uplifting pop dance hits"; 
+      newEmotion = 'happy';
+    }
+    else if (lower.includes('sleep') || lower.includes('bed') || lower.includes('tired')) { 
+      reply = "Shh... time to rest. Here's some ambient magic. 💤"; 
+      query = "sleep ambient delta waves lullaby"; 
+      newEmotion = 'sleepy';
+    }
+    else if (lower.includes('chill') || lower.includes('relax') || lower.includes('lofi')) {
+      reply = "Got it. Bamboo, tea, and lo-fi beats. 🍃";
+      query = "lofi chill relax aesthetic beats";
+      newEmotion = 'chill';
+    }
+    else if (lower.includes('desi') || lower.includes('punjabi')) {
+      reply = "Pure swag incoming! 🔥";
+      query = "desi hip hop punjabi swag hits";
+      newEmotion = 'desi';
+    }
+    else if (lower.includes('bollywood') || lower.includes('hindi')) {
+      reply = "Ah, the magic of Bollywood. Setting the stage... ✨";
+      query = "bollywood pop romantic hits";
+      newEmotion = 'bollywood';
+    }
+    else if (lower.includes('romantic') || lower.includes('love')) {
+      reply = "Love is in the air. Playing some romantic hits. 💖";
+      query = "romantic love songs acoustic";
+      newEmotion = 'romantic';
+    }
+    else {
+      reply = `Searching for exactly what you asked for: "${text}"... 🔍`;
+      newEmotion = 'focus';
+    }
+    
+    setChatEmotion(newEmotion);
     
     setTimeout(() => {
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), sender: 'panda', text: reply }]);
@@ -112,7 +155,7 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
             <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-brand-primary/20 flex items-center justify-center overflow-hidden border border-brand-primary/50">
-                  <PandaMascot size={40} emotion={isTyping ? 'focus' : 'chill'} />
+                  <PandaMascot size={40} emotion={isTyping ? 'focus' : chatEmotion} />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-sm">Pandoo AI</h3>

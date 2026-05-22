@@ -4,6 +4,8 @@ import { Play, Pause } from 'lucide-react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { TrackImage } from '@/components/shared/TrackImage';
+import { useTrackEmotion } from '@/hooks/useTrackEmotion';
+import { PandaMascot } from '@/features/panda/components/PandaMascot';
 
 export function MiniPlayer() {
   const currentTrack = usePlayerStore((state) => state.currentTrack);
@@ -12,6 +14,7 @@ export function MiniPlayer() {
   const progress = usePlayerStore((state) => state.progress);
   const togglePlayPause = usePlayerStore((state) => state.togglePlayPause);
   const openPlayer = useUIStore((state) => state.openPlayer);
+  const trackEmotion = useTrackEmotion(currentTrack);
 
   if (!currentTrack) return null;
 
@@ -48,6 +51,11 @@ export function MiniPlayer() {
             <p className="text-xs text-text-muted truncate">
               {currentTrack.artist}
             </p>
+          </div>
+
+          {/* Panda Mascot */}
+          <div className="w-10 h-10 flex items-center justify-center shrink-0 -ml-2 pointer-events-none drop-shadow-md">
+            <PandaMascot size={40} emotion={trackEmotion} />
           </div>
 
           {/* Play/Pause Button */}

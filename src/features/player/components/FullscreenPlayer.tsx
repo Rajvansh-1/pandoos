@@ -5,6 +5,8 @@ import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useColorExtractor } from '@/features/player/hooks/useColorExtractor';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { PandaMascot } from '@/features/panda/components/PandaMascot';
+import { useTrackEmotion } from '@/hooks/useTrackEmotion';
 import { VinylRecord } from './VinylRecord';
 import { Tonearm } from './Tonearm';
 import { SeekBar } from './SeekBar';
@@ -24,6 +26,8 @@ export function FullscreenPlayer() {
   const isLiked = currentTrack ? likedSongs.includes(currentTrack.id) : false;
 
   const [isOptionsOpen, setIsOptionsOpen] = React.useState(false);
+  const [visualMode, setVisualMode] = React.useState<'panda' | 'vinyl'>('vinyl');
+  const trackEmotion = useTrackEmotion(currentTrack);
 
   // Mount the color extractor hook here so it runs when a track is active
   useColorExtractor();
@@ -55,29 +59,64 @@ export function FullscreenPlayer() {
             Now Playing
             {sleepTimerEnd && <span className="text-[10px] text-indigo-300 normal-case tracking-normal">Sleep Timer Active 💤</span>}
           </span>
-          <button 
-            onClick={() => setIsOptionsOpen(true)}
-            className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-white transition-all active:scale-95 touch-highlight"
-          >
-            <MoreVertical size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setVisualMode(v => v === 'vinyl' ? 'panda' : 'vinyl')}
+              className={`h-10 px-3 md:px-4 rounded-full flex items-center gap-1.5 md:gap-2 font-bold text-xs md:text-sm transition-all duration-300 active:scale-95 touch-highlight border ${
+                visualMode === 'vinyl' 
+                  ? 'bg-gradient-to-r from-brand-primary via-purple-500 to-brand-secondary text-white border-white/30 animate-[pulse_2s_ease-in-out_infinite] hover:scale-105 shadow-glow-md' 
+                  : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white border-transparent'
+              }`}
+              aria-label="Toggle Visual Mode"
+            >
+              {visualMode === 'vinyl' ? (
+                <>
+                  <span className="text-base md:text-lg animate-bounce" style={{ animationDuration: '2s' }}>🐼</span>
+                  <span>Panda View</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-base md:text-lg">💿</span>
+                  <span className="hidden md:inline">Vinyl View</span>
+                </>
+              )}
+            </button>
+            <button 
+              onClick={() => setIsOptionsOpen(true)}
+              className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-white transition-all active:scale-95 touch-highlight"
+            >
+              <MoreVertical size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Top Spacer */}
         <div className="flex-grow max-h-[4vh] shrink" />
 
-        {/* Massive Vinyl Player (Responsive Square constrained by height) */}
+        {/* Visual Area (Responsive Square constrained by height) */}
         <div className="w-full flex-1 min-h-0 flex items-center justify-center relative px-6">
           <div className="relative h-full max-h-[380px] md:max-h-[480px] aspect-square flex items-center justify-center max-w-full">
-            <VinylRecord 
-              track={currentTrack} 
-              isPlaying={isPlaying} 
-              className="z-10 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
-            />
-            <Tonearm 
-              isPlaying={isPlaying} 
-              className="top-[-8%] right-[-8%]"
-            />
+            {visualMode === 'vinyl' ? (
+              <>
+                <VinylRecord 
+                  track={currentTrack} 
+                  isPlaying={isPlaying} 
+                  className="z-10 drop-shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
+                />
+                <Tonearm 
+                  isPlaying={isPlaying} 
+                  className="top-[-8%] right-[-8%]"
+                />
+              </>
+            ) : (
+              <div className={`w-full h-full flex items-center justify-center transition-transform duration-500 ${isPlaying ? 'scale-105' : 'scale-100'}`}>
+                <PandaMascot 
+                  size={280} 
+                  emotion={trackEmotion} 
+                  className="drop-shadow-[0_20px_50px_rgba(0,0,0,0.4)]"
+                />
+              </div>
+            )}
           </div>
         </div>
 
