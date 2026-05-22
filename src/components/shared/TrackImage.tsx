@@ -73,14 +73,15 @@ export function TrackImage({ videoId, title, className = '', style }: TrackImage
     >
       {/* Gradient is ALWAYS visible — no grey/blank flash */}
       {status !== 'loaded' && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          {status === 'error' ? (
-            <div className="flex flex-col items-center gap-1 opacity-60">
-              <Music2 size={22} className="text-white/70" />
-              {title && <span className="text-[9px] text-white/50 text-center px-2 line-clamp-2">{title}</span>}
-            </div>
-          ) : (
-            <div className="w-6 h-6 rounded-full border-2 border-white/30 border-t-white/80 animate-spin" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center z-0">
+          <Music2 size={24} className="text-white/40 mb-2" />
+          {title && (
+            <span className="text-xs font-bold text-white/80 line-clamp-2 drop-shadow-md">
+              {title}
+            </span>
+          )}
+          {status === 'loading' && (
+            <div className="absolute bottom-3 right-3 w-4 h-4 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
           )}
         </div>
       )}
@@ -92,9 +93,7 @@ export function TrackImage({ videoId, title, className = '', style }: TrackImage
           alt={title ?? ''}
           onLoad={handleLoad}
           onError={handleError}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
-          loading="lazy"
-          decoding="async"
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 z-10 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
         />
       )}
     </div>
