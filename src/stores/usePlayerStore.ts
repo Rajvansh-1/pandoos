@@ -73,6 +73,7 @@ interface PlayerActions {
   setDuration: (duration: number) => void;
   setIsPlaying: (isPlaying: boolean) => void;
   setIsLoading: (isLoading: boolean) => void;
+  replaceCurrentTrack: (track: Track) => void;
   // ── Sleep Timer ──
   setSleepTimer: (minutes: number) => void;
   clearSleepTimer: () => void;
@@ -337,6 +338,22 @@ export const usePlayerStore = create<PlayerStore>()(
       },
       setIsLoading: (isLoading) => {
         set((state) => { state.isLoading = isLoading; });
+      },
+      replaceCurrentTrack: (track) => {
+        set((state) => {
+          if (state.queueIndex >= 0) {
+            state.queue[state.queueIndex] = track;
+            const originalIdx = state.originalQueue.findIndex((t) => t.id === state.currentTrack?.id);
+            if (originalIdx >= 0) {
+               state.originalQueue[originalIdx] = track;
+            }
+          }
+          state.currentTrack = track;
+          state.progress = 0;
+          state.duration = 0;
+          state.isLoading = true;
+          state.isPlaying = true;
+        });
       },
       setSleepTimer: (minutes) => {
         set((state) => {

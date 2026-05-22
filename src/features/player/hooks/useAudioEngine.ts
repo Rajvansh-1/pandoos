@@ -119,11 +119,39 @@ export function useAudioEngine() {
                 break;
             }
           },
-          onError: (event) => {
+          onError: async (event) => {
             console.error('YouTube Player Error:', event.data);
+            
+            const state = usePlayerStore.getState();
+            const curTrack = state.currentTrack;
+            
+            // 150/101 = embed restricted, 100 = video not found/deleted
+            if (curTrack && [150, 101, 100].includes(event.data)) {
+              console.log('Video blocked or unavailable. Searching for alternative...');
+              
+              try {
+                // Dynamically import to avoid circular dependencies
+                const { searchTracks } = await import('@/services/youtube');
+                // Search for an audio/lyric alternative
+                const query = `${curTrack.title} ${curTrack.artist} lyrics audio`;
+                const alternatives = await searchTracks(query);
+                
+                // Find first alternative that isn't the current broken ID
+                const alt = alternatives.find(t => t.id !== curTrack.id);
+                
+                if (alt) {
+                  console.log('Found alternative track:', alt.title);
+                  state.replaceCurrentTrack(alt);
+                  return; // Stop here, don't skip!
+                }
+              } catch (e) {
+                console.error('Failed to find alternative track', e);
+              }
+            }
+            
             setIsLoading(false);
-            // On unplayable track, skip to next to prevent dead lock
-            setTimeout(nextTrack, 1000);
+            // On unplayable track and no alt found, skip to next to prevent dead lock
+            setTimeout(state.nextTrack, 1000);
           },
         },
       });
