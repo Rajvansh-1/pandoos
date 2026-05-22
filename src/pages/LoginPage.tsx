@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useGoogleOneTapLogin } from '@react-oauth/google';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Music2, Sparkles, Zap } from 'lucide-react';
@@ -121,6 +122,7 @@ const FEATURES = [
 /* ─── Main Page ───────────────────────────────────────────────── */
 export function LoginPage() {
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
+  const signInWithGoogleIdToken = useAuthStore((state) => state.signInWithGoogleIdToken);
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
 
@@ -144,6 +146,24 @@ export function LoginPage() {
     const t = setInterval(() => setFeatureIndex(p => (p + 1) % FEATURES.length), 2800);
     return () => clearInterval(t);
   }, []);
+
+  useGoogleOneTapLogin({
+    onSuccess: async (credentialResponse) => {
+      if (credentialResponse.credential && !isAuthenticating) {
+        setIsAuthenticating(true);
+        try {
+          await signInWithGoogleIdToken(credentialResponse.credential);
+        } catch (error) {
+          console.error("One Tap login failed:", error);
+          setIsAuthenticating(false);
+        }
+      }
+    },
+    onError: () => {
+      console.log('One Tap Login Failed');
+    },
+    disabled: showWelcome || isAuthenticating || !!user,
+  });
 
   const handleLogin = async () => {
     if (isAuthenticating) return;

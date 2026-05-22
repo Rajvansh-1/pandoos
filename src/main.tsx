@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelmetProvider } from 'react-helmet-async';
 import { App } from './App';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import './index.css';
 
 // TanStack Query Client
@@ -29,9 +30,11 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
+          <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || '529626065517-rvrjir6ugvkred5ln3vuev30lfnfnsth.apps.googleusercontent.com'}>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </GoogleOAuthProvider>
         </ErrorBoundary>
       </QueryClientProvider>
     </HelmetProvider>

@@ -23,6 +23,8 @@ interface AuthStoreActions {
   signInWithEmail: (email: string) => Promise<void>;
   /** Google OAuth */
   signInWithGoogle: () => Promise<void>;
+  /** Google One Tap ID Token */
+  signInWithGoogleIdToken: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Internal: called by Supabase auth state listener */
   _setSession: (session: Session | null) => void;
@@ -105,6 +107,16 @@ export const useAuthStore = create<AuthStore>()(
         options: { redirectTo: loginRedirectUrl },
       });
       // isLoading will be reset by onAuthStateChange callback
+    },
+
+    signInWithGoogleIdToken: async (token) => {
+      set((state) => { state.isLoading = true; });
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token,
+      });
+      set((state) => { state.isLoading = false; });
+      if (error) throw error;
     },
 
     signOut: async () => {
