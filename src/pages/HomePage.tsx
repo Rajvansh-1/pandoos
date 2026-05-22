@@ -131,6 +131,7 @@ export function HomePage() {
   const { data: chillTracks,    isLoading: isChillLoading }    = useSearch('lofi chill relax aesthetic');
   const { data: workoutTracks,  isLoading: isWorkoutLoading }  = useSearch('heavy workout gym phonk');
   const { data: lateNightTracks,isLoading: isLateLoading }     = useSearch('late night drive synthwave retro');
+  const { data: tseriesTracks,  isLoading: isTseriesLoading }  = useSearch('tseries latest bollywood hits');
 
   const handleMoodClick = (mood: typeof MOODS[0]) => {
     setSelectedMood(mood);
@@ -321,6 +322,20 @@ export function HomePage() {
             badge={`🎵 Because you played ${artistDisplayName}`}
           />
         )}
+
+        {/* T-SERIES LATEST */}
+        <RealmSection
+          title="T-Series Exclusive"
+          description="The latest blockbusters and chart-toppers."
+          gradient="from-red-600 to-red-900"
+          emotion="energy"
+          icon={Flame}
+          tracks={tseriesTracks}
+          isLoading={isTseriesLoading}
+          onPlay={handlePlayTrack}
+          lovedIds={lovedIds}
+          badge="🔥 Top Hits"
+        />
 
         {/* BOLLYWOOD GALA */}
         <RealmSection
