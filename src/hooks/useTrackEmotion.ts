@@ -9,6 +9,7 @@ export function useTrackEmotion(track: Track | null): string {
     const tags = inferTags(track.title, track.artist);
     
     if (tags.isSufi) return 'sufi';
+    if (tags.isDevotional) return 'devotional';
     if (tags.isBollywood) {
       if (tags.energy === 'high') return 'bollywood';
       if (tags.moods.includes('romantic')) return 'romantic';

@@ -6,7 +6,7 @@ import { cn } from '@/utils/cn';
 interface PandaMascotProps {
   className?: string;
   size?: number;
-  emotion?: string; // 'neutral', 'chill', 'energy', 'focus', 'romantic', 'workout', 'happy', 'heartbroken', 'latenight', 'sleepy', 'sufi', 'desi', 'bollywood'
+  emotion?: string; // 'neutral', 'chill', 'energy', 'focus', 'romantic', 'workout', 'happy', 'heartbroken', 'latenight', 'sleepy', 'sufi', 'desi', 'bollywood', 'devotional'
 }
 
 export function PandaMascot({ className, size = 120, emotion = 'neutral' }: PandaMascotProps) {
@@ -17,7 +17,7 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
     if (emotion === 'angry' || emotion === 'workout') return "M85 145 Q100 135 115 145"; // Angry mouth
     if (emotion === 'energy' || emotion === 'happy' || emotion === 'bollywood' || emotion === 'romantic') return "M80 135 Q100 165 120 135"; // Big smile
     if (emotion === 'chill' || emotion === 'latenight' || emotion === 'desi') return "M85 140 Q100 145 115 140"; // Smirk
-    if (emotion === 'sufi') return "M85 145 Q100 150 115 145"; // Soft peaceful smile
+    if (emotion === 'sufi' || emotion === 'devotional') return "M85 145 Q100 150 115 145"; // Soft peaceful smile
     if (emotion === 'sleepy') return "M90 140 Q100 145 110 140"; // Relaxed tiny mouth
     if (emotion === 'focus') return "M85 142 Q100 143 115 142"; // Straight mouth
     if (state === 'listening' || state === 'nodding') return "M100 135 Q85 155 75 140 M100 135 Q115 155 125 140";
@@ -27,7 +27,7 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
   const showGlasses = () => {
     // Only standard black sunglasses
     if (['chill', 'desi'].includes(emotion)) return true;
-    if (state === 'nodding' && !['focus', 'latenight', 'sleepy', 'sufi', 'heartbroken', 'romantic'].includes(emotion)) return true;
+    if (state === 'nodding' && !['focus', 'latenight', 'sleepy', 'sufi', 'devotional', 'heartbroken', 'romantic'].includes(emotion)) return true;
     return false;
   };
 
@@ -69,7 +69,7 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
         <path d="M155 80 C145 65 115 75 120 105 C125 135 160 120 155 80 Z" fill="#111" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
 
         {/* Pupils */}
-        {emotion !== 'sleepy' && emotion !== 'romantic' && emotion !== 'sufi' && emotion !== 'bollywood' && emotion !== 'energy' && (
+        {emotion !== 'sleepy' && emotion !== 'romantic' && emotion !== 'sufi' && emotion !== 'devotional' && emotion !== 'bollywood' && emotion !== 'energy' && (
           <motion.g
             animate={
               state === 'loading' ? { scale: [1, 1.2, 1], opacity: [1, 0.5, 1] } :
@@ -119,8 +119,8 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
           </>
         )}
 
-        {/* Sleepy / Sufi Eyes (Closed) */}
-        {(emotion === 'sleepy' || emotion === 'sufi') && (
+        {/* Sleepy / Sufi / Devotional Eyes (Closed) */}
+        {(emotion === 'sleepy' || emotion === 'sufi' || emotion === 'devotional') && (
           <g stroke="#fff" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.6">
             <path d="M55 95 Q 65 105 75 95" />
             <path d="M125 95 Q 135 105 145 95" />
@@ -192,6 +192,17 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
             stroke="#facc15" strokeWidth="2"
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
+          />
+        )}
+
+        {/* Devotional Tilak */}
+        {emotion === 'devotional' && (
+          <motion.path 
+            d="M95 45 Q100 60 105 45 Z M100 65 A3 3 0 1 0 100 71 A3 3 0 1 0 100 65" 
+            fill="#ea580c" 
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={{ transformOrigin: "100px 55px" }}
           />
         )}
 

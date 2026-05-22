@@ -23,6 +23,7 @@ const MOODS = [
   { id: 'bollywood',   label: 'Bollywood 💫', query: 'bollywood pop romantic hits' },
   { id: 'desi',        label: 'Desi Swag 🔥', query: 'desi hip hop punjabi swag' },
   { id: 'sufi',        label: 'Sufi Soul 🕊️', query: 'sufi ghazal peaceful lo-fi' },
+  { id: 'devotional',  label: 'Devotional 🛕', query: 'bhakti bhajan devotional peaceful' },
   { id: 'chill',       label: 'Chill 🍃',      query: 'lofi chill relax aesthetic' },
   { id: 'energy',      label: 'Energy ⚡',     query: 'high energy upbeat edm hits' },
   { id: 'focus',       label: 'Focus 🧠',      query: 'deep focus ambient electronic' },
@@ -36,7 +37,7 @@ const MOODS = [
 
 const GENRE_LABELS: Record<string, string> = {
   bollywood: 'Bollywood 💫', desi: 'Desi 🔥', punjabi: 'Punjabi 🎵',
-  sufi: 'Sufi 🕊️', lofi: 'Lo-Fi 🍃', electronic: 'Electronic ⚡',
+  sufi: 'Sufi 🕊️', devotional: 'Devotional 🛕', lofi: 'Lo-Fi 🍃', electronic: 'Electronic ⚡',
   rock: 'Rock 🎸', acoustic: 'Acoustic 🎻', pop: 'Pop ✨',
 };
 
@@ -102,6 +103,7 @@ export function HomePage() {
     if (topGenres[0] === 'bollywood') return 'bollywood pop romantic hits';
     if (topGenres[0] === 'desi' || topGenres[0] === 'punjabi') return 'desi hip hop punjabi swag';
     if (topGenres[0] === 'sufi') return 'sufi ghazal peaceful lo-fi';
+    if (topGenres[0] === 'devotional') return 'bhakti bhajan devotional peaceful';
     if (topGenres[0] === 'lofi') return 'lofi chill relax aesthetic';
     if (topGenres[0] === 'rock') return 'rock alternative best hits';
     if (topGenres[0] === 'electronic') return 'high energy upbeat edm hits';
@@ -134,6 +136,7 @@ export function HomePage() {
   const { data: bollywoodTracks,isLoading: isBollyLoading }    = useSearch('bollywood pop romantic hits', shouldLoadMore);
   const { data: desiTracks,     isLoading: isDesiLoading }     = useSearch('desi hip hop punjabi swag', shouldLoadMore);
   const { data: sufiTracks,     isLoading: isSufiLoading }     = useSearch('sufi ghazal peaceful lo-fi', shouldLoadMore);
+  const { data: devotionalTracks, isLoading: isDevotionalLoading } = useSearch('bhakti bhajan devotional peaceful', shouldLoadMore);
   const { data: chillTracks,    isLoading: isChillLoading }    = useSearch('lofi chill relax aesthetic', shouldLoadMore);
   const { data: workoutTracks,  isLoading: isWorkoutLoading }  = useSearch('heavy workout gym phonk', shouldLoadMore);
   const { data: lateNightTracks,isLoading: isLateLoading }     = useSearch('late night drive synthwave retro', shouldLoadMore);
@@ -162,6 +165,7 @@ export function HomePage() {
       bollywood: dedupe(bollywoodTracks),
       desi: dedupe(desiTracks),
       sufi: dedupe(sufiTracks),
+      devotional: dedupe(devotionalTracks),
       chill: dedupe(chillTracks),
       lateNight: dedupe(lateNightTracks),
       workout: dedupe(workoutTracks),
@@ -169,7 +173,7 @@ export function HomePage() {
     };
   }, [
     quickPicks, nowVibeTracks, forYouTracks, moodTracks, artistTracks, tseriesTracks,
-    bollywoodTracks, desiTracks, sufiTracks, chillTracks, lateNightTracks,
+    bollywoodTracks, desiTracks, sufiTracks, devotionalTracks, chillTracks, lateNightTracks,
     workoutTracks, trendingTracks
   ]);
 
@@ -417,6 +421,20 @@ export function HomePage() {
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
           expandMoodId="sufi"
+        />
+
+        {/* DEVOTIONAL DARSHAN */}
+        <RealmSection
+          title="Devotional Darshan"
+          description="Aartis, bhajans, and spiritual connection."
+          gradient="from-orange-600 to-amber-700"
+          emotion="devotional"
+          icon={Sparkles}
+          tracks={deduplicatedLanes.devotional}
+          isLoading={isDevotionalLoading}
+          onPlay={handlePlayTrack}
+          lovedIds={lovedIds}
+          expandMoodId="devotional"
         />
 
         {/* CHILL BAMBOO */}

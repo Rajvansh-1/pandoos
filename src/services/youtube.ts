@@ -37,6 +37,8 @@ export async function searchTracks(query: string): Promise<Track[]> {
     'bollywood pop romantic hits': 'bollywood',
     'desi hip hop punjabi swag': 'desi',
     'sufi ghazal peaceful lo-fi': 'sufi',
+    'bhakti bhajan devotional peaceful': 'devotional',
+    'punjabi hit pop party workout': 'desi',
   };
 
   const normalizedQuery = query.toLowerCase().trim();

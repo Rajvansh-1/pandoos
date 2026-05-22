@@ -41,18 +41,41 @@ export function FullscreenPlayer() {
       isOpen={isPlayerOpen} 
       onClose={closePlayer} 
       fullScreen 
-      className="bg-[#05050A] border-none shadow-none overflow-hidden"
+      className="bg-black border-none shadow-none overflow-hidden"
     >
-      {/* Dynamic ambient background specific to the player */}
-      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none" style={{
-        background: `radial-gradient(circle at 20% 0%, hsl(var(--color-primary)) 0%, transparent 50%),
-                     radial-gradient(circle at 80% 100%, hsl(var(--color-secondary)) 0%, transparent 50%)`,
-        filter: 'blur(80px)'
-      }} />
-      <div className="absolute inset-0 z-0 bg-black/40 pointer-events-none" />
+      {/* Dynamic Deep Base Gradient */}
+      <div 
+        className="absolute inset-0 z-0 transition-colors duration-1000"
+        style={{
+          background: `linear-gradient(to bottom, hsl(var(--color-primary) / 0.15) 0%, #000000 80%)`
+        }}
+      />
 
-      {/* Top light bloom for extra pop */}
-      <div className="absolute top-0 inset-x-0 h-[60vh] bg-brand-primary blur-[100px] transition-colors duration-1000 ease-in-out pointer-events-none mix-blend-screen opacity-30 z-0" />
+      {/* Animated Mesh/Bloom Layers */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div 
+          className="absolute -top-[20%] -left-[20%] w-[140%] h-[140%] opacity-40 mix-blend-screen transition-colors duration-1000 animate-pulse-slow"
+          style={{
+            background: `radial-gradient(circle at 30% 30%, hsl(var(--color-primary) / 0.8) 0%, transparent 50%),
+                         radial-gradient(circle at 70% 70%, hsl(var(--color-secondary) / 0.6) 0%, transparent 60%)`,
+            filter: 'blur(100px)'
+          }} 
+        />
+        <div 
+          className="absolute top-0 inset-x-0 h-[60vh] mix-blend-screen opacity-20 transition-colors duration-1000 animate-pulse-slow"
+          style={{
+            background: `hsl(var(--color-primary))`,
+            filter: 'blur(120px)',
+            animationDelay: '1s' // Desync the pulse
+          }} 
+        />
+      </div>
+
+      {/* Premium Noise Overlay for Texture */}
+      <div 
+        className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none mix-blend-overlay"
+        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
+      />
 
       {/* Main Content: Scrollable vertical stack */}
       <div className="w-full h-full pb-safe relative z-10 overflow-y-auto scroll-container flex flex-col">

@@ -57,6 +57,9 @@ export function buildSearchQuery(track: Track): string {
   if (tags.isSufi) {
     return 'sufi qawwali ghazal best songs';
   }
+  if (tags.isDevotional) {
+    return 'bhakti bhajan aarti best songs';
+  }
   if (tags.isLofi) {
     return 'lofi hip hop chill beats study music';
   }

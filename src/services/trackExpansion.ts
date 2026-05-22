@@ -5,7 +5,8 @@ import { MOOD_SEEDS } from '@/data/moodSeeds';
 const RELATED_MOODS: Record<string, string[]> = {
   bollywood: ['romantic', 'sufi', 'desi'],
   desi:      ['bollywood', 'energy', 'happy'],
-  sufi:      ['bollywood', 'romantic', 'heartbroken'],
+  sufi:      ['bollywood', 'romantic', 'heartbroken', 'devotional'],
+  devotional: ['sufi', 'chill'],
   chill:     ['focus', 'sleepy', 'latenight'],
   energy:    ['workout', 'happy', 'desi'],
   focus:     ['chill', 'sleepy'],

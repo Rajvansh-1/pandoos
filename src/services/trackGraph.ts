@@ -13,6 +13,7 @@ export interface TrackTags {
   isBollywood: boolean;
   isDesi: boolean;
   isSufi: boolean;
+  isDevotional: boolean;
   isLofi: boolean;
   isElectronic: boolean;
   isRock: boolean;
@@ -44,6 +45,11 @@ const SUFI_WORDS = [
   'sufi', 'qawwali', 'ghazal', 'nusrat fateh', 'abida parveen',
   'rahat fateh', 'tajdar', 'kun faya', 'afreen', 'bulleh shah',
   'mast qalandar', 'mast kalander', 'ya ali', 'maula',
+];
+const DEVOTIONAL_WORDS = [
+  'bhakti', 'devotional', 'aarti', 'mantra', 'bhajan', 'kirtan', 
+  'chalisa', 'krishna', 'ram', 'shiv', 'ganesh', 'hanuman', 'mata',
+  'sai', 'gurudwara', 'shabad', 'gurbani', 'waheguru',
 ];
 const LOFI_WORDS = [
   'lofi', 'lo-fi', 'lo fi', 'chill hop', 'chillhop', 'beats to',
@@ -95,18 +101,19 @@ export function inferTags(title: string, artist: string): TrackTags {
   const isBollywood = hasAny(text, BOLLYWOOD_WORDS) || hasAny(text, BOLLYWOOD_ARTISTS);
   const isDesi = hasAny(text, DESI_ARTISTS) || hasAny(text, PUNJABI_WORDS);
   const isSufi = hasAny(text, SUFI_WORDS);
+  const isDevotional = hasAny(text, DEVOTIONAL_WORDS);
   const isLofi = hasAny(text, LOFI_WORDS);
   const isElectronic = hasAny(text, ELECTRONIC_ARTISTS) || text.includes('edm') || text.includes('house');
   const isRock = hasAny(text, ROCK_WORDS);
   const isAcoustic = hasAny(text, ACOUSTIC_WORDS) && !isElectronic && !isRock;
 
   const highEnergy = hasAny(text, HIGH_ENERGY_WORDS) || isRock || (isDesi && !isSufi);
-  const lowEnergy = hasAny(text, LOW_ENERGY_WORDS) || isSufi || isLofi;
+  const lowEnergy = hasAny(text, LOW_ENERGY_WORDS) || isSufi || isLofi || isDevotional;
   const energy: TrackTags['energy'] = highEnergy ? 'high' : lowEnergy ? 'low' : 'medium';
 
   const language: TrackTags['language'] =
     hasAny(text, PUNJABI_WORDS) && !isBollywood ? 'punjabi'
-    : hasAny(text, HINDI_WORDS) || isBollywood ? 'hindi'
+    : hasAny(text, HINDI_WORDS) || isBollywood || isDevotional ? 'hindi'
     : hasAny(text, SUFI_WORDS) ? 'arabic'
     : (isBollywood && isDesi) ? 'mixed'
     : 'english';
@@ -115,6 +122,7 @@ export function inferTags(title: string, artist: string): TrackTags {
   if (isBollywood) genres.push('bollywood');
   if (isDesi) genres.push('desi', 'punjabi');
   if (isSufi) genres.push('sufi', 'qawwali');
+  if (isDevotional) genres.push('devotional', 'bhakti');
   if (isLofi) genres.push('lofi', 'chillhop');
   if (isElectronic) genres.push('electronic', 'edm');
   if (isRock) genres.push('rock');
@@ -124,6 +132,7 @@ export function inferTags(title: string, artist: string): TrackTags {
   const moods: string[] = [];
   if (lowEnergy && isLofi) moods.push('chill', 'focus');
   if (isSufi) moods.push('sufi', 'peaceful', 'spiritual');
+  if (isDevotional) moods.push('devotional', 'peaceful', 'spiritual');
   if (isBollywood && energy === 'medium') moods.push('romantic', 'bollywood');
   if (isDesi && energy === 'high') moods.push('party', 'desi');
   if (isRock || (energy === 'high' && !isBollywood)) moods.push('energy', 'workout');
@@ -140,7 +149,7 @@ export function inferTags(title: string, artist: string): TrackTags {
     : hasAny(text, ['olivia rodrigo', 'billie eilish', 'doja cat', 'ap dhillon', 'kesariya']) ? '20s'
     : 'timeless';
 
-  return { genres, moods, energy, language, era, isBollywood, isDesi, isSufi, isLofi, isElectronic, isRock, isAcoustic };
+  return { genres, moods, energy, language, era, isBollywood, isDesi, isSufi, isDevotional, isLofi, isElectronic, isRock, isAcoustic };
 }
 
 /**
@@ -152,7 +161,7 @@ export function tagSimilarity(a: TrackTags, b: TrackTags): number {
   let total = 0;
 
   // Boolean flags — high weight
-  const boolFields: (keyof TrackTags)[] = ['isBollywood', 'isDesi', 'isSufi', 'isLofi', 'isElectronic', 'isRock', 'isAcoustic'];
+  const boolFields: (keyof TrackTags)[] = ['isBollywood', 'isDesi', 'isSufi', 'isDevotional', 'isLofi', 'isElectronic', 'isRock', 'isAcoustic'];
   for (const f of boolFields) {
     total += 2;
     if (a[f] === b[f]) score += 2;

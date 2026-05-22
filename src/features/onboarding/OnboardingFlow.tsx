@@ -9,6 +9,7 @@ const GENRES = [
   { id: 'bollywood', label: 'Bollywood', icon: '💫' },
   { id: 'desi', label: 'Desi/Punjabi', icon: '🔥' },
   { id: 'sufi', label: 'Sufi', icon: '🕊️' },
+  { id: 'devotional', label: 'Devotional', icon: '🛕' },
   { id: 'lofi', label: 'Lo-Fi/Chill', icon: '🍃' },
   { id: 'electronic', label: 'Electronic/EDM', icon: '⚡' },
   { id: 'rock', label: 'Rock', icon: '🎸' },
