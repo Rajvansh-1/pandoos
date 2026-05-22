@@ -12,6 +12,8 @@ import { Tonearm } from './Tonearm';
 import { SeekBar } from './SeekBar';
 import { PlayerControls } from './PlayerControls';
 import { PlayerOptionsModal } from './PlayerOptionsModal';
+import { PlayerQueueModal } from './PlayerQueueModal';
+import { ListMusic } from 'lucide-react';
 
 export function FullscreenPlayer() {
   const currentTrack = usePlayerStore((state) => state.currentTrack);
@@ -26,6 +28,7 @@ export function FullscreenPlayer() {
   const isLiked = currentTrack ? likedSongs.includes(currentTrack.id) : false;
 
   const [isOptionsOpen, setIsOptionsOpen] = React.useState(false);
+  const [isQueueOpen, setIsQueueOpen] = React.useState(false);
   const [visualMode, setVisualMode] = React.useState<'panda' | 'vinyl'>('vinyl');
   const trackEmotion = useTrackEmotion(currentTrack);
 
@@ -156,8 +159,15 @@ export function FullscreenPlayer() {
           </div>
 
           {/* Controls */}
-          <div className="w-full max-w-lg pb-4 pt-2">
-            <PlayerControls className="scale-105 md:scale-110" />
+          <div className="w-full max-w-lg pb-4 pt-2 flex items-center relative">
+            <PlayerControls className="scale-105 md:scale-110 w-full" />
+            <button 
+              onClick={() => setIsQueueOpen(true)}
+              className="absolute right-0 p-3 text-white/60 hover:text-white transition-colors active:scale-95 touch-highlight"
+              aria-label="Open Queue"
+            >
+              <ListMusic size={24} />
+            </button>
           </div>
         </div>
       </div>
@@ -165,6 +175,10 @@ export function FullscreenPlayer() {
       <PlayerOptionsModal 
         isOpen={isOptionsOpen} 
         onClose={() => setIsOptionsOpen(false)} 
+      />
+      <PlayerQueueModal 
+        isOpen={isQueueOpen} 
+        onClose={() => setIsQueueOpen(false)} 
       />
     </BottomSheet>
   );

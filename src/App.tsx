@@ -4,6 +4,7 @@ import { DesktopLayout } from '@/components/layout/DesktopLayout';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useAudioEngine } from '@/features/player/hooks/useAudioEngine';
+import { useRadioEngine } from '@/features/player/hooks/useRadioEngine';
 import { useMediaSession } from '@/hooks/useMediaSession';
 import { useRecommendEngine } from '@/hooks/useRecommendEngine';
 import { BadgeRevealModal } from '@/features/profile/BadgeRevealModal';
@@ -30,8 +31,9 @@ export function App() {
   // Track if welcome badge was already awarded this session
   const welcomeAwardedRef = useRef(false);
 
-  // Mount singleton hooks
+  // Mount global engines
   useAudioEngine();
+  useRadioEngine();
   useMediaSession();
   useRecommendEngine();
 

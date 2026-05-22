@@ -58,8 +58,12 @@ interface PlayerActions {
   toggleShuffle: () => void;
   /** Add a track to the end of the current queue */
   addToQueue: (track: Track) => void;
+  /** Add multiple tracks to the end of the current queue without altering queueIndex */
+  addTracksToQueue: (tracks: Track[]) => void;
   /** Remove track at queue position `index` */
   removeFromQueue: (index: number) => void;
+  /** Replace the entire queue with a new one */
+  replaceQueue: (queue: Track[]) => void;
   /** Move a track in the queue (for drag-to-reorder) */
   reorderQueue: (fromIndex: number, toIndex: number) => void;
   clearQueue: () => void;
@@ -283,6 +287,16 @@ export const usePlayerStore = create<PlayerStore>()(
         });
       },
 
+      addTracksToQueue: (tracks) => {
+        set((state) => {
+          const existingIds = new Set(state.queue.map(t => t.videoId));
+          const fresh = tracks.filter(t => !existingIds.has(t.videoId));
+          if (fresh.length === 0) return;
+          state.queue.push(...fresh);
+          state.originalQueue.push(...fresh);
+        });
+      },
+
       removeFromQueue: (index) => {
         set((state) => {
           state.queue.splice(index, 1);
@@ -293,6 +307,13 @@ export const usePlayerStore = create<PlayerStore>()(
           if (index < state.queueIndex) {
             state.queueIndex -= 1;
           }
+        });
+      },
+
+      replaceQueue: (newQueue) => {
+        set((state) => {
+          state.queue = newQueue;
+          state.originalQueue = newQueue;
         });
       },
 

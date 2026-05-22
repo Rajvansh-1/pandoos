@@ -27,7 +27,7 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
   const showGlasses = () => {
     // Only standard black sunglasses
     if (['chill', 'desi'].includes(emotion)) return true;
-    if (state === 'nodding' && !['focus', 'latenight', 'sleepy', 'sufi', 'heartbroken'].includes(emotion)) return true;
+    if (state === 'nodding' && !['focus', 'latenight', 'sleepy', 'sufi', 'heartbroken', 'romantic'].includes(emotion)) return true;
     return false;
   };
 
@@ -93,9 +93,9 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
 
         {/* Romantic Heart Eyes */}
         {emotion === 'romantic' && (
-          <motion.g fill="#ef4444" animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.2 }}>
-            <path d="M65 105 Q 50 85 65 75 Q 80 85 65 105" />
-            <path d="M135 105 Q 120 85 135 75 Q 150 85 135 105" />
+          <motion.g fill="#ef4444" animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1.2 }} style={{ transformOrigin: "100px 95px" }}>
+            <path d="M 65 105 C 65 105 53 95 53 87 A 6 6 0 0 1 65 80 A 6 6 0 0 1 77 87 C 77 95 65 105 65 105 Z" />
+            <path d="M 135 105 C 135 105 123 95 123 87 A 6 6 0 0 1 135 80 A 6 6 0 0 1 147 87 C 147 95 135 105 135 105 Z" />
           </motion.g>
         )}
 
