@@ -59,21 +59,29 @@ export async function searchTracks(query: string): Promise<Track[]> {
   }
 
   // Force pure song results
-  const apiQuery = query.toLowerCase().includes('song') || query.toLowerCase().includes('audio') || query.toLowerCase().includes('music')
-    ? query 
-    : `${query} official audio song`;
+  const apiQuery = query === 'TSERIES_LATEST'
+    ? query
+    : (query.toLowerCase().includes('song') || query.toLowerCase().includes('audio') || query.toLowerCase().includes('music')
+      ? query 
+      : `${query} official audio song`);
 
   let res: Response | null = null;
   
-  // Local DEV fallback so `npm run dev` works without Vercel CLI
   if (import.meta.env.DEV && import.meta.env.VITE_YOUTUBE_API_KEY) {
     const ytUrl = new URL('https://www.googleapis.com/youtube/v3/search');
     ytUrl.searchParams.set('part', 'snippet');
-    ytUrl.searchParams.set('q', apiQuery);
     ytUrl.searchParams.set('type', 'video');
     ytUrl.searchParams.set('videoCategoryId', '10'); // Music
     ytUrl.searchParams.set('maxResults', '15');
     ytUrl.searchParams.set('key', import.meta.env.VITE_YOUTUBE_API_KEY as string);
+    
+    if (apiQuery === 'TSERIES_LATEST') {
+      ytUrl.searchParams.set('channelId', 'UCq-Fj5jknLsUf-MWSy4_brA');
+      ytUrl.searchParams.set('order', 'date');
+    } else {
+      ytUrl.searchParams.set('q', apiQuery);
+    }
+    
     res = await fetch(ytUrl.toString());
   } else {
     // Production uses serverless proxy + caching

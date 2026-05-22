@@ -131,7 +131,7 @@ export function HomePage() {
   const { data: chillTracks,    isLoading: isChillLoading }    = useSearch('lofi chill relax aesthetic');
   const { data: workoutTracks,  isLoading: isWorkoutLoading }  = useSearch('heavy workout gym phonk');
   const { data: lateNightTracks,isLoading: isLateLoading }     = useSearch('late night drive synthwave retro');
-  const { data: tseriesTracks,  isLoading: isTseriesLoading }  = useSearch('tseries latest release official music video 2024');
+  const { data: tseriesTracks,  isLoading: isTseriesLoading }  = useSearch('TSERIES_LATEST');
 
   // Deduplicate tracks across lanes top-to-bottom to ensure zero repetitions
   const deduplicatedLanes = useMemo(() => {

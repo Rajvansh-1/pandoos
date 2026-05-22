@@ -52,11 +52,17 @@ export default async function handler(req: Request) {
   try {
     const ytUrl = new URL('https://www.googleapis.com/youtube/v3/search');
     ytUrl.searchParams.set('part', 'snippet');
-    ytUrl.searchParams.set('q', query);
     ytUrl.searchParams.set('type', 'video');
     ytUrl.searchParams.set('videoCategoryId', '10'); // Music
     ytUrl.searchParams.set('maxResults', '15');
     ytUrl.searchParams.set('key', ytApiKey);
+
+    if (query === 'TSERIES_LATEST') {
+      ytUrl.searchParams.set('channelId', 'UCq-Fj5jknLsUf-MWSy4_brA');
+      ytUrl.searchParams.set('order', 'date');
+    } else {
+      ytUrl.searchParams.set('q', query);
+    }
 
     let ytRes = await fetch(ytUrl.toString());
     
