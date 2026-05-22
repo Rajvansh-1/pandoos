@@ -79,7 +79,7 @@ export function PandaLoader() {
           68%     { transform: rotate(12deg);  }
         }
 
-        /* ═══ STARS — opacity only, no `r` property ═════════ */
+        /* ═══ STARS — opacity only, no r property ═════════ */
         .st { animation: pl-stw 2s ease-in-out infinite; }
         .st:nth-child(2)  { animation-duration: 2.5s; animation-delay: 0.3s; }
         .st:nth-child(3)  { animation-duration: 1.8s; animation-delay: 0.7s; }
