@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Music2, Sparkles, Zap } from 'lucide-react';
+import { WelcomeTransition } from '@/features/auth/components/WelcomeTransition';
 
 /* ─── Floating Bamboo Leaf ────────────────────────────────────── */
 interface Leaf {
@@ -127,10 +128,17 @@ export function LoginPage() {
   const [isHovering, setIsHovering] = useState(false);
   const [featureIndex, setFeatureIndex] = useState(0);
   const [leaves] = useState<Leaf[]>(generateLeaves);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   useEffect(() => {
-    if (user) navigate('/');
-  }, [user, navigate]);
+    if (user && !showWelcome) {
+      setShowWelcome(true);
+      // Wait for the welcome animation to complete before navigating
+      setTimeout(() => {
+        navigate('/');
+      }, 2800);
+    }
+  }, [user, navigate, showWelcome]);
 
   useEffect(() => {
     const t = setInterval(() => setFeatureIndex(p => (p + 1) % FEATURES.length), 2800);
@@ -156,6 +164,12 @@ export function LoginPage() {
         <title>Login | Pandoos</title>
         <meta name="description" content="Sign in to Pandoos — mood-adaptive music powered by your inner panda." />
       </Helmet>
+
+      <AnimatePresence>
+        {showWelcome && user && (
+          <WelcomeTransition key="welcome" username={user.username} />
+        )}
+      </AnimatePresence>
 
       {/* ── Background gradients ── */}
       <div

@@ -83,10 +83,11 @@ export const useAuthStore = create<AuthStore>()(
       let redirectUrl = import.meta.env.VITE_SITE_URL || import.meta.env.VITE_VERCEL_URL || window.location.origin;
       redirectUrl = redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`;
       redirectUrl = redirectUrl.endsWith('/') ? redirectUrl : `${redirectUrl}/`;
+      const loginRedirectUrl = `${redirectUrl}login`;
 
       await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: redirectUrl },
+        options: { emailRedirectTo: loginRedirectUrl },
       });
       set((state) => { state.isLoading = false; });
     },
@@ -97,10 +98,11 @@ export const useAuthStore = create<AuthStore>()(
       let redirectUrl = import.meta.env.VITE_SITE_URL || import.meta.env.VITE_VERCEL_URL || window.location.origin;
       redirectUrl = redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`;
       redirectUrl = redirectUrl.endsWith('/') ? redirectUrl : `${redirectUrl}/`;
+      const loginRedirectUrl = `${redirectUrl}login`;
 
       await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: redirectUrl },
+        options: { redirectTo: loginRedirectUrl },
       });
       // isLoading will be reset by onAuthStateChange callback
     },
