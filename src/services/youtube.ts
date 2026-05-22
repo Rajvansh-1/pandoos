@@ -100,6 +100,7 @@ export async function searchTracks(query: string): Promise<Track[]> {
 
   // 2. Client-side fallback to Unofficial YouTube Music API
   try {
+    // @ts-ignore
     const YoutubeMusicApi = (await import('youtube-music-api')).default;
     const api = new YoutubeMusicApi();
     await api.initalize();

@@ -18,7 +18,6 @@ const GENRES = [
 
 export function OnboardingFlow() {
   const user = useAuthStore(state => state.user);
-  const updateUsername = useAuthStore(state => state.updateUsername);
   const setTopGenres = useTasteStore(state => state.setTopGenres);
   
   // Local state
@@ -34,7 +33,6 @@ export function OnboardingFlow() {
   const handleNextStep1 = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim()) {
-      updateUsername(name);
       setStep(2);
     }
   };

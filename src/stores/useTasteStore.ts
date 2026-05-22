@@ -34,6 +34,7 @@ interface TasteActions {
   getAffinityScore(track: Track): number;
   isSkipped(videoId: string): boolean;
   resetTaste(): void;
+  setTopGenres(genres: string[]): void;
 }
 
 type TasteStore = TasteState & TasteActions;
@@ -148,6 +149,16 @@ export const useTasteStore = create<TasteStore>()(
           state.recentArtists = [];
           state.topGenres = [];
           state.topArtists = [];
+        });
+      },
+
+      setTopGenres(genres) {
+        set(state => {
+          state.topGenres = genres;
+          // Seed genre affinity so recommendations work immediately
+          genres.forEach(g => {
+            state.genreAffinity[g] = 5;
+          });
         });
       },
     })),
