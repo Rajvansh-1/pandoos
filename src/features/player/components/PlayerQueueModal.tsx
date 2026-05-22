@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { X, Play, Shuffle, GripVertical, Trash2 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { TrackImage } from '@/components/shared/TrackImage';
@@ -9,6 +9,70 @@ import type { Track } from '@/types/track';
 interface PlayerQueueModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function QueueItem({ track, absoluteIndex, queue, playTrack, removeFromQueue, handleDragEnd }: any) {
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item 
+      value={track}
+      onDragEnd={handleDragEnd}
+      dragListener={false}
+      dragControls={dragControls}
+      className="flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-2xl transition-all group relative overflow-hidden hover:bg-white/5 bg-transparent"
+      whileDrag={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.1)", zIndex: 50, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
+    >
+      <div 
+        className="p-3 -ml-3 text-white/20 hover:text-white/50 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center shrink-0"
+        onPointerDown={(e) => dragControls.start(e)}
+        style={{ touchAction: "none" }}
+      >
+        <GripVertical size={20} />
+      </div>
+      
+      {/* Track Image */}
+      <div 
+        className="relative w-12 h-12 shrink-0 cursor-pointer rounded-xl overflow-hidden shadow-md"
+        onClick={() => playTrack(track, queue)}
+      >
+        <TrackImage 
+          videoId={track.videoId} 
+          title={track.title} 
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+        />
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Play size={20} className="text-white fill-white" />
+        </div>
+      </div>
+
+      {/* Track Info */}
+      <div 
+        className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer py-1"
+        onClick={() => playTrack(track, queue)}
+      >
+        <h4 className="text-base font-bold truncate text-white">
+          {track.title}
+        </h4>
+        <p className="text-sm text-white/50 truncate">
+          {track.artist}
+        </p>
+      </div>
+
+      {/* Remove Control */}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (absoluteIndex >= 0) removeFromQueue(absoluteIndex);
+          }}
+          className="p-2 rounded-full text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors touch-highlight"
+        >
+          <Trash2 size={18} />
+        </button>
+      </div>
+    </Reorder.Item>
+  );
 }
 
 export function PlayerQueueModal({ isOpen, onClose }: PlayerQueueModalProps) {
@@ -121,60 +185,17 @@ export function PlayerQueueModal({ isOpen, onClose }: PlayerQueueModalProps) {
               {/* Up Next List (Draggable) */}
               <Reorder.Group axis="y" values={localUpcoming} onReorder={handleReorder} className="space-y-1">
                 {localUpcoming.map((track) => {
-                  // We need the absolute index for removeFromQueue
                   const absoluteIndex = queue.findIndex(t => t.videoId === track.videoId);
-                  
                   return (
-                    <Reorder.Item 
+                    <QueueItem
                       key={track.videoId}
-                      value={track}
-                      onDragEnd={handleDragEnd}
-                      className="flex items-center gap-3 p-3 rounded-2xl transition-all group relative overflow-hidden hover:bg-white/5 bg-transparent cursor-grab active:cursor-grabbing"
-                      whileDrag={{ scale: 1.02, backgroundColor: "rgba(255,255,255,0.1)", zIndex: 50, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
-                    >
-                      <GripVertical size={20} className="text-white/20 group-hover:text-white/50 cursor-grab shrink-0" />
-                      
-                      {/* Track Image */}
-                      <div 
-                        className="relative w-12 h-12 shrink-0 cursor-pointer rounded-xl overflow-hidden shadow-md"
-                        onClick={() => playTrack(track, queue)}
-                      >
-                        <TrackImage 
-                          videoId={track.videoId} 
-                          title={track.title} 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
-                        />
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Play size={20} className="text-white fill-white" />
-                        </div>
-                      </div>
-
-                      {/* Track Info */}
-                      <div 
-                        className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer"
-                        onClick={() => playTrack(track, queue)}
-                      >
-                        <h4 className="text-base font-bold truncate text-white">
-                          {track.title}
-                        </h4>
-                        <p className="text-sm text-white/50 truncate">
-                          {track.artist}
-                        </p>
-                      </div>
-
-                      {/* Remove Control */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (absoluteIndex >= 0) removeFromQueue(absoluteIndex);
-                          }}
-                          className="p-2 rounded-full text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </Reorder.Item>
+                      track={track}
+                      absoluteIndex={absoluteIndex}
+                      queue={queue}
+                      playTrack={playTrack}
+                      removeFromQueue={removeFromQueue}
+                      handleDragEnd={handleDragEnd}
+                    />
                   );
                 })}
               </Reorder.Group>
