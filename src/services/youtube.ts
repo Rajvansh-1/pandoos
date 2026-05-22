@@ -82,7 +82,20 @@ export async function searchTracks(query: string): Promise<Track[]> {
 
   if (res && res.ok) {
     const data = (await res.json()) as { items: YouTubeSearchItem[] };
-    return (data.items ?? []).map(mapSearchItemToTrack);
+    let mapped = (data.items ?? []).map(mapSearchItemToTrack);
+    
+    // Aggressive client-side filtering to guarantee a pure music experience
+    mapped = mapped.filter(track => {
+      const titleLower = track.title.toLowerCase();
+      const forbiddenTerms = [
+        '#shorts', 'tutorial', 'episode', 'podcast', 'interview', 
+        'vlog', 'review', 'unboxing', 'reaction', 'gameplay', 
+        'how to', 'full match', 'highlights'
+      ];
+      return !forbiddenTerms.some(term => titleLower.includes(term));
+    });
+    
+    return mapped;
   }
 
   // 2. Client-side fallback if no API key in DEV or API fails
