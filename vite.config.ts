@@ -13,7 +13,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // workbox pre-caches the app shell so first load is instant offline
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,webp}'],
         // Cache music-related API responses and fonts for offline fallback
         runtimeCaching: [
           {
@@ -22,6 +22,7 @@ export default defineConfig({
             options: {
               cacheName: 'youtube-thumbnails',
               expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 }, // 30 days
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
@@ -38,6 +39,15 @@ export default defineConfig({
               cacheName: 'google-fonts-webfonts',
               expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 }, // 1 year
               cacheableResponse: { statuses: [0, 200] }
+            }
+          },
+          {
+            urlPattern: /\/api\/(search|trending).*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pandoos-api-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 }, // 1 day
+              networkTimeoutSeconds: 3, // fallback to cache quickly if network is slow
             }
           }
         ],

@@ -4,13 +4,13 @@ import { QUERY_KEYS } from '@/utils/constants';
 
 /**
  * Hook for YouTube search with TanStack Query caching.
- * Enabled only when query length > 2.
+ * Enabled only when query length > 2 and explicitly allowed.
  */
-export function useSearch(query: string) {
+export function useSearch(query: string, enabled: boolean = true) {
   return useQuery({
     queryKey: QUERY_KEYS.search(query),
     queryFn: () => searchTracks(query),
-    enabled: query.trim().length > 2,
+    enabled: query.trim().length > 2 && enabled,
     staleTime: 1000 * 60 * 60, // 1 hour — search results don't change fast
     gcTime: 1000 * 60 * 60 * 24, // 24 hours
     retry: 1,
@@ -21,10 +21,11 @@ export function useSearch(query: string) {
  * Hook for fetching trending music.
  * Used on the Home page.
  */
-export function useTrending() {
+export function useTrending(enabled: boolean = true) {
   return useQuery({
     queryKey: QUERY_KEYS.trending,
     queryFn: getTrendingTracks,
+    enabled,
     staleTime: 1000 * 60 * 60 * 6, // 6 hours
     gcTime: 1000 * 60 * 60 * 24,
     retry: 2,

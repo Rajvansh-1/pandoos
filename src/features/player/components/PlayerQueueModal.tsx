@@ -88,9 +88,9 @@ export function PlayerQueueModal({ isOpen, onClose }: PlayerQueueModalProps) {
   // Use local state for dragging to guarantee 60fps smoothness
   const [localUpcoming, setLocalUpcoming] = useState<Track[]>([]);
 
-  // Sync local state when the underlying global queue changes
+  // Sync local state when the underlying global queue changes, limited to 30 to keep UI lightning fast
   React.useEffect(() => {
-    setLocalUpcoming(queue.slice(queueIndex + 1));
+    setLocalUpcoming(queue.slice(queueIndex + 1, queueIndex + 1 + 30));
   }, [queue, queueIndex]);
 
   const handleReorder = (newUpcoming: Track[]) => {
@@ -99,8 +99,9 @@ export function PlayerQueueModal({ isOpen, onClose }: PlayerQueueModalProps) {
   };
 
   const handleDragEnd = () => {
-    // Commit to global store only when drag is finished
-    const newQueue = [...queue.slice(0, queueIndex + 1), ...localUpcoming];
+    // Commit to global store only when drag is finished, merging back the rest of the un-rendered queue
+    const unrenderedTail = queue.slice(queueIndex + 1 + 30);
+    const newQueue = [...queue.slice(0, queueIndex + 1), ...localUpcoming, ...unrenderedTail];
     replaceQueue(newQueue);
   };
 

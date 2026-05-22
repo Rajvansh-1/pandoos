@@ -24,12 +24,17 @@ export function MiniPlayer() {
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 50, opacity: 0 }}
-        className="w-full h-[var(--mini-player-height)] glass-mood rounded-xl overflow-hidden relative touch-none flex items-center shadow-lg will-animate"
+        className="w-full h-[var(--mini-player-height)] bg-[#0A0A0F]/80 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden relative touch-none flex items-center shadow-2xl will-animate"
         onClick={openPlayer}
       >
+        {/* Subtle dynamic ambient glow inside the mini player */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{
+          background: `radial-gradient(circle at 0% 50%, hsl(var(--color-primary)) 0%, transparent 70%)`
+        }} />
+
         {/* Background Progress Bar */}
         <div 
-          className="absolute bottom-0 left-0 h-1 bg-brand-primary/80 transition-all duration-100 ease-linear z-10"
+          className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-brand-primary to-brand-secondary transition-all duration-100 ease-linear z-10"
           style={{ width: `${progress * 100}%` }}
         />
 

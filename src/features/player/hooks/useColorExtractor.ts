@@ -26,6 +26,7 @@ export function useColorExtractor() {
     }
 
     let isMounted = true;
+    let timeoutId: number;
 
     async function runExtraction() {
       setIsExtracting(true);
@@ -52,10 +53,14 @@ export function useColorExtractor() {
       }
     }
 
-    runExtraction();
+    // Delay extraction slightly to ensure the player UI animation finishes rendering first, preventing lag
+    timeoutId = window.setTimeout(() => {
+      runExtraction();
+    }, 300);
 
     return () => {
       isMounted = false;
+      clearTimeout(timeoutId);
     };
   }, [currentTrack?.videoId, applyColors, resetToDefault, setIsExtracting]);
 }

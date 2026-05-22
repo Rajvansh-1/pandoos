@@ -212,18 +212,6 @@ export function useAudioEngine() {
     setIsLoading(true);
   }, [currentTrack?.videoId]);
 
-  // 4. React to Play/Pause (when toggled via UI without changing track)
-  useEffect(() => {
-    if (!playerRef.current || !currentTrack) return;
-    if (typeof playerRef.current.getPlayerState !== 'function') return;
-    
-    const state = playerRef.current.getPlayerState();
-    if (isPlaying && state !== window.YT.PlayerState.PLAYING && state !== window.YT.PlayerState.BUFFERING) {
-      playerRef.current.playVideo();
-    } else if (!isPlaying && state === window.YT.PlayerState.PLAYING) {
-      playerRef.current.pauseVideo();
-    }
-  }, [isPlaying, currentTrack]);
 
   // 5. React to Volume/Mute Changes
   useEffect(() => {
@@ -231,12 +219,29 @@ export function useAudioEngine() {
     if (typeof playerRef.current.setVolume !== 'function') return;
     
     playerRef.current.setVolume(volume * 100);
+    
     if (isMuted) {
       if (typeof playerRef.current.mute === 'function') playerRef.current.mute();
     } else {
       if (typeof playerRef.current.unMute === 'function') playerRef.current.unMute();
     }
   }, [volume, isMuted]);
+
+  // Handle Play/Pause
+  useEffect(() => {
+    if (!playerRef.current || !currentTrack) return;
+    if (typeof playerRef.current.getPlayerState !== 'function') return;
+    
+    const state = playerRef.current.getPlayerState();
+    
+    if (isPlaying && state !== window.YT.PlayerState.PLAYING && state !== window.YT.PlayerState.BUFFERING) {
+      // Ensure volume is correctly set when resuming
+      playerRef.current.setVolume(volume * 100);
+      playerRef.current.playVideo();
+    } else if (!isPlaying && state === window.YT.PlayerState.PLAYING) {
+      playerRef.current.pauseVideo();
+    }
+  }, [isPlaying, currentTrack, volume]);
 
   // 6. React to UI Seeking
   // We use a ref to track the last programmatic progress so we don't seek loop

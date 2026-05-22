@@ -14,6 +14,7 @@ import { buildSearchQuery } from '@/services/recommendEngine';
 import { getPersonalizedTracklist, getExpandedTracklist } from '@/services/trackExpansion';
 import { TrackImage } from '@/components/shared/TrackImage';
 import type { Track } from '@/types/track';
+import { useInView } from '@/hooks/useInView';
 
 // Stable session seed so shuffles are consistent until page refresh
 const SESSION_SEED = Date.now();
@@ -120,18 +121,23 @@ export function HomePage() {
   }, [currentTrack?.videoId]);
 
   // Searches
-  const { data: moodTracks,     isLoading: isMoodLoading }     = useSearch(customQuery);
-  const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending();
-  const { data: forYouTracks,   isLoading: isForYouLoading }   = useSearch(isPersonalized ? forYouQuery : '');
-  const { data: artistTracks,   isLoading: isArtistLoading }   = useSearch(recentArtist ? `${recentArtist} top songs` : '');
+  const { ref: loadMoreRef, isInView: shouldLoadMore } = useInView({ rootMargin: '600px' });
+
+  // Immediate Searches (Top sections)
   const { data: nowVibeTracks,  isLoading: isNowVibeLoading }  = useSearch(nowVibeQuery ?? '');
-  const { data: bollywoodTracks,isLoading: isBollyLoading }    = useSearch('bollywood pop romantic hits');
-  const { data: desiTracks,     isLoading: isDesiLoading }     = useSearch('desi hip hop punjabi swag');
-  const { data: sufiTracks,     isLoading: isSufiLoading }     = useSearch('sufi ghazal peaceful lo-fi');
-  const { data: chillTracks,    isLoading: isChillLoading }    = useSearch('lofi chill relax aesthetic');
-  const { data: workoutTracks,  isLoading: isWorkoutLoading }  = useSearch('heavy workout gym phonk');
-  const { data: lateNightTracks,isLoading: isLateLoading }     = useSearch('late night drive synthwave retro');
-  const { data: tseriesTracks,  isLoading: isTseriesLoading }  = useSearch('TSERIES_LATEST');
+  const { data: forYouTracks,   isLoading: isForYouLoading }   = useSearch(isPersonalized ? forYouQuery : '');
+  const { data: moodTracks,     isLoading: isMoodLoading }     = useSearch(customQuery);
+  const { data: artistTracks,   isLoading: isArtistLoading }   = useSearch(recentArtist ? `${recentArtist} top songs` : '');
+
+  // Lazy Searches (Bottom sections) - Only enabled when scrolling down
+  const { data: tseriesTracks,  isLoading: isTseriesLoading }  = useSearch('TSERIES_LATEST', shouldLoadMore);
+  const { data: bollywoodTracks,isLoading: isBollyLoading }    = useSearch('bollywood pop romantic hits', shouldLoadMore);
+  const { data: desiTracks,     isLoading: isDesiLoading }     = useSearch('desi hip hop punjabi swag', shouldLoadMore);
+  const { data: sufiTracks,     isLoading: isSufiLoading }     = useSearch('sufi ghazal peaceful lo-fi', shouldLoadMore);
+  const { data: chillTracks,    isLoading: isChillLoading }    = useSearch('lofi chill relax aesthetic', shouldLoadMore);
+  const { data: workoutTracks,  isLoading: isWorkoutLoading }  = useSearch('heavy workout gym phonk', shouldLoadMore);
+  const { data: lateNightTracks,isLoading: isLateLoading }     = useSearch('late night drive synthwave retro', shouldLoadMore);
+  const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending(shouldLoadMore);
 
   // Deduplicate tracks across lanes top-to-bottom to ensure zero repetitions
   const deduplicatedLanes = useMemo(() => {
@@ -213,9 +219,6 @@ export function HomePage() {
               </span>
             )}
           </div>
-        </div>
-        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-br from-brand-primary to-brand-secondary flex items-center justify-center shadow-glow-sm cursor-pointer hover:scale-105 transition-transform">
-          <span className="text-white font-bold text-lg">P</span>
         </div>
       </header>
 
@@ -356,6 +359,9 @@ export function HomePage() {
             badge={`🎵 Because you played ${artistDisplayName}`}
           />
         )}
+
+        {/* --- INVISIBLE SPACER FOR LAZY LOADING BOTTOM SECTIONS --- */}
+        <div ref={loadMoreRef} className="w-full h-1" />
 
         {/* T-SERIES LATEST */}
         <RealmSection

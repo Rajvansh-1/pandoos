@@ -13,6 +13,7 @@ import { SeekBar } from './SeekBar';
 import { PlayerControls } from './PlayerControls';
 import { PlayerOptionsModal } from './PlayerOptionsModal';
 import { PlayerQueueModal } from './PlayerQueueModal';
+import { LyricsView } from './LyricsView';
 import { ListMusic } from 'lucide-react';
 
 export function FullscreenPlayer() {
@@ -40,42 +41,69 @@ export function FullscreenPlayer() {
       isOpen={isPlayerOpen} 
       onClose={closePlayer} 
       fullScreen 
-      className="mood-bg border-none shadow-none"
+      className="bg-[#05050A] border-none shadow-none overflow-hidden"
     >
+      {/* Dynamic ambient background specific to the player */}
+      <div className="absolute inset-0 z-0 opacity-40 pointer-events-none" style={{
+        background: `radial-gradient(circle at 20% 0%, hsl(var(--color-primary)) 0%, transparent 50%),
+                     radial-gradient(circle at 80% 100%, hsl(var(--color-secondary)) 0%, transparent 50%)`,
+        filter: 'blur(80px)'
+      }} />
+      <div className="absolute inset-0 z-0 bg-black/40 pointer-events-none" />
+
       {/* Top light bloom for extra pop */}
-      <div className="absolute top-0 inset-x-0 h-[60vh] bg-brand-primary blur-[100px] transition-colors duration-1000 ease-in-out pointer-events-none mix-blend-screen opacity-50 z-0" />
+      <div className="absolute top-0 inset-x-0 h-[60vh] bg-brand-primary blur-[100px] transition-colors duration-1000 ease-in-out pointer-events-none mix-blend-screen opacity-30 z-0" />
 
-
-      {/* Main Content: Flexible vertical stack */}
-      <div className="w-full h-full flex flex-col pb-safe">
+      {/* Main Content: Scrollable vertical stack */}
+      <div className="w-full h-full pb-safe relative z-10 overflow-y-auto scroll-container flex flex-col">
+        
+        {/* Full Viewport 1: Main Player */}
+        <div className="h-full min-h-full w-full flex flex-col shrink-0 pt-2">
         
         {/* Top Header */}
         <div className="w-full flex items-center justify-between px-6 pt-safe mt-2 pb-2 shrink-0 z-50">
           <button 
             onClick={closePlayer}
-            className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all active:scale-95 touch-highlight"
+            className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all active:scale-95 touch-highlight backdrop-blur-md"
             aria-label="Close Player"
           >
             <ChevronDown size={32} />
           </button>
-          <span className="text-xs md:text-sm font-bold tracking-[0.2em] text-brand-primary uppercase drop-shadow-lg text-center px-4 flex flex-col items-center gap-1">
+          <span className="text-xs md:text-sm font-bold tracking-[0.2em] text-white/90 uppercase drop-shadow-lg text-center px-4 flex flex-col items-center gap-1">
             Now Playing
-            {sleepTimerEnd && <span className="text-[10px] text-indigo-300 normal-case tracking-normal">Sleep Timer Active 💤</span>}
+            {sleepTimerEnd && <span className="text-[10px] text-brand-primary normal-case tracking-normal">Sleep Timer Active 💤</span>}
           </span>
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                if (navigator.share && currentTrack) {
+                  navigator.share({
+                    title: `Listen to ${currentTrack.title} on Pandoos`,
+                    text: `I'm vibing to ${currentTrack.title} by ${currentTrack.artist} on Pandoos!`,
+                    url: window.location.href,
+                  }).catch(console.error);
+                } else {
+                  alert("Sharing not supported on this browser.");
+                }
+              }}
+              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all active:scale-95 touch-highlight backdrop-blur-md hidden sm:flex"
+              aria-label="Share Track"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+            </button>
             <button 
               onClick={() => setVisualMode(v => v === 'vinyl' ? 'panda' : 'vinyl')}
               className={`h-10 px-3 md:px-4 rounded-full flex items-center gap-1.5 md:gap-2 font-bold text-xs md:text-sm transition-all duration-300 active:scale-95 touch-highlight border ${
                 visualMode === 'vinyl' 
-                  ? 'bg-gradient-to-r from-brand-primary via-purple-500 to-brand-secondary text-white border-white/30 animate-[pulse_2s_ease-in-out_infinite] hover:scale-105 shadow-glow-md' 
-                  : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white border-transparent'
+                  ? 'bg-gradient-to-r from-brand-primary via-purple-500 to-brand-secondary text-white border-white/30 hover:scale-105 shadow-glow-md' 
+                  : 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white border-transparent backdrop-blur-md'
               }`}
               aria-label="Toggle Visual Mode"
             >
               {visualMode === 'vinyl' ? (
                 <>
                   <span className="text-base md:text-lg animate-bounce" style={{ animationDuration: '2s' }}>🐼</span>
-                  <span>Panda View</span>
+                  <span className="hidden md:inline">Panda View</span>
                 </>
               ) : (
                 <>
@@ -86,7 +114,7 @@ export function FullscreenPlayer() {
             </button>
             <button 
               onClick={() => setIsOptionsOpen(true)}
-              className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-white transition-all active:scale-95 touch-highlight"
+              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all active:scale-95 touch-highlight backdrop-blur-md"
             >
               <MoreVertical size={24} />
             </button>
@@ -170,6 +198,21 @@ export function FullscreenPlayer() {
             </button>
           </div>
         </div>
+        </div>
+
+        {/* Full Viewport 2: Lyrics Section (Scroll down to see) */}
+        <div className="min-h-full w-full flex flex-col items-center justify-start pt-12 px-4 pb-24 shrink-0">
+          <div className="flex flex-col items-center mb-8 animate-bounce opacity-50">
+             <ChevronDown size={24} className="text-white" />
+          </div>
+          <h3 className="text-white/40 text-sm font-bold tracking-[0.3em] uppercase mb-6 flex items-center gap-2">
+            <ListMusic size={16} /> Lyrics
+          </h3>
+          <div className="w-full flex-1 max-h-[70vh] max-w-2xl mx-auto rounded-[2rem] overflow-hidden bg-black/20 backdrop-blur-xl border border-white/5 shadow-2xl">
+            <LyricsView />
+          </div>
+        </div>
+
       </div>
 
       <PlayerOptionsModal 
