@@ -71,6 +71,11 @@ export const MOOD_SEEDS: Record<string, Track[]> = {
     t('SvGlQTGKYkw', 'Sai Chi Dhoop Aarti', 'Pramod Medhi'),
     t('-iJSPrVfWBI', 'Shri Santoshimata Amritwani', 'Anuradha Paudwal'),
     t('wmT1yGLtxt0', 'Shree Durga Stuti Path', 'Shekhar Sen'),
+    t('Y5BWRFPuqAw', 'Jai Ganesh Jai Ganesh Deva', 'Anuradha Paudwal'),
+    t('6UOjUW7GKGQ', 'Om Jai Jagdish Hare – Aarti', 'Anuradha Paudwal'),
+    t('SiSc0VqYRyk', 'Hanuman Chalisa', 'Hariharan'),
+    t('Y-Bc3hMZdxI', 'Jai Ambe Gauri', 'Lakhbir Singh Lakkha'),
+    t('_fmA1RoHbzA', 'Kun Faya Kun – Rockstar', 'A.R. Rahman'),
   ],
   chill: [
     t('kAw9xGI8vgk', 'Lofi Hip Hop Radio – Relax/Study', 'Lofi Girl'),
