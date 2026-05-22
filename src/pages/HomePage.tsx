@@ -131,7 +131,41 @@ export function HomePage() {
   const { data: chillTracks,    isLoading: isChillLoading }    = useSearch('lofi chill relax aesthetic');
   const { data: workoutTracks,  isLoading: isWorkoutLoading }  = useSearch('heavy workout gym phonk');
   const { data: lateNightTracks,isLoading: isLateLoading }     = useSearch('late night drive synthwave retro');
-  const { data: tseriesTracks,  isLoading: isTseriesLoading }  = useSearch('tseries latest bollywood hits');
+  const { data: tseriesTracks,  isLoading: isTseriesLoading }  = useSearch('tseries latest release official music video 2024');
+
+  // Deduplicate tracks across lanes top-to-bottom to ensure zero repetitions
+  const deduplicatedLanes = useMemo(() => {
+    const seen = new Set<string>();
+
+    // We also don't want to repeat tracks that are already in quickPicks
+    quickPicks.forEach(t => seen.add(t.videoId));
+
+    const dedupe = (tracks?: Track[]) => {
+      if (!tracks) return undefined;
+      const unique = tracks.filter(t => !seen.has(t.videoId));
+      unique.forEach(t => seen.add(t.videoId));
+      return unique;
+    };
+
+    return {
+      nowVibe: dedupe(nowVibeTracks),
+      forYou: dedupe(forYouTracks),
+      oracle: dedupe(moodTracks),
+      artist: dedupe(artistTracks),
+      tseries: dedupe(tseriesTracks),
+      bollywood: dedupe(bollywoodTracks),
+      desi: dedupe(desiTracks),
+      sufi: dedupe(sufiTracks),
+      chill: dedupe(chillTracks),
+      lateNight: dedupe(lateNightTracks),
+      workout: dedupe(workoutTracks),
+      trending: dedupe(trendingTracks),
+    };
+  }, [
+    quickPicks, nowVibeTracks, forYouTracks, moodTracks, artistTracks, tseriesTracks,
+    bollywoodTracks, desiTracks, sufiTracks, chillTracks, lateNightTracks,
+    workoutTracks, trendingTracks
+  ]);
 
   const handleMoodClick = (mood: typeof MOODS[0]) => {
     setSelectedMood(mood);
@@ -253,7 +287,7 @@ export function HomePage() {
             gradient="from-violet-600 to-fuchsia-700"
             emotion="energy"
             icon={Radio}
-            tracks={nowVibeTracks}
+            tracks={deduplicatedLanes.nowVibe}
             isLoading={isNowVibeLoading}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
@@ -270,7 +304,7 @@ export function HomePage() {
             gradient="from-brand-primary to-brand-secondary"
             emotion={selectedMood.id}
             icon={Heart}
-            tracks={forYouTracks}
+            tracks={deduplicatedLanes.forYou}
             isLoading={isForYouLoading}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
@@ -286,7 +320,7 @@ export function HomePage() {
           gradient="from-indigo-600 to-purple-700"
           emotion={selectedMood.id}
           icon={Sparkles}
-          tracks={moodTracks}
+          tracks={deduplicatedLanes.oracle}
           isLoading={isMoodLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
@@ -315,7 +349,7 @@ export function HomePage() {
             gradient="from-cyan-600 to-blue-700"
             emotion="focus"
             icon={Compass}
-            tracks={artistTracks}
+            tracks={deduplicatedLanes.artist}
             isLoading={isArtistLoading}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
@@ -330,7 +364,7 @@ export function HomePage() {
           gradient="from-red-600 to-red-900"
           emotion="energy"
           icon={Flame}
-          tracks={tseriesTracks}
+          tracks={deduplicatedLanes.tseries}
           isLoading={isTseriesLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
@@ -344,7 +378,7 @@ export function HomePage() {
           gradient="from-pink-600 to-amber-600"
           emotion="bollywood"
           icon={Sparkles}
-          tracks={bollywoodTracks}
+          tracks={deduplicatedLanes.bollywood}
           isLoading={isBollyLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
@@ -358,7 +392,7 @@ export function HomePage() {
           gradient="from-yellow-500 to-red-600"
           emotion="desi"
           icon={Zap}
-          tracks={desiTracks}
+          tracks={deduplicatedLanes.desi}
           isLoading={isDesiLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
@@ -372,7 +406,7 @@ export function HomePage() {
           gradient="from-indigo-800 to-purple-900"
           emotion="sufi"
           icon={Moon}
-          tracks={sufiTracks}
+          tracks={deduplicatedLanes.sufi}
           isLoading={isSufiLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
@@ -386,7 +420,7 @@ export function HomePage() {
           gradient="from-emerald-700 to-teal-900"
           emotion="chill"
           icon={Music}
-          tracks={chillTracks}
+          tracks={deduplicatedLanes.chill}
           isLoading={isChillLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
@@ -400,7 +434,7 @@ export function HomePage() {
           gradient="from-fuchsia-700 to-purple-900"
           emotion="latenight"
           icon={Moon}
-          tracks={lateNightTracks}
+          tracks={deduplicatedLanes.lateNight}
           isLoading={isLateLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
@@ -414,7 +448,7 @@ export function HomePage() {
           gradient="from-red-700 to-orange-800"
           emotion="workout"
           icon={Dumbbell}
-          tracks={workoutTracks}
+          tracks={deduplicatedLanes.workout}
           isLoading={isWorkoutLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
@@ -428,7 +462,7 @@ export function HomePage() {
           gradient="from-blue-600 to-sky-800"
           emotion="focus"
           icon={TrendingUp}
-          tracks={trendingTracks}
+          tracks={deduplicatedLanes.trending}
           isLoading={isTrendingLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
