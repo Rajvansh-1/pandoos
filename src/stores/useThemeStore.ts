@@ -30,7 +30,20 @@ type ThemeStore = ThemeState & ThemeActions;
 
 function applyCSSVars(colors: Partial<ThemeColors>): void {
   const root = document.documentElement;
-  if (colors.primary !== undefined) root.style.setProperty('--color-primary', colors.primary);
+  if (colors.primary !== undefined) {
+    root.style.setProperty('--color-primary', colors.primary);
+    // Dynamically update background surfaces to match the primary hue,
+    // creating a rich "alive" feel rather than a flat black.
+    const hue = colors.primary.split(' ')[0];
+    root.style.setProperty('--surface-base', `${hue} 40% 6%`);
+    root.style.setProperty('--surface-elevated', `${hue} 35% 9%`);
+    root.style.setProperty('--surface-overlay', `${hue} 30% 12%`);
+
+    // Dynamically tint the typography so it's not plain white/grey
+    root.style.setProperty('--text-primary', `${hue} 20% 96%`);
+    root.style.setProperty('--text-secondary', `${hue} 15% 75%`);
+    root.style.setProperty('--text-muted', `${hue} 10% 55%`);
+  }
   if (colors.secondary !== undefined) root.style.setProperty('--color-secondary', colors.secondary);
   if (colors.accent !== undefined) root.style.setProperty('--color-accent', colors.accent);
   if (colors.muted !== undefined) root.style.setProperty('--color-muted', colors.muted);

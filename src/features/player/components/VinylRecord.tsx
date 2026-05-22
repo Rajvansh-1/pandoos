@@ -30,7 +30,7 @@ export function VinylRecord({ track, isPlaying, className }: VinylRecordProps) {
         className="w-full h-full rounded-full bg-[#0a0a0a] relative flex items-center justify-center overflow-hidden"
         style={{
           boxShadow: 'inset 0 0 10px rgba(0,0,0,1)',
-          animation: 'spin 4s linear infinite',
+          animation: 'spin-record 4s linear infinite',
           animationPlayState: isPlaying ? 'running' : 'paused'
         }}
       >

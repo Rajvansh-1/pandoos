@@ -23,7 +23,7 @@ export function App() {
   const user = useAuthStore((state) => state.user);
   const awardBadge = useGamificationStore((state) => state.awardBadge);
   const earnedBadges = useGamificationStore((state) => state.earnedBadges);
-  
+
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   // Track if welcome badge was already awarded this session

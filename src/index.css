@@ -25,15 +25,15 @@
     --color-accent: 320 85% 65%;        /* Default: Vibrant Pink */
     --color-muted: 270 25% 55%;         /* Desaturated primary */
 
-    /* ---- Surfaces (static dark theme) ---- */
-    --surface-base: 240 15% 5%;         /* Near-black base background */
-    --surface-elevated: 240 12% 9%;     /* Cards, sheets, elevated content */
-    --surface-overlay: 240 10% 13%;     /* Modals, overlays, tooltips */
+    /* ---- Surfaces (dynamic dark theme based on hue 270) ---- */
+    --surface-base: 270 40% 6%;         /* Deep tinted base background */
+    --surface-elevated: 270 35% 9%;     /* Cards, sheets, elevated content */
+    --surface-overlay: 270 30% 12%;     /* Modals, overlays, tooltips */
 
-    /* ---- Text ---- */
-    --text-primary: 0 0% 96%;
-    --text-secondary: 240 10% 70%;
-    --text-muted: 240 8% 48%;
+    /* ---- Text (dynamic tint based on hue 270) ---- */
+    --text-primary: 270 20% 96%;
+    --text-secondary: 270 15% 75%;
+    --text-muted: 270 10% 55%;
 
     /* ---- Glass Effect Variables ---- */
     --glass-bg: rgba(255, 255, 255, 0.05);
@@ -142,6 +142,11 @@
     100% { background-position: 0% 50%, 50% 100%, 100% 50%; }
   }
 
+  @keyframes spin-record {
+    from { transform: rotate(0deg) translateZ(0); }
+    to { transform: rotate(360deg) translateZ(0); }
+  }
+
   @keyframes wave {
     0% { transform: rotate(0.0deg) }
     10% { transform: rotate(14.0deg) }
@@ -155,12 +160,12 @@
 
   .mood-bg {
     background: 
-      radial-gradient(120% 120% at 0% 0%, hsl(var(--color-primary) / 0.35) 0%, transparent 60%),
-      radial-gradient(120% 120% at 100% 0%, hsl(var(--color-secondary) / 0.25) 0%, transparent 60%),
-      radial-gradient(120% 120% at 50% 100%, hsl(var(--color-accent) / 0.3) 0%, transparent 60%),
+      radial-gradient(140% 140% at 0% 0%, hsl(var(--color-primary) / 0.45) 0%, transparent 70%),
+      radial-gradient(140% 140% at 100% 0%, hsl(var(--color-secondary) / 0.35) 0%, transparent 70%),
+      radial-gradient(140% 140% at 50% 100%, hsl(var(--color-accent) / 0.4) 0%, transparent 70%),
       hsl(var(--surface-base));
     background-size: 200% 200%;
-    animation: aurora-shift 15s ease-in-out infinite;
+    animation: aurora-shift 12s ease-in-out infinite alternate;
     position: relative;
   }
 

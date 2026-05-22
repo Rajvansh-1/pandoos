@@ -1,75 +1,113 @@
 <!doctype html>
 <html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0a0a0f" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <!-- SEO -->
-    <title>Pandoos — The Panda Music Experience</title>
-    <meta name="description" content="A visually stunning, mood-adaptive music streaming experience powered by Pandas. Search, play, and vibe." />
-    <meta name="keywords" content="music, streaming, pandoos, panda, mood-adaptive, music player, free music" />
-    <meta name="author" content="Rajvansh" />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://pandoos.vercel.app/" />
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://pandoos.vercel.app/" />
-    <meta property="og:title" content="Pandoos — The Panda Music Experience" />
-    <meta property="og:description" content="A visually stunning, mood-adaptive music streaming experience powered by Pandas. Search, play, and vibe." />
-    <meta property="og:image" content="https://pandoos.vercel.app/logo.png" />
+  <!-- SEO -->
+  <title>Pandoos — The Panda Music Experience</title>
+  <meta name="description"
+    content="A visually stunning, mood-adaptive music streaming experience powered by Pandas. Search, play, and vibe." />
+  <meta name="keywords" content="music, streaming, pandoos, panda, mood-adaptive, music player, free music" />
+  <meta name="author" content="Rajvansh" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://pandoos.vercel.app/" />
 
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://pandoos.vercel.app/" />
-    <meta property="twitter:title" content="Pandoos — The Panda Music Experience" />
-    <meta property="twitter:description" content="A visually stunning, mood-adaptive music streaming experience powered by Pandas. Search, play, and vibe." />
-    <meta property="twitter:image" content="https://pandoos.vercel.app/logo.png" />
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://pandoos.vercel.app/" />
+  <meta property="og:title" content="Pandoos — The Panda Music Experience" />
+  <meta property="og:description"
+    content="A visually stunning, mood-adaptive music streaming experience powered by Pandas. Search, play, and vibe." />
+  <meta property="og:image" content="https://pandoos.vercel.app/logo.png" />
 
-    <!-- iOS PWA -->
-    <link rel="apple-touch-icon" href="/logo.png" />
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://pandoos.vercel.app/" />
+  <meta property="twitter:title" content="Pandoos — The Panda Music Experience" />
+  <meta property="twitter:description"
+    content="A visually stunning, mood-adaptive music streaming experience powered by Pandas. Search, play, and vibe." />
+  <meta property="twitter:image" content="https://pandoos.vercel.app/logo.png" />
 
-    <!-- Google Fonts: Inter (body) + Outfit (display/headings) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <!-- iOS PWA -->
+  <link rel="apple-touch-icon" href="/logo.png" />
 
-    <!-- YouTube IFrame API: loaded here so it's ready before React mounts.
+  <!-- Google Fonts: Plus Jakarta Sans (body) + Outfit (display/headings) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+    rel="stylesheet" />
+
+  <!-- YouTube IFrame API: loaded here so it's ready before React mounts.
          The API fires window.onYouTubeIframeAPIReady when ready.
          Using async to avoid blocking the critical rendering path. -->
-    <script src="https://www.youtube.com/iframe_api" async></script>
-  </head>
-  <body class="overflow-hidden">
-    <div id="root">
-      <style>
-        #preloader {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          width: 100vw;
-          background-color: #050505;
-          gap: 1rem;
+  <script src="https://www.youtube.com/iframe_api" async></script>
+</head>
+
+<body class="overflow-hidden">
+  <div id="root">
+    <style>
+      #preloader {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        width: 100vw;
+        background-color: #050505;
+        gap: 1rem;
+      }
+
+      .pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+
+      .spin {
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes pulse {
+
+        0%,
+        100% {
+          opacity: 1;
         }
-        .pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        .spin { animation: spin 1s linear infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      </style>
-      <div id="preloader">
-        <img src="/logo.png" alt="Pandoos" style="width: 128px; height: 128px; object-fit: contain;" class="pulse" />
-        <div style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #a855f7; border-top-color: transparent;" class="spin"></div>
-      </div>
+
+        50% {
+          opacity: .5;
+        }
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+    <div id="preloader">
+      <img src="/logo.png" alt="Pandoos" style="width: 128px; height: 128px; object-fit: contain;" class="pulse" />
+      <div
+        style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #a855f7; border-top-color: transparent;"
+        class="spin"></div>
     </div>
-    <!-- Hidden YouTube player container: positioned offscreen.
+  </div>
+  <!-- Hidden YouTube player container: positioned offscreen.
          Capacitor's WebView will play audio from this even when the visual
          player UI is hidden behind other sheets. -->
-    <div id="yt-player-root" style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;" aria-hidden="true"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <div id="yt-player-root"
+    style="position:fixed;bottom:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"
+    aria-hidden="true"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
