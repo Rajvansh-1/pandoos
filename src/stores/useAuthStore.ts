@@ -79,18 +79,28 @@ export const useAuthStore = create<AuthStore>()(
 
     signInWithEmail: async (email) => {
       set((state) => { state.isLoading = true; });
+      
+      let redirectUrl = import.meta.env.VITE_SITE_URL || import.meta.env.VITE_VERCEL_URL || window.location.origin;
+      redirectUrl = redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`;
+      redirectUrl = redirectUrl.endsWith('/') ? redirectUrl : `${redirectUrl}/`;
+
       await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin },
+        options: { emailRedirectTo: redirectUrl },
       });
       set((state) => { state.isLoading = false; });
     },
 
     signInWithGoogle: async () => {
       set((state) => { state.isLoading = true; });
+      
+      let redirectUrl = import.meta.env.VITE_SITE_URL || import.meta.env.VITE_VERCEL_URL || window.location.origin;
+      redirectUrl = redirectUrl.startsWith('http') ? redirectUrl : `https://${redirectUrl}`;
+      redirectUrl = redirectUrl.endsWith('/') ? redirectUrl : `${redirectUrl}/`;
+
       await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin },
+        options: { redirectTo: redirectUrl },
       });
       // isLoading will be reset by onAuthStateChange callback
     },
