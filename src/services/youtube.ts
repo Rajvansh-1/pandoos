@@ -98,7 +98,32 @@ export async function searchTracks(query: string): Promise<Track[]> {
     return mapped;
   }
 
-  // 2. Client-side fallback if no API key in DEV or API fails
+  // 2. Client-side fallback to Unofficial YouTube Music API
+  try {
+    const YoutubeMusicApi = (await import('youtube-music-api')).default;
+    const api = new YoutubeMusicApi();
+    await api.initalize();
+    const result = await api.search(query, 'song');
+    
+    if (result && result.content && result.content.length > 0) {
+      const mappedAlt: Track[] = result.content.slice(0, 15).map((item: any) => ({
+        id: item.videoId,
+        videoId: item.videoId,
+        title: item.name,
+        artist: item.artist?.name || 'Unknown Artist',
+        albumArt: item.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
+        duration: 0,
+        source: 'youtube' as const,
+        channelTitle: item.artist?.name || 'Unknown',
+        publishedAt: new Date().toISOString(),
+      }));
+      return mappedAlt;
+    }
+  } catch (e) {
+    console.warn('YouTube Music API Fallback failed:', e);
+  }
+
+  // 3. Client-side fallback if both APIs fail
   const fallbackResults: Track[] = [];
   const searchTerms = normalizedQuery.split(' ').filter(t => t.length > 2);
   Object.values(MOOD_SEEDS).flat().forEach(track => {
