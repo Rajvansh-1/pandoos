@@ -51,56 +51,41 @@
 </head>
 
 <body class="overflow-hidden">
-  <div id="root">
-    <style>
-      #preloader {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
-        width: 100vw;
-        background-color: #050505;
-        gap: 1rem;
-      }
+  <style>
+    #global-preloader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #050505;
+      z-index: 999999;
+      opacity: 0;
+      visibility: hidden;
+      /* Delay visibility by 300ms. If React loads fast, this never shows! */
+      animation: pl-fade-in 0.3s ease forwards 0.3s;
+    }
+    .pl-simple-logo {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      animation: pl-subtle-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pl-fade-in {
+      to { opacity: 1; visibility: visible; }
+    }
+    @keyframes pl-subtle-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.95); }
+    }
+  </style>
 
-      .pulse {
-        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-      }
-
-      .spin {
-        animation: spin 1s linear infinite;
-      }
-
-      @keyframes pulse {
-
-        0%,
-        100% {
-          opacity: 1;
-        }
-
-        50% {
-          opacity: .5;
-        }
-      }
-
-      @keyframes spin {
-        from {
-          transform: rotate(0deg);
-        }
-
-        to {
-          transform: rotate(360deg);
-        }
-      }
-    </style>
-    <div id="preloader">
-      <img src="/logo.png" alt="Pandoos" style="width: 128px; height: 128px; object-fit: contain;" class="pulse" />
-      <div
-        style="width: 32px; height: 32px; border-radius: 50%; border: 2px solid #a855f7; border-top-color: transparent;"
-        class="spin"></div>
-    </div>
+  <div id="global-preloader">
+    <img src="/logo.png" class="pl-simple-logo" alt="Loading..." />
   </div>
+
+  <div id="root"></div>
   <!-- Hidden YouTube player container: positioned offscreen.
          Capacitor's WebView will play audio from this even when the visual
          player UI is hidden behind other sheets. -->

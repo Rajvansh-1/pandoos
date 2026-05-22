@@ -18,6 +18,18 @@ const SearchPage = React.lazy(() => import('@/pages/SearchPage').then(m => ({ de
 const LibraryPage = React.lazy(() => import('@/pages/LibraryPage').then(m => ({ default: m.LibraryPage })));
 const ProfilePage = React.lazy(() => import('@/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const LoginPage = React.lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const ErrorPage = React.lazy(() => import('@/pages/ErrorPage').then(m => ({ default: m.ErrorPage })));
+
+function RouteTracker() {
+  useEffect(() => {
+    const loader = document.getElementById('global-preloader');
+    if (loader && !loader.dataset.removed) {
+      loader.dataset.removed = 'true';
+      loader.remove();
+    }
+  }, []);
+  return null;
+}
 
 export function App() {
   const initializeAuth = useAuthStore((state) => state.initialize);
@@ -28,53 +40,35 @@ export function App() {
 
   const isMobile = useMediaQuery('(max-width: 768px)');
 
-  // Track if welcome badge was already awarded this session
   const welcomeAwardedRef = useRef(false);
 
-  // Mount global engines
   useAudioEngine();
   useRadioEngine();
   useMediaSession();
   useRecommendEngine();
 
-  // Initialize Supabase session on mount
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
-  // Award welcome badge immediately on first login
   useEffect(() => {
-    if (
-      user &&
-      !welcomeAwardedRef.current &&
-      !earnedBadges.includes('welcome_panda')
-    ) {
+    if (user && !welcomeAwardedRef.current && !earnedBadges.includes('welcome_panda')) {
       welcomeAwardedRef.current = true;
-      // Small delay so the app finishes rendering before showing the modal
       setTimeout(() => awardBadge('welcome_panda'), 1500);
     }
     if (user) {
-      welcomeAwardedRef.current = true; // prevent re-award on hot reload
+      welcomeAwardedRef.current = true;
     }
   }, [user, earnedBadges, awardBadge]);
 
   if (!isInitialized) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center bg-surface-base flex-col gap-4">
-        <img src="/logo.png" alt="Pandoos" className="w-16 h-16 object-contain animate-pulse" />
-        <div className="w-8 h-8 rounded-full border-2 border-brand-primary border-t-transparent animate-spin" />
-      </div>
-    );
+    return null;
   }
 
   return (
     <>
-      <Suspense fallback={
-        <div className="flex h-screen w-screen items-center justify-center bg-surface-base flex-col gap-4">
-          <img src="/logo.png" alt="Pandoos" className="w-16 h-16 object-contain animate-pulse" />
-          <div className="w-8 h-8 rounded-full border-2 border-brand-primary border-t-transparent animate-spin" />
-        </div>
-      }>
+      <Suspense fallback={null}>
+        <RouteTracker />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={isMobile ? <MobileLayout /> : <DesktopLayout />}>
@@ -83,7 +77,7 @@ export function App() {
             <Route path="/library" element={<LibraryPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             {/* Catch-all */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<ErrorPage />} />
           </Route>
         </Routes>
       </Suspense>

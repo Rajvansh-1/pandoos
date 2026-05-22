@@ -29,13 +29,13 @@ ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <HelmetProvider>
       <QueryClientProvider client={queryClient}>
-        <ErrorBoundary>
-          <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || '529626065517-rvrjir6ugvkred5ln3vuev30lfnfnsth.apps.googleusercontent.com'}>
-            <BrowserRouter>
+        <BrowserRouter>
+          <ErrorBoundary>
+            <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || '529626065517-rvrjir6ugvkred5ln3vuev30lfnfnsth.apps.googleusercontent.com'}>
               <App />
-            </BrowserRouter>
-          </GoogleOAuthProvider>
-        </ErrorBoundary>
+            </GoogleOAuthProvider>
+          </ErrorBoundary>
+        </BrowserRouter>
       </QueryClientProvider>
     </HelmetProvider>
   </React.StrictMode>
