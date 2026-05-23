@@ -5,6 +5,7 @@ import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { AddToPlaylistModal } from '@/features/library/components/AddToPlaylistModal';
+import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
 
 interface PlayerOptionsModalProps {
   isOpen: boolean;
@@ -17,16 +18,15 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
   const clearSleepTimer = usePlayerStore((s) => s.clearSleepTimer);
   const sleepTimerEnd = usePlayerStore((s) => s.sleepTimerEnd);
   
-  const likedSongs = useGamificationStore((s) => s.likedSongs);
-  const toggleLike = useGamificationStore((s) => s.toggleLike);
+  const { data: isLiked } = useIsTrackLiked(currentTrack?.videoId || '');
+  const likeTrack = useLikeTrack();
+  const unlikeTrack = useUnlikeTrack();
 
   const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'done'>('idle');
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
   if (!currentTrack) return null;
-
-  const isLiked = likedSongs.includes(currentTrack.id);
 
   const handleDownload = () => {
     if (downloadState !== 'idle') return;
@@ -90,7 +90,7 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
                   <div className="space-y-2">
                     {/* Like Button */}
                     <button 
-                      onClick={() => toggleLike(currentTrack.id)}
+                      onClick={() => isLiked ? unlikeTrack.mutate(currentTrack.videoId) : likeTrack.mutate(currentTrack)}
                       className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-white/[0.04] active:scale-[0.98] transition-all"
                     >
                       <Heart 

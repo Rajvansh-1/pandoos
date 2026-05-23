@@ -6,11 +6,16 @@ import { PlayerControls } from './PlayerControls';
 import { SeekBar } from './SeekBar';
 import { cn } from '@/utils/cn';
 import { TrackImage } from '@/components/shared/TrackImage';
+import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
 
 export function DesktopPlayer() {
   const currentTrack = usePlayerStore((state) => state.currentTrack);
   const openPlayer = useUIStore((state) => state.openPlayer);
   const toggleQueue = useUIStore((state) => state.toggleQueue);
+  
+  const { data: isLiked } = useIsTrackLiked(currentTrack?.videoId || '');
+  const likeTrack = useLikeTrack();
+  const unlikeTrack = useUnlikeTrack();
 
   if (!currentTrack) return null;
 
@@ -40,8 +45,11 @@ export function DesktopPlayer() {
             {currentTrack.artist}
           </p>
         </div>
-        <button className="text-white/50 hover:text-white transition-colors ml-2">
-          <Heart size={18} />
+        <button 
+          onClick={() => isLiked ? unlikeTrack.mutate(currentTrack.videoId) : likeTrack.mutate(currentTrack)}
+          className="text-white/50 hover:text-white transition-colors ml-2"
+        >
+          <Heart size={18} className={isLiked ? "text-brand-primary" : ""} fill={isLiked ? "currentColor" : "none"} />
         </button>
       </div>
 

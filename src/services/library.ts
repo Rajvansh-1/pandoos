@@ -1,34 +1,41 @@
-import { supabase } from './supabase';
-import type { Playlist, SupabasePlaylist } from '@/types/playlist';
+import type { Playlist } from '@/types/playlist';
 import type { Track } from '@/types/track';
 
-// ── Type converters ──────────────────────────────────────────────
+// ── Local Storage Keys ──────────────────────────────────────────
+const PLAYLISTS_KEY = 'pandoos_playlists_v1';
+const PLAYLIST_TRACKS_KEY = 'pandoos_playlist_tracks_v1';
+const LIKED_SONGS_KEY = 'pandoos_liked_songs_v1';
 
-function dbToPlaylist(row: SupabasePlaylist): Playlist {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description ?? '',
-    coverUrl: row.cover_url ?? '',
-    userId: row.user_id,
-    isPublic: row.is_public,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    trackCount: row.track_count,
-  };
+// ── Helper functions ─────────────────────────────────────────────
+const getStorage = <T>(key: string, defaultValue: T): T => {
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
+
+const setStorage = <T>(key: string, value: T): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.error('Failed to save to local storage', e);
+  }
+};
+
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
 // ── Playlists ────────────────────────────────────────────────────
 
 export async function getUserPlaylists(userId: string): Promise<Playlist[]> {
-  const { data, error } = await supabase
-    .from('playlists')
-    .select('*')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false });
-
-  if (error) throw new Error(error.message);
-  return (data as SupabasePlaylist[]).map(dbToPlaylist);
+  const allPlaylists = getStorage<Playlist[]>(PLAYLISTS_KEY, []);
+  // Sort by updated at descending
+  return allPlaylists
+    .filter(p => p.userId === userId)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export async function createPlaylist(
@@ -36,22 +43,31 @@ export async function createPlaylist(
   name: string,
   description = ''
 ): Promise<Playlist> {
-  const { data, error } = await supabase
-    .from('playlists')
-    .insert({ user_id: userId, name, description, is_public: false, track_count: 0 })
-    .select()
-    .single();
+  const newPlaylist: Playlist = {
+    id: generateId(),
+    userId,
+    name,
+    description,
+    coverUrl: '',
+    isPublic: false,
+    trackCount: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
 
-  if (error) throw new Error(error.message);
-  return dbToPlaylist(data as SupabasePlaylist);
+  const allPlaylists = getStorage<Playlist[]>(PLAYLISTS_KEY, []);
+  setStorage(PLAYLISTS_KEY, [newPlaylist, ...allPlaylists]);
+  return newPlaylist;
 }
 
 export async function deletePlaylist(playlistId: string): Promise<void> {
-  const { error } = await supabase
-    .from('playlists')
-    .delete()
-    .eq('id', playlistId);
-  if (error) throw new Error(error.message);
+  const allPlaylists = getStorage<Playlist[]>(PLAYLISTS_KEY, []);
+  setStorage(PLAYLISTS_KEY, allPlaylists.filter(p => p.id !== playlistId));
+  
+  // Clean up tracks
+  const allTracks = getStorage<Record<string, Track[]>>(PLAYLIST_TRACKS_KEY, {});
+  delete allTracks[playlistId];
+  setStorage(PLAYLIST_TRACKS_KEY, allTracks);
 }
 
 // ── Playlist Tracks ──────────────────────────────────────────────
@@ -61,105 +77,91 @@ export async function addTrackToPlaylist(
   track: Track,
   position: number
 ): Promise<void> {
-  const { error } = await supabase.from('playlist_tracks').insert({
-    playlist_id: playlistId,
-    video_id: track.videoId,
-    title: track.title,
-    artist: track.artist,
-    album_art: track.albumArt,
-    duration: track.duration,
-    position,
-  });
-  if (error) throw new Error(error.message);
+  const allTracks = getStorage<Record<string, Track[]>>(PLAYLIST_TRACKS_KEY, {});
+  if (!allTracks[playlistId]) {
+    allTracks[playlistId] = [];
+  }
+  
+  // Prevent exact duplicates
+  if (!allTracks[playlistId].find(t => t.videoId === track.videoId)) {
+    allTracks[playlistId].push(track);
+    setStorage(PLAYLIST_TRACKS_KEY, allTracks);
+
+    // Update track count
+    const allPlaylists = getStorage<Playlist[]>(PLAYLISTS_KEY, []);
+    const updatedPlaylists = allPlaylists.map(p => {
+      if (p.id === playlistId) {
+        return {
+          ...p,
+          trackCount: allTracks[playlistId].length,
+          updatedAt: new Date().toISOString(),
+          coverUrl: allTracks[playlistId].length === 1 ? track.albumArt : p.coverUrl,
+        };
+      }
+      return p;
+    });
+    setStorage(PLAYLISTS_KEY, updatedPlaylists);
+  }
 }
 
 export async function removeTrackFromPlaylist(
   playlistId: string,
   videoId: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('playlist_tracks')
-    .delete()
-    .eq('playlist_id', playlistId)
-    .eq('video_id', videoId);
-  if (error) throw new Error(error.message);
+  const allTracks = getStorage<Record<string, Track[]>>(PLAYLIST_TRACKS_KEY, {});
+  if (allTracks[playlistId]) {
+    allTracks[playlistId] = allTracks[playlistId].filter(t => t.videoId !== videoId);
+    setStorage(PLAYLIST_TRACKS_KEY, allTracks);
+
+    // Update track count
+    const allPlaylists = getStorage<Playlist[]>(PLAYLISTS_KEY, []);
+    const updatedPlaylists = allPlaylists.map(p => {
+      if (p.id === playlistId) {
+        return {
+          ...p,
+          trackCount: allTracks[playlistId].length,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return p;
+    });
+    setStorage(PLAYLISTS_KEY, updatedPlaylists);
+  }
 }
 
 export async function getPlaylistTracks(playlistId: string): Promise<Track[]> {
-  const { data, error } = await supabase
-    .from('playlist_tracks')
-    .select('*')
-    .eq('playlist_id', playlistId)
-    .order('position', { ascending: true });
-
-  if (error) throw new Error(error.message);
-  // Reconstruct Track objects from stored data
-  return (data as Array<{
-    video_id: string; title: string; artist: string;
-    album_art: string; duration: number;
-  }>).map((row) => ({
-    id: row.video_id,
-    videoId: row.video_id,
-    title: row.title,
-    artist: row.artist,
-    albumArt: row.album_art,
-    duration: row.duration,
-    source: 'youtube' as const,
-  }));
+  const allTracks = getStorage<Record<string, Track[]>>(PLAYLIST_TRACKS_KEY, {});
+  return allTracks[playlistId] || [];
 }
 
 // ── Liked Songs ──────────────────────────────────────────────────
 
 export async function getLikedSongs(userId: string): Promise<Track[]> {
-  const { data, error } = await supabase
-    .from('liked_songs')
-    .select('*')
-    .eq('user_id', userId)
-    .order('liked_at', { ascending: false });
-
-  if (error) throw new Error(error.message);
-  return (data as Array<{
-    video_id: string; title: string; artist: string;
-    album_art: string; duration: number;
-  }>).map((row) => ({
-    id: row.video_id,
-    videoId: row.video_id,
-    title: row.title,
-    artist: row.artist,
-    albumArt: row.album_art,
-    duration: row.duration,
-    source: 'youtube' as const,
-  }));
+  const allLiked = getStorage<Record<string, Track[]>>(LIKED_SONGS_KEY, {});
+  return allLiked[userId] || [];
 }
 
 export async function likeTrack(userId: string, track: Track): Promise<void> {
-  const { error } = await supabase.from('liked_songs').upsert({
-    user_id: userId,
-    video_id: track.videoId,
-    title: track.title,
-    artist: track.artist,
-    album_art: track.albumArt,
-    duration: track.duration,
-    liked_at: new Date().toISOString(),
-  });
-  if (error) throw new Error(error.message);
+  const allLiked = getStorage<Record<string, Track[]>>(LIKED_SONGS_KEY, {});
+  if (!allLiked[userId]) allLiked[userId] = [];
+  
+  if (!allLiked[userId].find(t => t.videoId === track.videoId)) {
+    allLiked[userId].unshift(track); // Add to top
+    setStorage(LIKED_SONGS_KEY, allLiked);
+  }
 }
 
 export async function unlikeTrack(userId: string, videoId: string): Promise<void> {
-  const { error } = await supabase
-    .from('liked_songs')
-    .delete()
-    .eq('user_id', userId)
-    .eq('video_id', videoId);
-  if (error) throw new Error(error.message);
+  const allLiked = getStorage<Record<string, Track[]>>(LIKED_SONGS_KEY, {});
+  if (allLiked[userId]) {
+    allLiked[userId] = allLiked[userId].filter(t => t.videoId !== videoId);
+    setStorage(LIKED_SONGS_KEY, allLiked);
+  }
 }
 
 export async function isTrackLiked(userId: string, videoId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('liked_songs')
-    .select('video_id')
-    .eq('user_id', userId)
-    .eq('video_id', videoId)
-    .single();
-  return !!data;
+  const allLiked = getStorage<Record<string, Track[]>>(LIKED_SONGS_KEY, {});
+  if (!allLiked[userId]) return false;
+  return allLiked[userId].some(t => t.videoId === videoId);
 }
+

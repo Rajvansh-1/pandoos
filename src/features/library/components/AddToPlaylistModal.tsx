@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, ListMusic } from 'lucide-react';
-import { usePlaylistStore } from '@/stores/usePlaylistStore';
+import { X, Plus, ListMusic, Music2 } from 'lucide-react';
+import { usePlaylists, useAddTrackToPlaylist, useCreatePlaylist } from '@/features/library/hooks/useLibrary';
+import { useToastStore } from '@/stores/useToastStore';
 import type { Track } from '@/types/track';
 
 interface Props {
@@ -11,43 +13,58 @@ interface Props {
 }
 
 export function AddToPlaylistModal({ isOpen, onClose, track }: Props) {
-  const playlists = usePlaylistStore((s) => s.playlists);
-  const createPlaylist = usePlaylistStore((s) => s.createPlaylist);
-  const addTrackToPlaylist = usePlaylistStore((s) => s.addTrackToPlaylist);
+  const { data: playlists } = usePlaylists();
+  const createPlaylist = useCreatePlaylist();
+  const addTrackToPlaylist = useAddTrackToPlaylist();
   
   const [isCreating, setIsCreating] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const addToast = useToastStore((state) => state.addToast);
 
   const handleCreate = () => {
     if (!newPlaylistName.trim()) return;
-    createPlaylist(newPlaylistName.trim());
-    setNewPlaylistName('');
-    setIsCreating(false);
+    createPlaylist.mutate(
+      { name: newPlaylistName.trim() },
+      {
+        onSuccess: (newPlaylist) => {
+          setNewPlaylistName('');
+          setIsCreating(false);
+          addToast('Playlist created successfully!', 'success');
+          // Automatically add the track to the newly created playlist
+          handleAddToPlaylist(newPlaylist.id);
+        }
+      }
+    );
   };
 
   const handleAddToPlaylist = (playlistId: string) => {
-    addTrackToPlaylist(playlistId, track);
+    // We pass a high position number to append to the end
+    addTrackToPlaylist.mutate({ playlistId, track, position: Date.now() }, {
+      onSuccess: () => {
+        addToast('Song added to playlist!', 'success');
+      }
+    });
     onClose();
   };
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center p-4 sm:p-0">
+      <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center p-4 sm:p-0 isolate pointer-events-none">
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm z-[9999] pointer-events-auto"
         />
         
         <motion.div 
           initial={{ y: '100%', opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: '100%', opacity: 0 }}
-          className="relative w-full max-w-md bg-[#12121A] rounded-[2rem] p-6 border border-white/10 shadow-2xl"
+          className="relative w-full max-w-md bg-surface-elevated rounded-[2rem] p-6 border border-white/10 shadow-2xl z-[10000] pointer-events-auto"
         >
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -73,7 +90,8 @@ export function AddToPlaylistModal({ isOpen, onClose, track }: Props) {
                 />
                 <button 
                   onClick={handleCreate}
-                  className="px-4 py-1.5 bg-brand-primary text-white rounded-lg font-bold text-sm hover:opacity-90"
+                  disabled={createPlaylist.isPending}
+                  className="px-4 py-1.5 bg-brand-primary text-white rounded-lg font-bold text-sm hover:opacity-90 disabled:opacity-50"
                 >
                   Create
                 </button>
@@ -93,35 +111,33 @@ export function AddToPlaylistModal({ isOpen, onClose, track }: Props) {
               </button>
             )}
 
-            {playlists.map((playlist) => {
-              const hasTrack = playlist.tracks.some(t => t.id === track.id);
+            {playlists?.map((playlist) => {
+              // Note: since we're using supabase remote data, we'd ideally have track IDs in the playlist object to check if it has the track.
+              // For now, we will allow adding anyway, or we could fetch the playlist tracks. Let's assume the user can add it again or we handle dedup on backend.
               return (
                 <button
                   key={playlist.id}
-                  disabled={hasTrack}
                   onClick={() => handleAddToPlaylist(playlist.id)}
-                  className={`flex items-center gap-3 p-3 rounded-xl border border-white/5 text-left transition-colors ${
-                    hasTrack ? 'opacity-50 cursor-not-allowed bg-white/5' : 'hover:bg-white/10'
-                  }`}
+                  className="flex items-center gap-3 p-3 rounded-xl border border-white/5 text-left transition-colors hover:bg-white/10"
                 >
                   <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center overflow-hidden shrink-0">
-                    {playlist.tracks.length > 0 ? (
-                       <img src={playlist.tracks[0].albumArt} alt="" className="w-full h-full object-cover" />
+                    {playlist.coverUrl ? (
+                       <img src={playlist.coverUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <ListMusic className="text-white/30" />
+                      <Music2 className="text-white/30" />
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-white truncate">{playlist.name}</h3>
-                    <p className="text-xs text-white/50">{playlist.tracks.length} tracks</p>
+                    <p className="text-xs text-white/50">{playlist.trackCount} tracks</p>
                   </div>
-                  {hasTrack && <span className="text-xs font-bold text-brand-primary pr-2">Added</span>}
                 </button>
               );
             })}
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
