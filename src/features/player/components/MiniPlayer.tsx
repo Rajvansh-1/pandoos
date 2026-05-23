@@ -24,7 +24,8 @@ export function MiniPlayer() {
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 50, opacity: 0 }}
-        className="w-full h-[var(--mini-player-height)] bg-[#0A0A0F]/80 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden relative touch-none flex items-center shadow-2xl will-animate"
+        className="w-full h-[var(--mini-player-height)] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden relative touch-none flex items-center shadow-2xl will-animate"
+        style={{ backgroundColor: 'hsl(var(--surface-elevated) / 0.8)' }}
         onClick={openPlayer}
       >
         {/* Subtle dynamic ambient glow inside the mini player */}

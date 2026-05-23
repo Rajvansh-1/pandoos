@@ -26,9 +26,9 @@
     --color-muted: 270 25% 55%;         /* Desaturated primary */
 
     /* ---- Surfaces (dynamic dark theme based on hue 270) ---- */
-    --surface-base: 270 40% 6%;         /* Deep tinted base background */
-    --surface-elevated: 270 35% 9%;     /* Cards, sheets, elevated content */
-    --surface-overlay: 270 30% 12%;     /* Modals, overlays, tooltips */
+    --surface-base: 270 30% 10%;         /* Deep tinted base background */
+    --surface-elevated: 270 25% 14%;     /* Cards, sheets, elevated content */
+    --surface-overlay: 270 20% 18%;     /* Modals, overlays, tooltips */
 
     /* ---- Text (dynamic tint based on hue 270) ---- */
     --text-primary: 270 20% 96%;
@@ -160,9 +160,9 @@
 
   .mood-bg {
     background: 
-      radial-gradient(140% 140% at 0% 0%, hsl(var(--color-primary) / 0.45) 0%, transparent 70%),
-      radial-gradient(140% 140% at 100% 0%, hsl(var(--color-secondary) / 0.35) 0%, transparent 70%),
-      radial-gradient(140% 140% at 50% 100%, hsl(var(--color-accent) / 0.4) 0%, transparent 70%),
+      radial-gradient(140% 140% at 0% 0%, hsl(var(--color-primary) / 0.65) 0%, transparent 80%),
+      radial-gradient(140% 140% at 100% 0%, hsl(var(--color-secondary) / 0.55) 0%, transparent 80%),
+      radial-gradient(140% 140% at 50% 100%, hsl(var(--color-accent) / 0.6) 0%, transparent 80%),
       hsl(var(--surface-base));
     background-size: 200% 200%;
     animation: aurora-shift 12s ease-in-out infinite alternate;
