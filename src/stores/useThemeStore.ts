@@ -35,9 +35,9 @@ function applyCSSVars(colors: Partial<ThemeColors>): void {
     // Dynamically update background surfaces to match the primary hue,
     // creating a rich "alive" feel rather than a flat black.
     const hue = colors.primary.split(' ')[0];
-    root.style.setProperty('--surface-base', `${hue} 40% 6%`);
-    root.style.setProperty('--surface-elevated', `${hue} 35% 9%`);
-    root.style.setProperty('--surface-overlay', `${hue} 30% 12%`);
+    root.style.setProperty('--surface-base', `${hue} 30% 10%`);
+    root.style.setProperty('--surface-elevated', `${hue} 25% 14%`);
+    root.style.setProperty('--surface-overlay', `${hue} 20% 18%`);
 
     // Dynamically tint the typography so it's not plain white/grey
     root.style.setProperty('--text-primary', `${hue} 20% 96%`);

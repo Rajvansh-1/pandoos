@@ -29,8 +29,8 @@ function rgbToHslString(r: number, g: number, b: number): string {
   const H = Math.round((h || 0) * 360) % 360;
   // Force a vibrant saturation
   const S = Math.min(Math.round((s || 0) * 100) + 25, 95);
-  // Strictly clamp lightness to ensure it NEVER goes black or white
-  const L = Math.max(45, Math.min(65, Math.round((l || 0) * 100)));
+  // Strictly clamp lightness to ensure it NEVER goes black or white, making it more visible
+  const L = Math.max(55, Math.min(75, Math.round((l || 0) * 100)));
   
   return `${H} ${S}% ${L}%`;
 }

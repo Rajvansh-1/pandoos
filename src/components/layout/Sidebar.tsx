@@ -28,7 +28,10 @@ export function Sidebar() {
   const dash = (xpProgress.percent / 100) * circumference;
 
   return (
-    <aside className="w-64 h-full bg-black/60 border-r border-white/5 flex flex-col pt-6 pb-6 z-30 shrink-0 backdrop-blur-2xl">
+    <aside 
+      className="w-64 h-full border-r border-white/5 flex flex-col pt-6 pb-6 z-30 shrink-0 backdrop-blur-2xl"
+      style={{ backgroundColor: 'hsl(var(--surface-base) / 0.6)' }}
+    >
 
       {/* Brand */}
       <div className="px-6 mb-8 flex items-center gap-3">
