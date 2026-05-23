@@ -27,11 +27,12 @@ export function VinylRecord({ track, isPlaying, className }: VinylRecordProps) {
 
       {/* The rotating record */}
       <div 
-        className="w-full h-full rounded-full bg-[#0a0a0a] relative flex items-center justify-center overflow-hidden"
+        className="w-full h-full rounded-full bg-[#0a0a0a] relative flex items-center justify-center overflow-hidden will-animate"
         style={{
           boxShadow: 'inset 0 0 10px rgba(0,0,0,1)',
           animation: 'spin-record 4s linear infinite',
-          animationPlayState: isPlaying ? 'running' : 'paused'
+          animationPlayState: isPlaying ? 'running' : 'paused',
+          willChange: 'transform'
         }}
       >
         {/* Vinyl Grooves Texture */}
@@ -66,7 +67,7 @@ export function VinylRecord({ track, isPlaying, className }: VinylRecordProps) {
 
           {/* Center spindle hole wrapper to add depth */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center"
-               style={{ width: '14.28%', height: '14.28%', backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+               style={{ width: '14.28%', height: '14.28%', backgroundColor: 'rgba(0,0,0,0.5)' }}>
             {/* The actual hole (approx 30% of the wrapper) */}
             <div className="w-[30%] h-[30%] bg-[#0a0a0f] rounded-full border border-black/50 shadow-inner" />
           </div>
