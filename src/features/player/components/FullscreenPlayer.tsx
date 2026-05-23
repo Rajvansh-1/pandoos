@@ -1,9 +1,9 @@
 import React from 'react';
 import { ChevronDown, MoreVertical, Heart } from 'lucide-react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
-import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useColorExtractor } from '@/features/player/hooks/useColorExtractor';
+import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { useTrackEmotion } from '@/hooks/useTrackEmotion';
@@ -23,10 +23,9 @@ export function FullscreenPlayer() {
   const closePlayer = useUIStore((state) => state.closePlayer);
   const sleepTimerEnd = usePlayerStore((state) => state.sleepTimerEnd);
   
-  const likedSongs = useGamificationStore((state) => state.likedSongs);
-  const toggleLike = useGamificationStore((state) => state.toggleLike);
-  
-  const isLiked = currentTrack ? likedSongs.includes(currentTrack.id) : false;
+  const { data: isLiked } = useIsTrackLiked(currentTrack?.videoId || '');
+  const likeTrack = useLikeTrack();
+  const unlikeTrack = useUnlikeTrack();
 
   const [isOptionsOpen, setIsOptionsOpen] = React.useState(false);
   const [isQueueOpen, setIsQueueOpen] = React.useState(false);
@@ -192,7 +191,7 @@ export function FullscreenPlayer() {
             </div>
             {currentTrack && (
               <button 
-                onClick={() => toggleLike(currentTrack.id)}
+                onClick={() => isLiked ? unlikeTrack.mutate(currentTrack.videoId) : likeTrack.mutate(currentTrack)}
                 className="mt-4 md:mt-0 md:ml-4 self-center md:self-end p-3 rounded-full hover:bg-white/10 transition-colors active:scale-95 touch-highlight flex-shrink-0"
               >
                 <Heart 
