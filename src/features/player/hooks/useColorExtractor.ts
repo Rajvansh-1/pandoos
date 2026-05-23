@@ -31,13 +31,11 @@ export function useColorExtractor() {
     async function runExtraction() {
       setIsExtracting(true);
       try {
-        // Use HQ thumbnail because maxresdefault can return a grey 404 image 
-        // that successfully loads but turns the theme completely black!
-        const imageUrl = `https://i.ytimg.com/vi/${currentTrack!.videoId}/hqdefault.jpg`;
+        // Use albumArt if available, otherwise hqdefault
+        const imageUrl = currentTrack!.albumArt || `https://i.ytimg.com/vi/${currentTrack!.videoId}/hqdefault.jpg`;
         
-        // Due to CORS, we need the image to be served with proper headers.
-        // YouTube's i.ytimg.com supports CORS.
-        const colors = await extractColors(imageUrl);
+        // Pass videoId so the extractor can generate a fallback if CORS or extraction fails
+        const colors = await extractColors(imageUrl, currentTrack!.videoId);
         
         if (isMounted && colors) {
           applyColors(colors);

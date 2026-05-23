@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useTasteStore } from '@/stores/useTasteStore';
 import { getRecommendations } from '@/services/recommendEngine';
+import { areTitlesSimilar } from '@/utils/trackDedup';
 
 /**
  * useRadioEngine — The brain that keeps the music playing endlessly.
@@ -35,11 +36,28 @@ export function useRadioEngine() {
         history,
         skippedIds,
         getAffinityScore,
-        count: 5 // Fetch 5 at a time for seamless playback
+        count: 15 // Fetch more at a time to account for deduplication
       }).then((recs) => {
         const store = usePlayerStore.getState();
         const currentIds = new Set(store.queue.map(t => t.videoId));
-        const fresh = recs.filter(t => !currentIds.has(t.videoId));
+        
+        // Also keep track of the queue's tracks to deduplicate against
+        const queueTracks = store.queue;
+
+        const fresh = recs.filter(t => {
+          // 1. Deduplicate by exact videoId
+          if (currentIds.has(t.videoId)) return false;
+          
+          // 2. Deduplicate by advanced title similarity against the current queue
+          const isDuplicate = queueTracks.some(qt => areTitlesSimilar(qt.title, t.title));
+          if (isDuplicate) return false;
+          
+          // Add to currentIds and queueTracks so we deduplicate against the newly added batch itself
+          currentIds.add(t.videoId);
+          queueTracks.push(t);
+          
+          return true;
+        });
         
         if (fresh.length > 0) {
           store.addTracksToQueue(fresh);

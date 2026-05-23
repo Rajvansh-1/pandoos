@@ -68,7 +68,8 @@ async function sampleImageColors(
         ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, SIZE, SIZE);
         const { data } = ctx.getImageData(0, 0, SIZE, SIZE);
 
-        const pixels: Array<[number, number, number]> = [];
+        const filteredPixels: Array<[number, number, number]> = [];
+        const allPixels: Array<[number, number, number]> = [];
         const step = Math.max(1, Math.floor(data.length / 4 / sampleSize));
 
         for (let i = 0; i < data.length; i += 4 * step) {
@@ -78,17 +79,19 @@ async function sampleImageColors(
           const a = data[i + 3] ?? 0;
           
           if (a < 128) continue;
+          allPixels.push([r, g, b]);
           
           const brightness = (r + g + b) / 3;
-          if (brightness < 50 || brightness > 230) continue; // Reject dark pixels entirely
+          if (brightness < 20 || brightness > 240) continue; // Reject only very dark/bright pixels
           
           const max = Math.max(r, g, b);
           const min = Math.min(r, g, b);
-          if (max - min < 35) continue; // Reject grey/unsaturated pixels
+          if (max - min < 15) continue; // Reject completely grey/unsaturated pixels
           
-          pixels.push([r, g, b]);
+          filteredPixels.push([r, g, b]);
         }
-        resolve(pixels);
+        // Fallback to all pixels if the image is mostly dark/desaturated
+        resolve(filteredPixels.length >= 5 ? filteredPixels : allPixels);
       } catch (e) {
         console.error("Canvas tainted or failed:", e);
         resolve([]);
@@ -126,19 +129,39 @@ function dominantColors(
 }
 
 /**
+ * Generate a deterministic fallback palette based on videoId hash.
+ * This guarantees the mood engine ALWAYS transitions even if CORS or
+ * image extraction fails.
+ */
+function getFallbackColor(videoId: string): ExtractedColors {
+  let hash = 0;
+  for (let i = 0; i < videoId.length; i++) {
+    hash = videoId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return {
+    primary: `${hue} 80% 60%`,
+    secondary: `${(hue + 30) % 360} 70% 65%`,
+    accent: `${(hue + 180) % 360} 75% 60%`,
+    muted: `${hue} 30% 25%`
+  };
+}
+
+/**
  * Extract dominant, vibrant, and muted colors from an image URL using
  * the browser Canvas API — no external dependencies required.
  *
  * @param imageUrl - Any CORS-enabled URL (YouTube thumbnails work fine).
- * @returns Extracted palette or null on failure.
+ * @param videoId - Fallback id to generate a deterministic color.
+ * @returns Extracted palette.
  */
-export async function extractColors(imageUrl: string): Promise<ExtractedColors | null> {
+export async function extractColors(imageUrl: string, videoId: string): Promise<ExtractedColors> {
   try {
     const pixels = await sampleImageColors(imageUrl);
-    if (pixels.length < 5) return null;
+    if (pixels.length < 5) return getFallbackColor(videoId);
 
     const { vibrant, muted } = dominantColors(pixels);
-    if (!vibrant) return null;
+    if (!vibrant) return getFallbackColor(videoId);
 
     const primary = rgbToHslString(...vibrant);
 
@@ -153,7 +176,7 @@ export async function extractColors(imageUrl: string): Promise<ExtractedColors |
 
     return { primary, secondary, accent, muted: mutedStr };
   } catch {
-    // Silently fail — caller uses DEFAULT_THEME as fallback
-    return null;
+    // Silently fail — use fallback color
+    return getFallbackColor(videoId);
   }
 }

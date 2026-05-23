@@ -1,6 +1,7 @@
 import type { Track, YouTubeSearchItem } from '@/types/track';
 import { YT_THUMB } from '@/utils/constants';
 import { MOOD_SEEDS } from '@/data/moodSeeds';
+import { areTitlesSimilar } from '@/utils/trackDedup';
 
 function mapSearchItemToTrack(item: YouTubeSearchItem): Track {
   const videoId = item.id.videoId;
@@ -20,6 +21,23 @@ function mapSearchItemToTrack(item: YouTubeSearchItem): Track {
     channelTitle: item.snippet.channelTitle,
     publishedAt: item.snippet.publishedAt,
   };
+}
+
+export function deduplicateTracks(tracks: Track[]): Track[] {
+  const seen: Track[] = [];
+  
+  return tracks.filter(track => {
+    // 1. Deduplicate by exact videoId
+    if (seen.some(s => s.videoId === track.videoId)) return false;
+    
+    // 2. Deduplicate by advanced title similarity (Jaccard word match + substrings)
+    if (seen.some(s => areTitlesSimilar(s.title, track.title))) {
+      return false;
+    }
+    
+    seen.push(track);
+    return true;
+  });
 }
 
 export async function searchTracks(query: string): Promise<Track[]> {
@@ -105,7 +123,7 @@ export async function searchTracks(query: string): Promise<Track[]> {
       return !forbiddenTerms.some(term => titleLower.includes(term));
     });
     
-    return mapped;
+    return deduplicateTracks(mapped);
   }
 
   // 2. Client-side fallback to Unofficial YouTube Music API
@@ -128,7 +146,7 @@ export async function searchTracks(query: string): Promise<Track[]> {
         channelTitle: item.artist?.name || 'Unknown',
         publishedAt: new Date().toISOString(),
       }));
-      return mappedAlt;
+      return deduplicateTracks(mappedAlt);
     }
   } catch (e) {
     console.warn('YouTube Music API Fallback failed:', e);
@@ -146,7 +164,7 @@ export async function searchTracks(query: string): Promise<Track[]> {
   });
   
   if (fallbackResults.length > 0) {
-    return fallbackResults.sort(() => 0.5 - Math.random());
+    return deduplicateTracks(fallbackResults.sort(() => 0.5 - Math.random()));
   }
 
   // If nothing matches, just return chill mood
