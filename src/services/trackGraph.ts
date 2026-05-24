@@ -92,7 +92,12 @@ const PUNJABI_WORDS = [
 // ─── Inference Functions ──────────────────────────────────────────────────────
 
 function hasAny(text: string, keywords: string[]): boolean {
-  return keywords.some(k => text.includes(k));
+  return keywords.some(k => {
+    // Escape keyword and match as whole word to prevent false substring matches (e.g., 'ram' in 'parampara')
+    const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+    return regex.test(text);
+  });
 }
 
 export function inferTags(title: string, artist: string): TrackTags {

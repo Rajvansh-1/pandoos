@@ -55,7 +55,24 @@ export function LyricsView() {
     return () => { isMounted = false; };
   }, [currentTrack]);
 
-  // Auto-scroll logic
+  const [offsetMs, setOffsetMs] = useState(0);
+
+  // Reset offset when track changes
+  useEffect(() => {
+    setOffsetMs(0);
+  }, [currentTrack?.videoId]);
+
+  let activeIndex = 0;
+  if (lyrics) {
+    const adjustedMs = currentMs + offsetMs;
+    activeIndex = lyrics.findIndex((line, i) => {
+      const nextLine = lyrics[i + 1];
+      return adjustedMs >= line.time && (!nextLine || adjustedMs < nextLine.time);
+    });
+    if (activeIndex === -1) activeIndex = 0;
+  }
+
+  // Auto-scroll logic (Only runs when activeIndex changes!)
   useEffect(() => {
     if (activeLineRef.current && containerRef.current) {
       const container = containerRef.current;
@@ -68,7 +85,7 @@ export function LyricsView() {
         behavior: 'smooth'
       });
     }
-  }, [currentMs, lyrics]);
+  }, [activeIndex]);
 
   if (isLoading) {
     return (
@@ -88,39 +105,49 @@ export function LyricsView() {
   }
 
   if (lyrics) {
-    let activeIndex = lyrics.findIndex((line, i) => {
-      const nextLine = lyrics[i + 1];
-      return currentMs >= line.time && (!nextLine || currentMs < nextLine.time);
-    });
-
-    if (activeIndex === -1) activeIndex = 0;
-
     return (
-      <div ref={containerRef} className="w-full h-full overflow-y-auto scroll-container px-6 py-[40%] relative no-select">
-        <div className="flex flex-col gap-6 md:gap-8 pb-[50%]">
-          {lyrics.map((line, i) => {
-            const isActive = i === activeIndex;
-            const isPassed = i < activeIndex;
+      <div className="relative w-full h-full">
+        {/* Sync Controls */}
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-2 py-1 border border-white/10 opacity-60 hover:opacity-100 transition-opacity">
+          <button onClick={() => setOffsetMs(0)} className="text-white/40 hover:text-white p-1" title="Reset Sync">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+          <button onClick={() => setOffsetMs(o => o - 500)} className="text-white/60 hover:text-white p-1" title="Delay Lyrics">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/></svg>
+          </button>
+          <span className="text-[10px] font-mono text-white/80 w-10 text-center select-none">
+            {offsetMs > 0 ? '+' : ''}{(offsetMs / 1000).toFixed(1)}s
+          </span>
+          <button onClick={() => setOffsetMs(o => o + 500)} className="text-white/60 hover:text-white p-1" title="Advance Lyrics">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          </button>
+        </div>
 
-            return (
-              <motion.div
-                key={i}
-                ref={isActive ? activeLineRef : null}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: isActive ? 1 : isPassed ? 0.4 : 0.2, y: 0 }}
-                className="cursor-pointer"
-                onClick={() => {
-                  if (duration > 0) {
-                    usePlayerStore.getState().setProgress(line.time / 1000 / duration);
-                  }
-                }}
-              >
-                <p className={`text-2xl md:text-4xl font-display font-extrabold tracking-tight transition-all duration-300 ease-out origin-left ${isActive ? 'text-white scale-110 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]' : 'text-white'}`}>
-                  {line.text || "♪"}
-                </p>
-              </motion.div>
-            );
-          })}
+        <div ref={containerRef} className="w-full h-full overflow-y-auto scroll-container px-6 py-[40%] relative no-select">
+          <div className="flex flex-col gap-6 md:gap-8 pb-[50%]">
+            {lyrics.map((line, i) => {
+              const isActive = i === activeIndex;
+
+              return (
+                <motion.div
+                  key={i}
+                  ref={isActive ? activeLineRef : null}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: isActive ? 1 : 0.5, y: 0 }}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    if (duration > 0) {
+                      usePlayerStore.getState().seekTo(line.time / 1000 / duration);
+                    }
+                  }}
+                >
+                  <p className={`text-3xl md:text-4xl font-display font-black tracking-tight transition-all duration-500 ease-out origin-left ${isActive ? 'text-white scale-110 drop-shadow-[0_0_25px_rgba(255,255,255,0.7)]' : 'text-white/30 blur-[1px] scale-95'}`}>
+                    {line.text || "♪"}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </div>
     );

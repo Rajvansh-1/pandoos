@@ -62,34 +62,32 @@ export function SeekBar({ className }: { className?: string }) {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        {/* Base Track (Blank Grey Line) */}
+        {/* Base Track (Sleek Grey Line) */}
         <div 
           className={cn(
-            "w-full bg-white/20 rounded-full relative overflow-hidden transition-all duration-300 ease-out",
-            isDragging ? "h-2.5" : "h-1.5 group-hover:h-2"
+            "w-full bg-white/20 rounded-full relative transition-all duration-300 ease-out",
+            isDragging ? "h-1.5" : "h-1 group-hover:h-1.5"
           )}
         >
-          {/* Played Portion (The Bamboo Growing) */}
+          {/* Played Portion (Sleek Pink/Red Line) */}
           <div 
-            className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-400 rounded-full"
+            className="absolute top-0 bottom-0 left-0 bg-[#ff5f56] rounded-full"
             style={{ 
               width: `${displayProgress * 100}%`,
               transition: isDragging ? 'none' : 'width 0.1s linear',
-              boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
+              boxShadow: '0 0 10px rgba(255, 95, 86, 0.5)'
             }}
           />
         </div>
         
-        {/* Playhead thumb (The Panda) */}
+        {/* Playhead thumb (Clean White Dot) */}
         <div 
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 -ml-3 flex items-center justify-center text-xl transition-transform drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] z-10",
-            isDragging ? "scale-125" : "scale-100"
+            "absolute top-1/2 -translate-y-1/2 -ml-2 w-4 h-4 rounded-full bg-white shadow-md z-10 transition-transform duration-200",
+            isDragging ? "scale-125" : "scale-0 group-hover:scale-100"
           )}
           style={{ left: `${displayProgress * 100}%` }}
-        >
-          🐼
-        </div>
+        />
       </div>
     </div>
   );

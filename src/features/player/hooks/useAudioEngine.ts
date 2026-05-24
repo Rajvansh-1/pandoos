@@ -173,6 +173,8 @@ export function useAudioEngine() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const ignoreProgressUpdatesRef = useRef<number>(0);
+
   // 2. Track Progress Tracker & Sleep Timer
   const startProgressTracker = () => {
     stopProgressTracker();
@@ -183,6 +185,10 @@ export function useAudioEngine() {
         usePlayerStore.getState().pauseTrack();
         usePlayerStore.getState().clearSleepTimer();
         return;
+      }
+
+      if (Date.now() < ignoreProgressUpdatesRef.current) {
+        return; // Temporarily ignore interval updates immediately after a seek to prevent rubber-banding
       }
 
       if (playerRef.current && typeof playerRef.current.getPlayerState === 'function' && playerRef.current.getPlayerState() === window.YT.PlayerState.PLAYING) {
@@ -254,6 +260,7 @@ export function useAudioEngine() {
     if (Math.abs(progress - lastSetProgress.current) > 0.02) {
       const duration = playerRef.current.getDuration();
       if (duration > 0) {
+        ignoreProgressUpdatesRef.current = Date.now() + 1000;
         playerRef.current.seekTo(progress * duration, true);
       }
     }
