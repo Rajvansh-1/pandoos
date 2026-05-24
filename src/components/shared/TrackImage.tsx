@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Music2 } from 'lucide-react';
 
 interface TrackImageProps {
@@ -8,62 +8,105 @@ interface TrackImageProps {
   style?: React.CSSProperties;
 }
 
-// YouTube's grey "no thumbnail" placeholder dimensions are 120x90.
-// We detect a broken thumbnail by checking naturalWidth after load.
-const YOUTUBE_PLACEHOLDER_WIDTH = 120;
+// ─────────────────────────────────────────────────────────────
+// Module-level image URL cache — persists across React re-mounts
+// and navigation. Maps videoId → the working thumbnail URL.
+// This means navigating away and back never re-fetches.
+// ─────────────────────────────────────────────────────────────
+const resolvedUrls = new Map<string, string | 'error'>();
+
+// YouTube serves a 120×90 grey stub for missing thumbnails.
+const YT_STUB_WIDTH = 120;
+
+function buildUrl(videoId: string, quality: 'hq' | 'sd' | 'mq'): string {
+  const suffix = quality === 'hq' ? 'hqdefault' : quality === 'sd' ? 'sddefault' : 'mqdefault';
+  return `https://i.ytimg.com/vi/${videoId}/${suffix}.jpg`;
+}
+
+const QUALITY_CHAIN: Array<'hq' | 'sd' | 'mq'> = ['hq', 'sd', 'mq'];
 
 /**
- * TrackImage — Robust album art with:
- * 1. Gradient background while loading (NEVER blank/grey)
- * 2. Fallback chain: hqdefault → sddefault → gradient placeholder
- * 3. Detects YouTube's grey "no thumbnail" stub and skips it
- * 
- * NOTE: We intentionally skip maxresdefault — it 404s for ~40% of videos.
- * hqdefault (480x360) always exists and looks great at our card sizes.
+ * TrackImage — Production-grade album art component.
+ *
+ * Improvements over v1:
+ * 1. Module-level URL cache — once a videoId's working thumbnail is found,
+ *    subsequent mounts show it instantly (no flash, no spinner) even after
+ *    navigating away and returning.
+ * 2. Three-step quality fallback: hqdefault → sddefault → mqdefault → gradient.
+ * 3. Gradient placeholder is deterministic per videoId — no blank/grey ever.
+ * 4. No unnecessary re-fetches on re-mount.
  */
 export function TrackImage({ videoId, title, className = '', style }: TrackImageProps) {
-  // Deterministic color per videoId — unique gradient for every song
+  // Deterministic unique gradient per videoId
   const hue = videoId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
-  const hue2 = (hue + 60) % 360;
+  const hue2 = (hue + 70) % 360;
+  const gradientBg = {
+    background: `linear-gradient(135deg, hsl(${hue},50%,20%), hsl(${hue2},60%,28%))`,
+  };
 
-  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
-  const [src, setSrc] = useState(`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`);
-  const [triedSd, setTriedSd] = useState(false);
+  const cached = resolvedUrls.get(videoId);
 
-  // Reset when videoId changes
+  // If we already resolved this videoId, use the result immediately
+  const [src, setSrc] = useState<string | null>(
+    cached && cached !== 'error' ? cached : null
+  );
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>(
+    cached === 'error' ? 'error' : cached ? 'loaded' : 'loading'
+  );
+  const qualityIndexRef = useRef(0);
+  const isMountedRef = useRef(true);
+
   useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  // When videoId changes (or on first mount with no cache), start resolution
+  useEffect(() => {
+    const existing = resolvedUrls.get(videoId);
+    if (existing === 'error') {
+      setStatus('error');
+      setSrc(null);
+      return;
+    }
+    if (existing) {
+      setSrc(existing);
+      setStatus('loaded');
+      return;
+    }
+
+    // Start fresh resolution for this videoId
+    qualityIndexRef.current = 0;
+    setSrc(buildUrl(videoId, QUALITY_CHAIN[0]!));
     setStatus('loading');
-    setSrc(`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`);
-    setTriedSd(false);
   }, [videoId]);
+
+  const tryNextQuality = () => {
+    qualityIndexRef.current += 1;
+    const nextQuality = QUALITY_CHAIN[qualityIndexRef.current];
+    if (nextQuality && isMountedRef.current) {
+      setSrc(buildUrl(videoId, nextQuality));
+    } else {
+      // All qualities exhausted
+      resolvedUrls.set(videoId, 'error');
+      if (isMountedRef.current) setStatus('error');
+    }
+  };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
-    // YouTube serves a 120x90 grey stub when the thumbnail doesn't exist
-    if (img.naturalWidth <= YOUTUBE_PLACEHOLDER_WIDTH && !triedSd) {
-      setTriedSd(true);
-      setSrc(`https://i.ytimg.com/vi/${videoId}/sddefault.jpg`);
-      setStatus('loading');
+    if (img.naturalWidth <= YT_STUB_WIDTH) {
+      // YouTube's grey stub — try next quality
+      tryNextQuality();
       return;
     }
-    if (img.naturalWidth <= YOUTUBE_PLACEHOLDER_WIDTH) {
-      setStatus('error');
-      return;
-    }
-    setStatus('loaded');
+    // Genuine image — cache and show it
+    if (src) resolvedUrls.set(videoId, src);
+    if (isMountedRef.current) setStatus('loaded');
   };
 
   const handleError = () => {
-    if (!triedSd) {
-      setTriedSd(true);
-      setSrc(`https://i.ytimg.com/vi/${videoId}/sddefault.jpg`);
-    } else {
-      setStatus('error');
-    }
-  };
-
-  const gradientBg = {
-    background: `linear-gradient(135deg, hsl(${hue},55%,22%), hsl(${hue2},65%,30%))`,
+    tryNextQuality();
   };
 
   return (
@@ -71,29 +114,32 @@ export function TrackImage({ videoId, title, className = '', style }: TrackImage
       className={`relative overflow-hidden ${className}`}
       style={{ ...gradientBg, ...style }}
     >
-      {/* Gradient is ALWAYS visible — no grey/blank flash */}
+      {/* Gradient placeholder — always shown until image loads */}
       {status !== 'loaded' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center p-3 text-center z-0">
-          <Music2 size={24} className="text-white/40 mb-2" />
+          <Music2 size={22} className="text-white/30 mb-1.5" />
           {title && (
-            <span className="text-xs font-bold text-white/80 line-clamp-2 drop-shadow-md">
+            <span className="text-xs font-bold text-white/70 line-clamp-2 drop-shadow-md leading-tight">
               {title}
             </span>
           )}
           {status === 'loading' && (
-            <div className="absolute bottom-3 right-3 w-4 h-4 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+            <div className="absolute bottom-2 right-2 w-3.5 h-3.5 rounded-full border-2 border-white/20 border-t-white/50 animate-spin" />
           )}
         </div>
       )}
 
-      {/* Actual image — invisible until loaded */}
-      {status !== 'error' && (
+      {/* Actual image — overlaid, fades in when ready */}
+      {src && status !== 'error' && (
         <img
           src={src}
           alt={title ?? ''}
           onLoad={handleLoad}
           onError={handleError}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 z-10 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 z-10 ${
+            status === 'loaded' ? 'opacity-100' : 'opacity-0'
+          }`}
+          draggable={false}
         />
       )}
     </div>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion
 import { ChevronDown, MoreVertical, Heart, X, Play, Shuffle, GripVertical, Trash2, ListMusic } from 'lucide-react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { useTasteStore } from '@/stores/useTasteStore';
 import { useColorExtractor } from '@/features/player/hooks/useColorExtractor';
 import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
 import { BottomSheet } from '@/components/ui/BottomSheet';
@@ -118,9 +119,13 @@ export function FullscreenPlayer() {
   React.useEffect(() => {
     if (mobileTab === 'related' && currentTrack) {
       setIsLoadingRelated(true);
+      const getAffinityScore = useTasteStore.getState().getAffinityScore;
+      const skippedIds = useTasteStore.getState().skippedIds;
       getRecommendations({
-        seedTracks: [currentTrack],
-        skippedIds: [],
+        currentTrack,
+        history: historyTracks,
+        skippedIds,
+        getAffinityScore,
         count: 15
       }).then(tracks => {
         setRelatedTracks(tracks);
@@ -292,7 +297,9 @@ export function FullscreenPlayer() {
       {isPlayerOpen && (
         <motion.div
           className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/60 backdrop-blur-md"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          initial={{ opacity: 0, pointerEvents: 'none' }}
+          animate={{ opacity: 1, pointerEvents: 'auto' }}
+          exit={{ opacity: 0, pointerEvents: 'none' }}
           onClick={closePlayer}
         >
           <motion.div
