@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { Search as SearchIcon, X, Clock, Play } from 'lucide-react';
+import { Search as SearchIcon, X, Play, User as UserIcon } from 'lucide-react';
 import { useSearch } from '@/features/search/hooks/useSearch';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useSearchStore } from '@/stores/useSearchStore';
-import { getBestThumbnail } from '@/services/youtube';
+import { useUIStore } from '@/stores/useUIStore';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { SEARCH_DEBOUNCE_MS } from '@/utils/constants';
 
@@ -15,6 +15,7 @@ export function SearchPage() {
   const { data: results, isLoading } = useSearch(debouncedQuery);
   const playTrack = usePlayerStore((state) => state.playTrack);
   const { recentQueries, recentTracks, addQuery, addTrack, clearHistory } = useSearchStore();
+  const openArtistPage = useUIStore((state) => state.openArtistPage);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -25,6 +26,8 @@ export function SearchPage() {
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query, addQuery]);
+
+  const hasResults = results && (results.songs.length > 0 || results.artists.length > 0);
 
   return (
     <div className="w-full h-full flex flex-col px-4">
@@ -58,7 +61,7 @@ export function SearchPage() {
       </div>
 
       {/* Results List */}
-      <div className="flex-1 pb-20">
+      <div className="flex-1 pb-20 overflow-y-auto">
         {!query && (
           <div className="h-full flex flex-col mt-4">
             {recentQueries.length === 0 && recentTracks.length === 0 ? (
@@ -130,39 +133,79 @@ export function SearchPage() {
           </div>
         )}
 
-        {results && results.length === 0 && !isLoading && query.length > 2 && (
+        {results && !hasResults && !isLoading && query.length > 2 && (
           <div className="text-center text-text-muted mt-10">
             No results found for "{query}"
           </div>
         )}
 
-        {results && results.length > 0 && (
-          <div className="flex flex-col gap-2 mt-2">
-            {results.map((track) => (
-              <button
-                key={track.id}
-                onClick={() => {
-                  playTrack(track, results);
-                  addTrack(track);
-                }}
-                className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 touch-highlight text-left group transition-colors"
-              >
-                <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-sm relative">
-                  <TrackImage 
-                    videoId={track.videoId} 
-                    title={track.title} 
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M5 3v18l15-9L5 3z"/></svg>
-                  </div>
+        {results && hasResults && (
+          <div className="flex flex-col gap-6 mt-2">
+            
+            {/* Artists Section */}
+            {results.artists.length > 0 && (
+              <div>
+                <h3 className="text-lg font-bold text-white mb-3">Artists</h3>
+                <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
+                  {results.artists.map((artist) => (
+                    <button
+                      key={artist.artistId}
+                      onClick={() => openArtistPage(artist.artistId, artist.name)}
+                      className="flex flex-col items-center gap-2 min-w-[100px] shrink-0 group touch-highlight"
+                    >
+                      <div className="w-24 h-24 rounded-full overflow-hidden border border-white/10 group-hover:border-brand-primary/50 transition-colors shadow-lg bg-surface-elevated flex items-center justify-center">
+                        {artist.thumbnails?.[0]?.url ? (
+                          <img 
+                            src={artist.thumbnails[0].url} 
+                            alt={artist.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <UserIcon className="w-8 h-8 text-text-muted" />
+                        )}
+                      </div>
+                      <p className="text-sm font-medium text-white truncate w-full text-center">
+                        {artist.name}
+                      </p>
+                    </button>
+                  ))}
                 </div>
-                <div className="flex-1 min-w-0 flex flex-col justify-center">
-                  <p className="text-sm font-semibold text-white truncate">{track.title}</p>
-                  <p className="text-xs text-text-muted truncate mt-0.5">{track.artist}</p>
+              </div>
+            )}
+
+            {/* Songs Section */}
+            {results.songs.length > 0 && (
+              <div>
+                <h3 className="text-lg font-bold text-white mb-3">Songs</h3>
+                <div className="flex flex-col gap-2">
+                  {results.songs.map((track) => (
+                    <button
+                      key={track.id}
+                      onClick={() => {
+                        playTrack(track, results.songs);
+                        addTrack(track);
+                      }}
+                      className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 touch-highlight text-left group transition-colors"
+                    >
+                      <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-sm relative">
+                        <TrackImage 
+                          videoId={track.videoId} 
+                          title={track.title} 
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M5 3v18l15-9L5 3z"/></svg>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <p className="text-sm font-semibold text-white truncate">{track.title}</p>
+                        <p className="text-xs text-text-muted truncate mt-0.5">{track.artist}</p>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </button>
-            ))}
+              </div>
+            )}
           </div>
         )}
       </div>

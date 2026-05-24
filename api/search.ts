@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Query parameter "q" is required' });
   }
 
-  const cacheKey = `pandoos:ytm_search_v3:${query.toLowerCase().trim()}`;
+  const cacheKey = `pandoos:ytm_search_v4:${query.toLowerCase().trim()}`;
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
@@ -23,9 +23,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (cacheRes.ok) {
         const cacheData = await cacheRes.json();
         if (cacheData.result) {
-          const items = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
+          const resultObj = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
           res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
-          return res.status(200).json({ items, cached: true });
+          return res.status(200).json({ ...resultObj, cached: true });
         }
       }
     } catch (e) {
@@ -39,9 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       initialized = true;
     }
 
-    const results = await ytmusic.searchSongs(query);
+    const [songResults, artistResults] = await Promise.all([
+      ytmusic.searchSongs(query).catch(() => []),
+      ytmusic.searchArtists(query).catch(() => [])
+    ]);
 
-    const mappedItems = results.map(song => ({
+    const mappedSongs = songResults.map(song => ({
       id: { videoId: song.videoId },
       snippet: {
         title: song.name,
@@ -55,16 +58,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     })).slice(0, 15);
 
-    if (upstashUrl && upstashToken && mappedItems.length > 0) {
+    const mappedArtists = artistResults.map(artist => ({
+      artistId: artist.artistId || artist.browseId,
+      name: artist.name,
+      thumbnails: artist.thumbnails || []
+    })).slice(0, 5);
+
+    const responseObj = { items: mappedSongs, artists: mappedArtists };
+
+    if (upstashUrl && upstashToken && (mappedSongs.length > 0 || mappedArtists.length > 0)) {
       fetch(`${upstashUrl}/set/${encodeURIComponent(cacheKey)}?ex=86400`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${upstashToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(mappedItems),
+        body: JSON.stringify(responseObj),
       }).catch(e => console.error('Redis cache write failed:', e));
     }
 
     res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
-    return res.status(200).json({ items: mappedItems, cached: false });
+    return res.status(200).json({ ...responseObj, cached: false });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

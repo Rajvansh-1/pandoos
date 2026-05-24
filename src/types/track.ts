@@ -48,3 +48,21 @@ export interface YouTubeSearchItem {
 
 /** YouTube IFrame player ready state (subset of YT.PlayerState) */
 export type YouTubePlayerState = 'unstarted' | 'ended' | 'playing' | 'paused' | 'buffering' | 'cued';
+
+/**
+ * Artist entity representing search results or artist pages.
+ */
+export interface Artist {
+  readonly artistId: string;
+  readonly name: string;
+  readonly thumbnails: { url: string; width: number; height: number }[];
+}
+
+/**
+ * Combined Search Result structure.
+ */
+export interface SearchResult {
+  readonly songs: Track[];
+  readonly artists: Artist[];
+}
+

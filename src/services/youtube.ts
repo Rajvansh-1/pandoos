@@ -1,4 +1,4 @@
-import type { Track, YouTubeSearchItem } from '@/types/track';
+import type { Track, YouTubeSearchItem, SearchResult, Artist } from '@/types/track';
 import { YT_THUMB } from '@/utils/constants';
 
 // Our new APIs return mapped `YouTubeSearchItem` structure
@@ -28,20 +28,23 @@ export function deduplicateTracks(tracks: Track[]): Track[] {
   });
 }
 
-export async function searchTracks(query: string): Promise<Track[]> {
+export async function searchTracks(query: string): Promise<SearchResult> {
   const normalizedQuery = query.toLowerCase().trim();
   
   try {
     const res = await fetch(`/api/search?q=${encodeURIComponent(normalizedQuery)}`);
     if (!res.ok) throw new Error('Search API failed');
     
-    const data = (await res.json()) as { items: YouTubeSearchItem[] };
-    const mapped = (data.items ?? []).map(mapSearchItemToTrack);
+    const data = (await res.json()) as { items: YouTubeSearchItem[], artists: Artist[] };
+    const mappedSongs = (data.items ?? []).map(mapSearchItemToTrack);
     
-    return deduplicateTracks(mapped);
+    return {
+      songs: deduplicateTracks(mappedSongs),
+      artists: data.artists ?? []
+    };
   } catch (error) {
     console.error('Search failed:', error);
-    return [];
+    return { songs: [], artists: [] };
   }
 }
 
