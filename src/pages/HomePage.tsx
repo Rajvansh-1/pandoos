@@ -146,8 +146,11 @@ export function HomePage() {
     // We also don't want to repeat tracks that are already in quickPicks
     quickPicks.forEach(t => seen.add(t.videoId));
 
-    const dedupe = (tracks?: Track[]) => {
-      if (!tracks) return undefined;
+    const dedupe = (data?: Track[] | { songs: Track[] }) => {
+      if (!data) return undefined;
+      const tracks = Array.isArray(data) ? data : (data.songs || []);
+      if (!tracks || tracks.length === 0) return undefined;
+      
       const unique = tracks.filter(t => !seen.has(t.videoId));
       unique.forEach(t => seen.add(t.videoId));
       return unique;
@@ -283,7 +286,7 @@ export function HomePage() {
       <div className="w-full max-w-7xl px-4 md:px-8 flex flex-col gap-10 md:gap-16">
 
         {/* NOW VIBE — if a track is playing */}
-        {currentTrack && nowVibeTracks && nowVibeTracks.length > 0 && (
+        {currentTrack && nowVibeTracks && nowVibeTracks.songs.length > 0 && (
           <RealmSection
             title="Because You're Listening"
             description={`More like "${currentTrack.title.slice(0, 40)}…"`}
@@ -345,7 +348,7 @@ export function HomePage() {
         />
 
         {/* BECAUSE YOU LISTENED TO X */}
-        {artistDisplayName && artistTracks && artistTracks.length > 0 && (
+        {artistDisplayName && artistTracks && artistTracks.songs.length > 0 && (
           <RealmSection
             title={`Echoes of ${artistDisplayName}`}
             description="The timeline shifts based on your last adventure."

@@ -80,10 +80,10 @@ export async function getRecommendations(opts: RecommendOptions): Promise<Track[
   let freshTracks: Track[] = [];
   try {
     const query = buildSearchQuery(currentTrack);
-    const results = await searchTracks(query);
+    const { songs: results } = await searchTracks(query);
     freshTracks = results
-      .filter(t => !skippedIds.includes(t.videoId))
-      .map(t => ({
+      .filter((t: Track) => !skippedIds.includes(t.videoId))
+      .map((t: Track) => ({
         track: t,
         score: scoreCandidate(
           t,
@@ -94,9 +94,9 @@ export async function getRecommendations(opts: RecommendOptions): Promise<Track[
           historyIds.has(t.videoId)
         ),
       }))
-      .sort((a, b) => b.score - a.score)
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
       .slice(0, count + 5)
-      .map(s => s.track);
+      .map((s: { track: Track }) => s.track);
   } catch {
     console.warn('Failed to fetch recommendations from YouTube');
   }

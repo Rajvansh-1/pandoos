@@ -15,7 +15,7 @@ export function SearchPage() {
   const { data: results, isLoading } = useSearch(debouncedQuery);
   const playTrack = usePlayerStore((state) => state.playTrack);
   const { recentQueries, recentTracks, addQuery, addTrack, clearHistory } = useSearchStore();
-  const openArtistPage = useUIStore((state) => state.openArtistPage);
+  const openArtist = useUIStore((state) => state.openArtist);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -150,7 +150,7 @@ export function SearchPage() {
                   {results.artists.map((artist) => (
                     <button
                       key={artist.artistId}
-                      onClick={() => openArtistPage(artist.artistId, artist.name)}
+                      onClick={() => openArtist(artist.artistId)}
                       className="flex flex-col items-center gap-2 min-w-[100px] shrink-0 group touch-highlight"
                     >
                       <div className="w-24 h-24 rounded-full overflow-hidden border border-white/10 group-hover:border-brand-primary/50 transition-colors shadow-lg bg-surface-elevated flex items-center justify-center">

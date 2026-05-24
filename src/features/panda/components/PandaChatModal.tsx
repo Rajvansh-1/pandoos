@@ -45,16 +45,16 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
   }, [messages, isTyping]);
 
   useEffect(() => {
-    if (currentQuery && !isLoading && searchResults && searchResults.length > 0) {
+    if (currentQuery && !isLoading && searchResults && searchResults.songs.length > 0) {
       setIsTyping(false);
-      const track = searchResults[0];
+      const track = searchResults.songs[0];
       setMessages(prev => [
         ...prev,
-        { id: Date.now().toString(), sender: 'panda', text: `Found it! Playing "${track.title}" and queued ${searchResults.length - 1} relevant tracks! 🎧`, isAction: true }
+        { id: Date.now().toString(), sender: 'panda', text: `Found it! Playing "${track.title}" and queued ${searchResults.songs.length - 1} relevant tracks! 🎧`, isAction: true }
       ]);
-      playTrack(track, searchResults);
+      playTrack(track, searchResults.songs);
       setCurrentQuery(''); // Reset so we don't trigger again
-    } else if (currentQuery && !isLoading && searchResults && searchResults.length === 0) {
+    } else if (currentQuery && !isLoading && searchResults && searchResults.songs.length === 0) {
       setIsTyping(false);
       setMessages(prev => [
         ...prev,
