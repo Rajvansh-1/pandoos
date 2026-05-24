@@ -4,6 +4,7 @@ import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
 import { PROGRESS_INTERVAL_MS } from '@/utils/constants';
+import audioClock from '@/services/audioClock';
 
 /**
  * useAudioEngine — The core bridge between Zustand and the YouTube IFrame API.
@@ -19,6 +20,7 @@ import { PROGRESS_INTERVAL_MS } from '@/utils/constants';
 export function useAudioEngine() {
   const playerRef = useRef<YT.Player | null>(null);
   const progressIntervalRef = useRef<number | null>(null);
+  const timeSyncRafRef = useRef<number | null>(null);
   const sessionStartRef = useRef<number | null>(null);
 
   // Read state we need to react to
@@ -82,6 +84,7 @@ export function useAudioEngine() {
                 setIsPlaying(true);
                 setDuration(event.target.getDuration());
                 startProgressTracker();
+                startTimeSync();
                 if (!sessionStartRef.current) {
                   sessionStartRef.current = Date.now();
                 }
@@ -89,6 +92,7 @@ export function useAudioEngine() {
               case window.YT.PlayerState.PAUSED:
                 setIsPlaying(false);
                 stopProgressTracker();
+                stopTimeSync();
                 if (sessionStartRef.current) {
                   recordSession((Date.now() - sessionStartRef.current) / 1000);
                   sessionStartRef.current = null;
@@ -97,6 +101,7 @@ export function useAudioEngine() {
               case window.YT.PlayerState.ENDED:
                 setIsPlaying(false);
                 stopProgressTracker();
+                stopTimeSync();
                 if (sessionStartRef.current) {
                   const listenedMs = Date.now() - sessionStartRef.current;
                   const listenedSec = listenedMs / 1000;
@@ -165,6 +170,7 @@ export function useAudioEngine() {
 
     return () => {
       stopProgressTracker();
+      stopTimeSync();
       if (playerRef.current) {
         playerRef.current.destroy();
         playerRef.current = null;
@@ -206,6 +212,36 @@ export function useAudioEngine() {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
     }
+  };
+
+  // 2b. High-frequency audio clock — feeds audioClock at rAF rate (~60fps)
+  //     This is the source of truth for lyrics sync. It bypasses the 500ms
+  //     setInterval and reads getCurrentTime() directly from the IFrame player.
+  const startTimeSync = () => {
+    stopTimeSync();
+    const tick = () => {
+      if (
+        playerRef.current &&
+        typeof playerRef.current.getCurrentTime === 'function' &&
+        typeof playerRef.current.getPlayerState === 'function'
+      ) {
+        const state = playerRef.current.getPlayerState();
+        audioClock.isPlaying = state === window.YT?.PlayerState?.PLAYING;
+        if (audioClock.isPlaying) {
+          audioClock.currentTimeMs = playerRef.current.getCurrentTime() * 1000;
+        }
+      }
+      timeSyncRafRef.current = requestAnimationFrame(tick);
+    };
+    timeSyncRafRef.current = requestAnimationFrame(tick);
+  };
+
+  const stopTimeSync = () => {
+    if (timeSyncRafRef.current !== null) {
+      cancelAnimationFrame(timeSyncRafRef.current);
+      timeSyncRafRef.current = null;
+    }
+    audioClock.isPlaying = false;
   };
 
   // 3. React to Track Changes

@@ -15,10 +15,11 @@
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Loader2, Music2 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { fetchLyrics, type LyricsLine, type LyricsResult } from '@/services/lyrics';
+import audioClock from '@/services/audioClock';
 
 // ─────────────────────────────────────────────
 // Custom smooth-scroll helper (no browser API — full control)
@@ -169,8 +170,9 @@ export function LyricsView() {
     function tick(ts: number) {
       rafRef.current = requestAnimationFrame(tick);
 
-      const { progress, duration: dur } = usePlayerStore.getState();
-      const currentMs = progress * dur * 1000;
+      // Read directly from the audioClock — updated at ~60fps by the audio engine,
+      // bypassing the 500ms setInterval that caused the 200-500ms sync delay.
+      const currentMs = audioClock.currentTimeMs;
 
       // Binary search for current line — O(log n)
       let lo = 0;
