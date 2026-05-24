@@ -1,10 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Search, Library, LogIn, LogOut } from 'lucide-react';
+import { Home, Search, Library, LogIn, LogOut, Flame } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useGamificationStore, computeXP, getRankForXP, getXPProgress } from '@/stores/useGamificationStore';
 import { motion } from 'framer-motion';
-import { Flame } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/', icon: <Home size={20} />, label: 'Home' },
@@ -28,9 +27,9 @@ export function Sidebar() {
   const dash = (xpProgress.percent / 100) * circumference;
 
   return (
-    <aside 
-      className="w-64 h-full border-r border-white/5 flex flex-col pt-6 pb-6 z-30 shrink-0 backdrop-blur-2xl"
-      style={{ backgroundColor: 'hsl(var(--surface-base) / 0.6)' }}
+    <aside
+      className="m-4 w-64 h-[calc(100vh-2rem)] border border-white/10 rounded-[2rem] flex flex-col pt-6 pb-6 z-30 shrink-0 backdrop-blur-3xl shadow-2xl overflow-hidden"
+      style={{ backgroundColor: 'hsl(var(--surface-base) / 0.8)' }}
     >
 
       {/* Brand */}

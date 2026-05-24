@@ -26,7 +26,7 @@ export function DesktopLayout() {
 
       {/* Persistent Bottom Player */}
       {currentTrack && (
-        <div className="fixed bottom-6 left-64 right-6 z-40 flex justify-center pointer-events-none">
+        <div className="fixed bottom-6 left-[288px] right-6 z-40 flex justify-center pointer-events-none">
           <div className="w-full max-w-3xl pointer-events-auto">
             <MiniPlayer />
           </div>
