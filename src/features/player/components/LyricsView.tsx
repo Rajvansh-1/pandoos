@@ -127,7 +127,6 @@ export function LyricsView() {
           <div className="flex flex-col gap-6 md:gap-8 pb-[50%]">
             {lyrics.map((line, i) => {
               const isActive = i === activeIndex;
-              const isPassed = i < activeIndex;
 
               return (
                 <motion.div
