@@ -3,18 +3,139 @@ import { YT_THUMB } from '@/utils/constants';
 import { MOOD_SEEDS } from '@/data/moodSeeds';
 import { areTitlesSimilar } from '@/utils/trackDedup';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Title / Artist Cleaning
+//
+// YouTube video titles are written for SEO and have a lot of noise:
+//   "Olivia Rodrigo - the cure (Official Music Video)"
+//   "DESPACITO - Luis Fonsi ft. Daddy Yankee (Official Video)"
+//   "Never Gonna Give You Up [HD Remaster]"
+//   "Shakira, Burna Boy - Dai Dai (Official Video)"
+//
+// We parse them to extract: { songName, artistName }
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Patterns stripped from the song name part */
+const NOISE_PATTERNS = [
+  // Parenthesised suffixes — must strip these, but keep (feat. X) only if no other artist
+  /\s*\((official\s*(music\s*)?video|official\s*audio|audio|lyric\s*video?|lyrics?|visualizer|animated\s*video|hd\s*remaster(ed)?|remaster(ed)?|4k|hq|explicit|clean\s*version|radio\s*edit|full\s*video|movie\s*song|film\s*song|latest\s*song|new\s*song|original|topic|vevo|live|acoustic)\)/gi,
+  // Bracketed suffixes — same idea
+  /\s*\[(official\s*(music\s*)?video|official\s*audio|audio|lyric\s*video?|lyrics?|visualizer|hd\s*remaster(ed)?|remaster(ed)?|4k|hq|explicit|clean\s*version|radio\s*edit|full\s*video|movie\s*song|film\s*song|latest\s*song|new\s*song|original|live|acoustic)\]/gi,
+  // Anything inside parens that's "ft." or "feat." — pull artist from here later
+  /\s*\(\s*(?:ft\.|feat\.?)\s+[^)]+\)/gi,
+  // "| Official Audio" style pipe suffixes
+  /\s*\|\s*.*/g,
+  // "//  comments" style
+  /\s*\/\/.*/g,
+  // Trailing year in parens e.g. (2023)
+  /\s*\(\d{4}\)/g,
+  // "- Official Music Video" without parens
+  /\s*-\s*official\s*(music\s*)?video.*/gi,
+  /\s*-\s*official\s*audio.*/gi,
+  /\s*-\s*lyric\s*video?.*/gi,
+  /\s*-\s*lyrics?.*/gi,
+];
+
+/** Clean channel name to artist name */
+function cleanChannelName(channel: string): string {
+  return channel
+    .replace(/VEVO$/i, '')          // OliviaRodrigoVEVO → OliviaRodrigo
+    .replace(/\s*-\s*Topic$/i, '')  // Artist - Topic → Artist
+    .replace(/\s*Official$/i, '')   // ArtistOfficial → Artist
+    .replace(/\s*Music$/i, '')      // ArtistMusic → Artist
+    // Split CamelCase only if no spaces (channel names like "OliviaRodrigo")
+    .replace(/([a-z])([A-Z])/g, (_, a, b) => `${a} ${b}`)
+    .trim();
+}
+
+/**
+ * Parse a YouTube video title into a clean song name and artist.
+ *
+ * YouTube titles come in these formats (order matters):
+ *  1. "Artist - Song Name (noise)"      → most common
+ *  2. "Song Name - Artist (noise)"      → rare
+ *  3. "Artist1, Artist2 - Song (noise)" → multi-artist
+ *  4. "Song Name (noise)"               → no dash separator
+ */
+function parseTitle(
+  rawTitle: string,
+  channelTitle: string
+): { songName: string; artistName: string } {
+  // Decode HTML entities first
+  let title = rawTitle
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+
+  // Extract feat. artist before we strip the parens
+  const featMatch = title.match(/\(\s*(?:ft\.|feat\.?)\s+([^)]+)\)/i);
+  const featArtist = featMatch ? featMatch[1]!.trim() : null;
+
+  // Strip all noise patterns from the full title
+  for (const pattern of NOISE_PATTERNS) {
+    title = title.replace(pattern, '');
+  }
+  title = title.trim().replace(/\s{2,}/g, ' ').replace(/[-–—\s]+$/, '').trim();
+
+  // Try to find a " - " separator (the most reliable split point)
+  // Use a dash surrounded by spaces to avoid splitting hyphenated words
+  const dashIdx = title.search(/\s[-–—]\s/);
+
+  let songName: string;
+  let artistName: string;
+
+  if (dashIdx > 0) {
+    const left = title.slice(0, dashIdx).trim();
+    const right = title.slice(dashIdx + 3).trim(); // skip " - "
+
+    // Heuristic: if left side looks like an artist (short, title-case, no common words)
+    // and right side is the song. Usually "Artist - Song", sometimes "Song - Artist".
+    // We pick the shorter of the two as the artist if we can't tell.
+    const leftWords = left.split(/\s+/).length;
+    const rightWords = right.split(/\s+/).length;
+
+    // If left is ≤3 words and right is longer, left is probably the artist
+    if (leftWords <= 3 || leftWords < rightWords) {
+      artistName = left;
+      songName = right;
+    } else {
+      songName = left;
+      artistName = right;
+    }
+  } else {
+    // No dash — the whole thing is the song name, use channel as artist
+    songName = title;
+    artistName = cleanChannelName(channelTitle);
+  }
+
+  // If feat. artist exists, add them to the artist field
+  if (featArtist) {
+    artistName = `${artistName} ft. ${featArtist}`;
+  }
+
+  // Final cleanup: remove any remaining trailing noise from song name
+  songName = songName.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  artistName = artistName.trim();
+
+  // Fallback: if artistName is empty, use cleaned channel
+  if (!artistName) artistName = cleanChannelName(channelTitle);
+
+  return { songName, artistName };
+}
+
 function mapSearchItemToTrack(item: YouTubeSearchItem): Track {
   const videoId = item.id.videoId;
+  const { songName, artistName } = parseTitle(
+    item.snippet.title,
+    item.snippet.channelTitle
+  );
   return {
     id: videoId,
     videoId,
-    title: item.snippet.title
-      .replace(/&amp;/g, '&')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>'),
-    artist: item.snippet.channelTitle,
+    title: songName,
+    artist: artistName,
     albumArt: item.snippet.thumbnails.high?.url ?? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
     duration: 0,
     source: 'youtube' as const,
@@ -22,6 +143,7 @@ function mapSearchItemToTrack(item: YouTubeSearchItem): Track {
     publishedAt: item.snippet.publishedAt,
   };
 }
+
 
 export function deduplicateTracks(tracks: Track[]): Track[] {
   const seen: Track[] = [];
