@@ -41,7 +41,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Figtree:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap"
     rel="stylesheet" />
 
   <!-- YouTube IFrame API: loaded here so it's ready before React mounts.
@@ -66,18 +66,33 @@
       /* Delay visibility by 300ms. If React loads fast, this never shows! */
       animation: pl-fade-in 0.3s ease forwards 0.3s;
     }
+
     .pl-simple-logo {
       width: 64px;
       height: 64px;
       object-fit: contain;
       animation: pl-subtle-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
+
     @keyframes pl-fade-in {
-      to { opacity: 1; visibility: visible; }
+      to {
+        opacity: 1;
+        visibility: visible;
+      }
     }
+
     @keyframes pl-subtle-pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.95); }
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.5;
+        transform: scale(0.95);
+      }
     }
   </style>
 

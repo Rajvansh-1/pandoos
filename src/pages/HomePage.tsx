@@ -20,19 +20,19 @@ import { useInView } from '@/hooks/useInView';
 const SESSION_SEED = Date.now();
 
 const MOODS = [
-  { id: 'bollywood',   label: 'Bollywood 💫', query: 'bollywood pop romantic hits' },
-  { id: 'desi',        label: 'Desi Swag 🔥', query: 'desi hip hop punjabi swag' },
-  { id: 'sufi',        label: 'Sufi Soul 🕊️', query: 'sufi ghazal peaceful lo-fi' },
-  { id: 'devotional',  label: 'Devotional 🛕', query: 'bhakti bhajan devotional peaceful' },
-  { id: 'chill',       label: 'Chill 🍃',      query: 'lofi chill relax aesthetic' },
-  { id: 'energy',      label: 'Energy ⚡',     query: 'high energy upbeat edm hits' },
-  { id: 'focus',       label: 'Focus 🧠',      query: 'deep focus ambient electronic' },
-  { id: 'workout',     label: 'Workout 🏋️',   query: 'heavy workout gym phonk' },
-  { id: 'latenight',   label: 'Night 🌃',      query: 'late night drive synthwave retro' },
-  { id: 'happy',       label: 'Happy ☀️',      query: 'happy feel good uplifting pop' },
-  { id: 'romantic',    label: 'Romantic 💖',   query: 'romantic love songs acoustic' },
-  { id: 'heartbroken', label: 'Sad 🌧️',        query: 'sad emotional acoustic' },
-  { id: 'sleepy',      label: 'Sleepy 💤',     query: 'sleep ambient delta waves' },
+  { id: 'bollywood', label: 'Bollywood 💫', query: 'bollywood pop romantic hits' },
+  { id: 'desi', label: 'Desi Swag 🔥', query: 'desi hip hop punjabi swag' },
+  { id: 'sufi', label: 'Sufi Soul 🕊️', query: 'sufi ghazal peaceful lo-fi' },
+  { id: 'devotional', label: 'Devotional 🛕', query: 'bhakti bhajan devotional peaceful' },
+  { id: 'chill', label: 'Chill 🍃', query: 'lofi chill relax aesthetic' },
+  { id: 'energy', label: 'Energy ⚡', query: 'high energy upbeat edm hits' },
+  { id: 'focus', label: 'Focus 🧠', query: 'deep focus ambient electronic' },
+  { id: 'workout', label: 'Workout 🏋️', query: 'heavy workout gym phonk' },
+  { id: 'latenight', label: 'Night 🌃', query: 'late night drive synthwave retro' },
+  { id: 'happy', label: 'Happy ☀️', query: 'happy feel good uplifting pop' },
+  { id: 'romantic', label: 'Romantic 💖', query: 'romantic love songs acoustic' },
+  { id: 'heartbroken', label: 'Sad 🌧️', query: 'sad emotional acoustic' },
+  { id: 'sleepy', label: 'Sleepy 💤', query: 'sleep ambient delta waves' },
 ];
 
 const GENRE_LABELS: Record<string, string> = {
@@ -55,21 +55,21 @@ export function HomePage() {
   const [userInput, setUserInput] = useState('');
   const [greeting] = useState(getGreeting);
   const [hasManuallyChangedMood, setHasManuallyChangedMood] = useState(false);
-  
+
   const weather = useWeatherContext();
 
   // Weather-based auto-mood
   useEffect(() => {
     if (weather.isLoading || weather.error || hasManuallyChangedMood) return;
-    
+
     let suggestedMood = MOODS[0];
     const hour = new Date().getHours();
-    
+
     if (weather.isRaining) suggestedMood = MOODS.find(m => m.id === 'chill') || MOODS[0];
     else if (weather.isSunny) suggestedMood = MOODS.find(m => m.id === 'happy') || MOODS[0];
     else if (hour >= 22 || hour <= 4) suggestedMood = MOODS.find(m => m.id === 'latenight') || MOODS[0];
     else if (hour >= 5 && hour <= 9) suggestedMood = MOODS.find(m => m.id === 'focus') || MOODS[0];
-    
+
     setSelectedMood(suggestedMood);
     setCustomQuery(suggestedMood.query);
   }, [weather.isLoading, weather.error, hasManuallyChangedMood]);
@@ -126,20 +126,20 @@ export function HomePage() {
   const { ref: loadMoreRef, isInView: shouldLoadMore } = useInView({ rootMargin: '600px' });
 
   // Immediate Searches (Top sections)
-  const { data: nowVibeTracks,  isLoading: isNowVibeLoading }  = useSearch(nowVibeQuery ?? '');
-  const { data: forYouTracks,   isLoading: isForYouLoading }   = useSearch(isPersonalized ? forYouQuery : '');
-  const { data: moodTracks,     isLoading: isMoodLoading }     = useSearch(customQuery);
-  const { data: artistTracks,   isLoading: isArtistLoading }   = useSearch(recentArtist ? `${recentArtist} top songs` : '');
+  const { data: nowVibeTracks, isLoading: isNowVibeLoading } = useSearch(nowVibeQuery ?? '');
+  const { data: forYouTracks, isLoading: isForYouLoading } = useSearch(isPersonalized ? forYouQuery : '');
+  const { data: moodTracks, isLoading: isMoodLoading } = useSearch(customQuery);
+  const { data: artistTracks, isLoading: isArtistLoading } = useSearch(recentArtist ? `${recentArtist} top songs` : '');
 
   // Lazy Searches (Bottom sections) - Only enabled when scrolling down
-  const { data: tseriesTracks,  isLoading: isTseriesLoading }  = useSearch('TSERIES_LATEST', shouldLoadMore);
-  const { data: bollywoodTracks,isLoading: isBollyLoading }    = useSearch('bollywood pop romantic hits', shouldLoadMore);
-  const { data: desiTracks,     isLoading: isDesiLoading }     = useSearch('desi hip hop punjabi swag', shouldLoadMore);
-  const { data: sufiTracks,     isLoading: isSufiLoading }     = useSearch('sufi ghazal peaceful lo-fi', shouldLoadMore);
+  const { data: tseriesTracks, isLoading: isTseriesLoading } = useSearch('TSERIES_LATEST', shouldLoadMore);
+  const { data: bollywoodTracks, isLoading: isBollyLoading } = useSearch('bollywood pop romantic hits', shouldLoadMore);
+  const { data: desiTracks, isLoading: isDesiLoading } = useSearch('desi hip hop punjabi swag', shouldLoadMore);
+  const { data: sufiTracks, isLoading: isSufiLoading } = useSearch('sufi ghazal peaceful lo-fi', shouldLoadMore);
   const { data: devotionalTracks, isLoading: isDevotionalLoading } = useSearch('bhakti bhajan devotional peaceful', shouldLoadMore);
-  const { data: chillTracks,    isLoading: isChillLoading }    = useSearch('lofi chill relax aesthetic', shouldLoadMore);
-  const { data: workoutTracks,  isLoading: isWorkoutLoading }  = useSearch('heavy workout gym phonk', shouldLoadMore);
-  const { data: lateNightTracks,isLoading: isLateLoading }     = useSearch('late night drive synthwave retro', shouldLoadMore);
+  const { data: chillTracks, isLoading: isChillLoading } = useSearch('lofi chill relax aesthetic', shouldLoadMore);
+  const { data: workoutTracks, isLoading: isWorkoutLoading } = useSearch('heavy workout gym phonk', shouldLoadMore);
+  const { data: lateNightTracks, isLoading: isLateLoading } = useSearch('late night drive synthwave retro', shouldLoadMore);
   const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending(shouldLoadMore);
 
   // Deduplicate tracks across lanes top-to-bottom to ensure zero repetitions
@@ -206,7 +206,7 @@ export function HomePage() {
       {/* ── HEADER ── */}
       <header className="w-full max-w-7xl px-4 md:px-8 pt-10 flex items-center justify-between mb-6 z-20">
         <div>
-          <h1 className="text-2xl md:text-4xl font-display font-extrabold text-white tracking-tight drop-shadow-lg flex items-center flex-wrap gap-2">
+          <h1 className="text-2xl md:text-4xl font-serif font-black tracking-tight text-white drop-shadow-lg flex items-center flex-wrap gap-2">
             {greeting}{user ? <span className="text-brand-primary">, {user.username}</span> : ''}
             <span className="inline-block animate-[wave_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
           </h1>
@@ -238,14 +238,14 @@ export function HomePage() {
           className="relative z-10 w-36 h-36 md:w-44 md:h-44 rounded-full glass-mood border border-white/20 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)] mb-6 cursor-pointer group"
         >
           <PandaMascot size={140} emotion={selectedMood.id} />
-          
+
           {/* Subtle "Talk to me" tooltip */}
           <div className="absolute -top-3 -right-2 bg-brand-primary text-white text-xs font-bold px-3 py-1.5 rounded-2xl rounded-bl-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-glow-sm pointer-events-none transform -rotate-6">
             Talk to me! 💬
           </div>
         </motion.div>
 
-        <h2 className="text-3xl md:text-5xl font-display font-extrabold text-white mb-4 text-center tracking-tight drop-shadow-lg">
+        <h2 className="text-3xl md:text-5xl font-serif font-black tracking-tight text-white mb-4 text-center drop-shadow-lg">
           Where are we traveling today?
         </h2>
 
@@ -495,7 +495,7 @@ export function HomePage() {
 
       {/* ── FOOTER SLOGAN ── */}
       <footer className="w-full max-w-7xl px-4 md:px-8 mt-8 mb-12 flex flex-col items-center justify-center text-center">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
@@ -512,10 +512,10 @@ export function HomePage() {
         </motion.div>
       </footer>
 
-      <PandaChatModal 
-        isOpen={isChatOpen} 
-        onClose={() => setIsChatOpen(false)} 
-        initialMessage={chatInitialMessage} 
+      <PandaChatModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        initialMessage={chatInitialMessage}
       />
 
     </div>
@@ -559,7 +559,7 @@ function RealmSection({ title, description, gradient, emotion, icon: Icon, track
               </span>
             )}
           </div>
-          <h2 className="text-2xl md:text-3xl font-display font-extrabold text-white mb-2 drop-shadow-md leading-tight">
+          <h2 className="text-2xl md:text-3xl font-serif font-black tracking-tight text-white mb-2 drop-shadow-md leading-tight">
             {title}
           </h2>
           <p className="text-white/60 text-sm font-medium mb-6 leading-relaxed max-w-xs">
