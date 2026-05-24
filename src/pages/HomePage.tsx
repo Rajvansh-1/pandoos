@@ -254,11 +254,18 @@ export function HomePage() {
             <button
               key={mood.id}
               onClick={() => handleMoodClick(mood)}
+<<<<<<< Updated upstream
               className={`px-5 py-2 rounded-full text-sm md:text-base font-bold transition-all duration-300 backdrop-blur-md border ${
                 selectedMood.id === mood.id
                   ? 'bg-white text-black shadow-glow-md border-white scale-105'
                   : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10 hover:text-white hover:scale-105'
               }`}
+=======
+              className={`px-5 py-2 rounded-full text-sm md:text-base font-bold transition-all duration-300 backdrop-blur-md border ${selectedMood.id === mood.id
+                ? 'bg-white text-black shadow-glow-md border-white scale-105'
+                : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10 hover:text-white hover:scale-105'
+                }`}
+>>>>>>> Stashed changes
             >
               {mood.label}
             </button>
@@ -568,9 +575,13 @@ function RealmSection({ title, description, gradient, emotion, icon: Icon, track
           </p>
           <motion.div
             whileHover={{ scale: 1.05, rotate: 5 }}
+<<<<<<< Updated upstream
             className="w-28 h-28 md:w-36 md:h-36 rounded-full glass-mood border border-white/10 flex items-center justify-center"
+=======
+            className="rounded-full glass-mood border border-white/10 flex items-center justify-center w-20 h-20 md:w-24 md:h-24 mt-0"
+>>>>>>> Stashed changes
           >
-            <PandaMascot size={110} emotion={emotion} />
+            <PandaMascot size={70} emotion={emotion} />
           </motion.div>
         </div>
 
@@ -615,10 +626,16 @@ function TrackList({ tracks, isLoading, onPlay, highlight, lovedIds = [], expand
       <div className="flex overflow-x-auto gap-4 md:gap-5 pb-4 snap-x snap-mandatory scroll-container px-1 -mx-1">
         {isLoading
           ? [...Array(6)].map((_, i) => (
+<<<<<<< Updated upstream
               <div key={i} className={`shrink-0 snap-start rounded-2xl animate-pulse bg-white/5 border border-white/5 ${highlight ? 'w-[200px] h-[280px]' : 'w-[150px] h-[150px]'}`}>
                 <div className="w-full h-full flex items-center justify-center">
                   <Music size={28} className="text-white/10" />
                 </div>
+=======
+            <div key={i} className="shrink-0 snap-start rounded-2xl animate-pulse bg-white/5 border border-white/5 w-[160px] md:w-[180px] aspect-square">
+              <div className="w-full h-full flex items-center justify-center">
+                <Music size={28} className="text-white/10" />
+>>>>>>> Stashed changes
               </div>
             ))
           : (
@@ -629,11 +646,19 @@ function TrackList({ tracks, isLoading, onPlay, highlight, lovedIds = [], expand
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: Math.min(i, 8) * 0.04 }}
+<<<<<<< Updated upstream
                   className={`shrink-0 snap-start group cursor-pointer ${highlight ? 'w-[200px] md:w-[220px]' : 'w-[150px] md:w-[170px]'}`}
                   onClick={() => onPlay(track, fullPool)}
                 >
                   {/* Thumbnail — uses TrackImage for guaranteed no grey box */}
                   <div className={`relative w-full rounded-2xl overflow-hidden mb-3 shadow-lg border border-white/10 transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)] ${highlight ? 'aspect-[4/5]' : 'aspect-square'}`}>
+=======
+                  className="shrink-0 snap-start group cursor-pointer w-[160px] md:w-[180px]"
+                  onClick={() => onPlay(track, fullPool)}
+                >
+                  {/* Thumbnail — uses TrackImage for guaranteed no grey box */}
+                  <div className="relative w-full rounded-2xl overflow-hidden mb-3 shadow-lg border border-white/10 transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)] aspect-square">
+>>>>>>> Stashed changes
                     <TrackImage
                       videoId={track.videoId}
                       title={track.title}
@@ -673,7 +698,11 @@ function TrackList({ tracks, isLoading, onPlay, highlight, lovedIds = [], expand
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+<<<<<<< Updated upstream
             className={`shrink-0 snap-start flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 cursor-pointer hover:bg-white/10 transition-all group ${highlight ? 'w-[200px] md:w-[220px] aspect-[4/5]' : 'w-[150px] md:w-[170px] aspect-square'}`}
+=======
+            className="shrink-0 snap-start flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 cursor-pointer hover:bg-white/10 transition-all group w-[160px] md:w-[180px] aspect-square"
+>>>>>>> Stashed changes
             onClick={() => setPage(p => p + 1)}
           >
             <div className="w-10 h-10 rounded-full bg-brand-primary/20 border border-brand-primary/30 flex items-center justify-center group-hover:scale-110 transition-transform">
