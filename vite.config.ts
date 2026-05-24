@@ -3,12 +3,63 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
+// Custom Vite Plugin to execute our Vercel Serverless Functions locally during dev
+const apiProxyPlugin = () => ({
+  name: 'api-proxy-plugin',
+  configureServer(server: any) {
+    server.middlewares.use(async (req: any, res: any, next: any) => {
+      // Only intercept /api/* requests
+      if (!req.url?.startsWith('/api')) return next();
+
+      try {
+        // req.url is the full path including /api prefix when not mounted at /api
+        const fullUrl = `http://localhost:5173${req.url}`;
+        const url = new URL(fullUrl);
+
+        // e.g. /api/search  → search, /api/lyrics/search → lyrics/search
+        const apiPath = url.pathname.replace(/^\/api\//, '');
+        // Absolute path to the handler file
+        const filePath = path.resolve(__dirname, 'api', `${apiPath}.ts`);
+
+        // Dynamically load the TypeScript handler via Vite's SSR engine
+        const mod = await server.ssrLoadModule(filePath);
+        const handler = mod.default;
+
+        if (typeof handler === 'function') {
+          // Build a Web-standard Request object so handlers work identically to production
+          const webReq = new Request(url.href, {
+            method: req.method ?? 'GET',
+            headers: req.headers as any,
+          });
+
+          const webRes = await handler(webReq);
+          res.statusCode = webRes.status;
+          webRes.headers.forEach((value: string, key: string) => res.setHeader(key, value));
+          res.setHeader('Access-Control-Allow-Origin', '*');
+          const text = await webRes.text();
+          res.end(text);
+          return;
+        }
+      } catch (err: any) {
+        // Surface useful errors in the Vite terminal
+        console.error(`[API Proxy] Error handling ${req.url}:`, err?.message ?? err);
+        res.statusCode = 500;
+        res.end(JSON.stringify({ error: err?.message ?? 'Internal server error' }));
+        return;
+      }
+      next();
+    });
+  }
+});
+
+
 // https://vitejs.dev/config/
 // Path aliases are critical for Capacitor: avoids "../../../" hell in deep components
 // and ensures the same import paths work when the app is bundled for native.
 export default defineConfig({
   plugins: [
     react(),
+    apiProxyPlugin(),
     VitePWA({
       registerType: 'autoUpdate',
       // workbox pre-caches the app shell so first load is instant offline

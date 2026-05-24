@@ -1,25 +1,21 @@
 import YTMusic from 'ytmusic-api';
 
-// No edge runtime config here, so it runs on standard Node serverless
-// export const config = { runtime: 'edge' };
-
-// Initialize the API outside the handler to reuse across warm invocations
 const ytmusic = new YTMusic();
 let initialized = false;
 
 export default async function handler(req: Request) {
   const { searchParams } = new URL(req.url);
-  const query = searchParams.get('q');
+  const browseId = searchParams.get('id');
 
-  if (!query) {
-    return new Response(JSON.stringify({ error: 'Query parameter "q" is required' }), {
+  if (!browseId) {
+    return new Response(JSON.stringify({ error: 'Query parameter "id" is required' }), {
       status: 400,
       headers: { 'content-type': 'application/json' },
     });
   }
 
   // Redis Cache Key
-  const cacheKey = `pandoos:ytm_search_v2:${query.toLowerCase().trim()}`;
+  const cacheKey = `pandoos:ytm_album:${browseId}`;
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
@@ -32,8 +28,8 @@ export default async function handler(req: Request) {
       if (cacheRes.ok) {
         const cacheData = await cacheRes.json();
         if (cacheData.result) {
-          const items = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
-          return new Response(JSON.stringify({ items, cached: true }), {
+          const item = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
+          return new Response(JSON.stringify({ album: item, cached: true }), {
             status: 200,
             headers: { 'content-type': 'application/json' },
           });
@@ -51,26 +47,10 @@ export default async function handler(req: Request) {
       initialized = true;
     }
 
-    // T-Series latest workaround for India/Trending if needed, but let's just search
-    const results = await ytmusic.searchSongs(query);
-
-    // Map the results to our internal Track format structure
-    const mappedItems = results.map(song => ({
-      id: { videoId: song.videoId },
-      snippet: {
-        title: song.name,
-        channelTitle: song.artist?.name || 'Unknown Artist',
-        thumbnails: {
-          high: { url: song.thumbnails?.[1]?.url || song.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg` }
-        },
-        publishedAt: new Date().toISOString(),
-        artistId: song.artist?.artistId || song.artist?.browseId || null,
-        albumId: song.album?.albumId || song.album?.browseId || null,
-      }
-    })).slice(0, 15);
+    const albumData = await ytmusic.getAlbum(browseId);
 
     // 3. Save to Cache (Async, fire and forget)
-    if (upstashUrl && upstashToken && mappedItems.length > 0) {
+    if (upstashUrl && upstashToken && albumData) {
       // 24 hours = 86400 seconds
       fetch(`${upstashUrl}/set/${encodeURIComponent(cacheKey)}?ex=86400`, {
         method: 'POST',
@@ -78,11 +58,11 @@ export default async function handler(req: Request) {
           Authorization: `Bearer ${upstashToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(mappedItems),
+        body: JSON.stringify(albumData),
       }).catch((e) => console.error('Redis cache write failed:', e));
     }
 
-    return new Response(JSON.stringify({ items: mappedItems, cached: false }), {
+    return new Response(JSON.stringify({ album: albumData, cached: false }), {
       status: 200,
       headers: {
         'content-type': 'application/json',

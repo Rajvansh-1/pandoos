@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, ListPlus, Download, Moon, X, Check } from 'lucide-react';
+import { Heart, ListPlus, Download, Moon, X, Check, User, Disc } from 'lucide-react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
+import { useUIStore } from '@/stores/useUIStore';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { AddToPlaylistModal } from '@/features/library/components/AddToPlaylistModal';
 import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
@@ -113,6 +114,38 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
                         Add to Playlist
                       </span>
                     </button>
+
+                    {/* View Artist */}
+                    {currentTrack.artistId && (
+                      <button 
+                        onClick={() => {
+                          onClose();
+                          useUIStore.getState().openArtist(currentTrack.artistId!);
+                        }}
+                        className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-white/[0.04] active:scale-[0.98] transition-all"
+                      >
+                        <User size={24} className="text-white/60" />
+                        <span className="text-base font-medium text-white/80">
+                          View Artist
+                        </span>
+                      </button>
+                    )}
+
+                    {/* View Album */}
+                    {currentTrack.albumId && (
+                      <button 
+                        onClick={() => {
+                          onClose();
+                          useUIStore.getState().openAlbum(currentTrack.albumId!);
+                        }}
+                        className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-white/[0.04] active:scale-[0.98] transition-all"
+                      >
+                        <Disc size={24} className="text-white/60" />
+                        <span className="text-base font-medium text-white/80">
+                          View Album
+                        </span>
+                      </button>
+                    )}
 
                     {/* Download Mock */}
                     <button 

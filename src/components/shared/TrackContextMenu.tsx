@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MoreVertical, Heart, ListMusic, Play, Plus } from 'lucide-react';
+import { MoreVertical, Heart, ListMusic, Play, Plus, Disc, User } from 'lucide-react';
 import type { Track } from '@/types/track';
 import { AddToPlaylistModal } from '@/features/library/components/AddToPlaylistModal';
 import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
 import { usePlayerStore } from '@/stores/usePlayerStore';
+import { useUIStore } from '@/stores/useUIStore';
 import { cn } from '@/utils/cn';
 
 interface TrackContextMenuProps {
@@ -92,6 +93,34 @@ export function TrackContextMenu({ track, className, onClose }: TrackContextMenu
               <ListMusic size={18} className="text-white/70" />
               <span>Save to Playlist</span>
             </button>
+
+            {track.artistId && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(false);
+                  useUIStore.getState().openArtist(track.artistId!);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-left text-sm text-white"
+              >
+                <User size={18} className="text-white/70" />
+                <span className="truncate">View Artist</span>
+              </button>
+            )}
+
+            {track.albumId && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsOpen(false);
+                  useUIStore.getState().openAlbum(track.albumId!);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-left text-sm text-white"
+              >
+                <Disc size={18} className="text-white/70" />
+                <span className="truncate">View Album</span>
+              </button>
+            )}
 
             <div className="h-px w-full bg-white/10 my-1" />
 

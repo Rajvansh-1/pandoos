@@ -185,7 +185,19 @@ export function FullscreenPlayer() {
         <div className="w-full flex flex-col items-center justify-center gap-5 pb-6 px-6 shrink-0">
           <div className="flex flex-col w-full text-center items-center">
             <h2 className="text-2xl font-bold text-white truncate">{currentTrack?.title ?? 'Not Playing'}</h2>
-            <p className="text-base text-white/80 truncate mt-1">{currentTrack?.artist ?? 'Select a track'}</p>
+            <p 
+              className="text-base text-white/80 truncate mt-1 cursor-pointer hover:underline hover:text-white active:scale-95 transition-all relative z-50 px-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const artistId = currentTrack?.artistId;
+                if (artistId) {
+                  useUIStore.getState().openArtist(artistId);
+                }
+              }}
+            >
+              {currentTrack?.artist ?? 'Select a track'}
+            </p>
           </div>
           <div className="w-full mt-2"><SeekBar /></div>
           <div className="w-full pb-4 pt-2 flex items-center justify-center"><PlayerControls /></div>
@@ -355,7 +367,19 @@ export function FullscreenPlayer() {
                   <div className="flex items-center justify-between w-full mb-4">
                     <div className="flex flex-col min-w-0">
                       <h2 className="text-3xl font-display font-extrabold text-white truncate drop-shadow-md">{currentTrack?.title ?? 'Not Playing'}</h2>
-                      <p className="text-lg text-white/60 truncate font-medium mt-1">{currentTrack?.artist ?? 'Select a track'}</p>
+                      <p 
+                        className="text-lg text-white/60 truncate font-medium mt-1 cursor-pointer hover:underline hover:text-white active:scale-95 transition-all self-start relative z-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          const artistId = currentTrack?.artistId;
+                          if (artistId) {
+                            useUIStore.getState().openArtist(artistId);
+                          }
+                        }}
+                      >
+                        {currentTrack?.artist ?? 'Select a track'}
+                      </p>
                     </div>
                     {currentTrack && (
                       <div className="flex items-center gap-2">

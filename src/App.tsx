@@ -16,6 +16,8 @@ import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { VolumeIndicator } from '@/components/ui/VolumeIndicator';
 import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow';
+import { ArtistOverlay } from '@/features/artist/components/ArtistOverlay';
+import { AlbumOverlay } from '@/features/album/components/AlbumOverlay';
 
 const HomePage = React.lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })));
 const SearchPage = React.lazy(() => import('@/pages/SearchPage').then(m => ({ default: m.SearchPage })));
@@ -83,7 +85,6 @@ export function App() {
             <Route path="/library" element={<LibraryPage />} />
             <Route path="/playlist/:id" element={<PlaylistPage />} />
             <Route path="/profile" element={<ProfilePage />} />
-            {/* Catch-all */}
             <Route path="*" element={<ErrorPage />} />
           </Route>
         </Routes>
@@ -92,9 +93,14 @@ export function App() {
       <OfflineIndicator />
       <ToastContainer />
       <VolumeIndicator />
-      {/* Global Badge Reveal Modal — renders on top of everything */}
+      
+      {/* Dynamic Overlays */}
+      <ArtistOverlay />
+      <AlbumOverlay />
+
       <BadgeRevealModal />
       <OnboardingFlow />
     </>
   );
 }
+

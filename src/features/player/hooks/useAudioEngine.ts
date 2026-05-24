@@ -252,6 +252,20 @@ export function useAudioEngine() {
     // loadVideoById automatically starts playback.
     playerRef.current.loadVideoById(currentTrack.videoId);
     setIsLoading(true);
+
+    // Smart Queue: Fetch "Up Next" Radio if we are near the end of the queue
+    const state = usePlayerStore.getState();
+    const currentIndex = state.queue.findIndex((t) => t.id === currentTrack.id);
+    
+    if (currentIndex >= state.queue.length - 3) {
+      import('@/services/youtube').then(({ getRadioTracks }) => {
+        getRadioTracks(currentTrack.videoId).then((tracks) => {
+          if (tracks.length > 0) {
+            usePlayerStore.getState().addTracksToQueue(tracks);
+          }
+        });
+      });
+    }
   }, [currentTrack?.videoId]);
 
 

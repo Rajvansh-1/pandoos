@@ -9,9 +9,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
 import { getBestThumbnail, searchTracks } from '@/services/youtube';
-import { MOOD_SEEDS } from '@/data/moodSeeds';
 import { buildSearchQuery } from '@/services/recommendEngine';
-import { getPersonalizedTracklist, getExpandedTracklist } from '@/services/trackExpansion';
 import { TrackImage } from '@/components/shared/TrackImage';
 import type { Track } from '@/types/track';
 import { useInView } from '@/hooks/useInView';
@@ -92,10 +90,9 @@ export function HomePage() {
 
   const isPersonalized = topGenres.length > 0 || recentArtists.length > 0;
 
-  // Quick picks from history or taste-expanded seeds
+  // Quick picks from history
   const quickPicks = useMemo(() => {
-    if (history.length >= 4) return history.slice(0, 12);
-    return getExpandedTracklist('bollywood', SESSION_SEED).slice(0, 12);
+    return history.slice(0, 12);
   }, [history]);
 
   // "For You" — seeded from top genre
@@ -593,14 +590,8 @@ function TrackList({ tracks, isLoading, onPlay, highlight, lovedIds = [], expand
   const PAGE_SIZE = 12;
   const [page, setPage] = React.useState(1);
 
-  // Full track pool: API results merged with expanded seeds (deduped)
   const fullPool = React.useMemo(() => {
-    const base = tracks ?? [];
-    if (!expandMoodId) return base;
-    const expanded = getExpandedTracklist(expandMoodId, SESSION_SEED);
-    const seen = new Set(base.map(t => t.videoId));
-    const extra = expanded.filter(t => !seen.has(t.videoId));
-    return [...base, ...extra];
+    return tracks ?? [];
   }, [tracks, expandMoodId]);
 
   const visible = fullPool.slice(0, page * PAGE_SIZE);

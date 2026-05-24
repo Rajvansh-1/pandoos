@@ -1,16 +1,12 @@
-export const config = {
-  runtime: 'edge',
-};
+import YTMusic from 'ytmusic-api';
+
+const ytmusic = new YTMusic();
+let initialized = false;
 
 export default async function handler() {
-  const cacheKey = `pandoos:trending`;
+  const cacheKey = `pandoos:ytm_trending_v2`;
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-  const ytApiKey = process.env.YOUTUBE_API_KEY;
-
-  if (!ytApiKey) {
-    return new Response(JSON.stringify({ error: 'Missing YT API key' }), { status: 500 });
-  }
 
   // 1. Try Cache First
   if (upstashUrl && upstashToken) {
@@ -33,35 +29,32 @@ export default async function handler() {
     }
   }
 
-  // 2. Fetch from YouTube
+  // 2. Fetch from InnerTube API
   try {
-    const ytUrl = new URL('https://www.googleapis.com/youtube/v3/videos');
-    ytUrl.searchParams.set('part', 'snippet');
-    ytUrl.searchParams.set('chart', 'mostPopular');
-    ytUrl.searchParams.set('videoCategoryId', '10'); // Music category
-    ytUrl.searchParams.set('maxResults', '15');
-    ytUrl.searchParams.set('key', ytApiKey);
-
-    let ytRes = await fetch(ytUrl.toString());
-
-    // Fallback logic for secondary key if primary fails with 403 (Quota Exceeded)
-    if (!ytRes.ok && ytRes.status === 403 && process.env.YOUTUBE_API_KEY_2) {
-      console.warn('Primary API Key failed with 403. Trying backup key...');
-      ytUrl.searchParams.set('key', process.env.YOUTUBE_API_KEY_2);
-      ytRes = await fetch(ytUrl.toString());
+    if (!initialized) {
+      await ytmusic.initialize();
+      initialized = true;
     }
 
-    if (!ytRes.ok) throw new Error(`YouTube API returned ${ytRes.status}`);
+    // Since YTM doesn't have a direct "get trending tracks" method without scraping a specific chart playlist,
+    // we search for a generic trending query. In a production system, you might fetch a specific Top 50 Playlist ID.
+    const results = await ytmusic.searchSongs('Global Top 50');
 
-    const data = await ytRes.json();
-    
-    // Map videos API shape to look like search shape for consistency
-    const items = data.items.map((item: any) => ({
-      id: { videoId: item.id },
-      snippet: item.snippet
-    }));
+    const items = results.map(song => ({
+      id: { videoId: song.videoId },
+      snippet: {
+        title: song.name,
+        channelTitle: song.artist?.name || 'Unknown Artist',
+        thumbnails: {
+          high: { url: song.thumbnails?.[1]?.url || song.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg` }
+        },
+        publishedAt: new Date().toISOString(),
+        artistId: song.artist?.artistId || song.artist?.browseId || null,
+        albumId: song.album?.albumId || song.album?.browseId || null,
+      }
+    })).slice(0, 15);
 
-    // 3. Cache it (Trending updates slowly, cache for 12 hours)
+    // 3. Cache it
     if (upstashUrl && upstashToken && items.length > 0) {
       fetch(`${upstashUrl}/set/${encodeURIComponent(cacheKey)}?ex=43200`, {
         method: 'POST',
