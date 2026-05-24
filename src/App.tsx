@@ -13,6 +13,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 import { useOfflineStore } from '@/stores/useOfflineStore';
+import { useThemeStore } from '@/stores/useThemeStore';
+import { LevelUpConfetti } from '@/components/ui/LevelUpConfetti';
 
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { VolumeIndicator } from '@/components/ui/VolumeIndicator';
@@ -51,6 +53,7 @@ export function App() {
   const welcomeAwardedRef = useRef(false);
 
   const initOfflineStore = useOfflineStore((state) => state.initOfflineStore);
+  const activeTheme = useThemeStore((state) => state.activeTheme);
 
   useAudioEngine();
   useRadioEngine();
@@ -62,6 +65,23 @@ export function App() {
     initializeAuth();
     initOfflineStore();
   }, [initializeAuth, initOfflineStore]);
+
+  // Apply Theme to HTML root
+  useEffect(() => {
+    const html = document.documentElement;
+    
+    // Remove any existing theme classes
+    html.classList.forEach((cls) => {
+      if (cls.startsWith('theme-')) {
+        html.classList.remove(cls);
+      }
+    });
+
+    // Add new theme class if not dynamic
+    if (activeTheme !== 'dynamic') {
+      html.classList.add(`theme-${activeTheme}`);
+    }
+  }, [activeTheme]);
 
   useEffect(() => {
     if (user && !welcomeAwardedRef.current && !earnedBadges.includes('welcome_panda')) {
@@ -95,6 +115,7 @@ export function App() {
       </Suspense>
 
       <OfflineIndicator />
+      <LevelUpConfetti />
       <ToastContainer />
       <VolumeIndicator />
       

@@ -46,8 +46,46 @@
     --top-bar-height: 56px;
 
     /* ---- Safe area insets (Capacitor / notch support) ---- */
+    /* ---- Safe area insets (Capacitor / notch support) ---- */
     --safe-area-top: env(safe-area-inset-top, 0px);
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* ---- Gamification Themes (Overrides Mood Engine) ---- */
+  html.theme-zen {
+    --color-primary: 160 80% 40% !important;
+    --color-secondary: 175 70% 35% !important;
+    --color-accent: 140 70% 50% !important;
+    --surface-base: 160 30% 6% !important;
+    --surface-elevated: 160 25% 10% !important;
+    --surface-overlay: 160 20% 14% !important;
+  }
+
+  html.theme-midnight {
+    --color-primary: 280 90% 60% !important;
+    --color-secondary: 260 80% 50% !important;
+    --color-accent: 300 85% 65% !important;
+    --surface-base: 260 40% 4% !important;
+    --surface-elevated: 260 35% 8% !important;
+    --surface-overlay: 260 30% 12% !important;
+  }
+
+  html.theme-cyberpunk {
+    --color-primary: 320 100% 60% !important;
+    --color-secondary: 190 100% 50% !important;
+    --color-accent: 60 100% 50% !important;
+    --surface-base: 240 100% 5% !important;
+    --surface-elevated: 240 80% 8% !important;
+    --surface-overlay: 240 70% 12% !important;
+  }
+
+  html.theme-gold {
+    --color-primary: 45 100% 50% !important;
+    --color-secondary: 35 100% 45% !important;
+    --color-accent: 55 100% 60% !important;
+    --surface-base: 45 40% 6% !important;
+    --surface-elevated: 45 35% 10% !important;
+    --surface-overlay: 45 30% 14% !important;
   }
 
   /* Smooth color transitions when Mood Engine updates variables.
