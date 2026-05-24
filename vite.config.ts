@@ -38,6 +38,19 @@ const apiProxyPlugin = () => ({
             res.end(JSON.stringify(data));
           };
 
+          // Parse body for POST/PUT requests
+          if (req.method === 'POST' || req.method === 'PUT') {
+            const chunks: any[] = [];
+            req.on('data', (chunk: any) => chunks.push(chunk));
+            await new Promise((resolve) => req.on('end', resolve));
+            const bodyStr = Buffer.concat(chunks).toString();
+            try {
+              req.body = JSON.parse(bodyStr);
+            } catch (e) {
+              req.body = bodyStr;
+            }
+          }
+
           // 3. Execute the handler with standard Node signature (req, res)
           await handler(req, res);
           return;
