@@ -110,3 +110,79 @@ export async function getRecommendations(opts: RecommendOptions): Promise<Track[
 
   return deduped.slice(0, count);
 }
+
+// ─────────────────────────────────────────────
+// The Beast Engine (Home Page Scoring)
+// ─────────────────────────────────────────────
+
+interface OracleVibe {
+  id: string;
+  title: string;
+  query: string;
+  songs: Track[];
+}
+
+interface BeastContext {
+  weatherTemp: number | null;
+  isSunny: boolean;
+  isRaining: boolean;
+  hourOfDay: number;
+  moodSessionCounts: Record<string, number>;
+}
+
+export function rankOracleVibes(vibes: OracleVibe[], context: BeastContext): OracleVibe[] {
+  if (!vibes || vibes.length === 0) return [];
+
+  // Determine top 3 local moods
+  const topMoods = Object.entries(context.moodSessionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(entry => entry[0].toLowerCase());
+
+  const scoredVibes = vibes.map(vibe => {
+    let score = 0;
+    const title = vibe.title.toLowerCase();
+    const query = vibe.query.toLowerCase();
+    const text = `${title} ${query}`;
+
+    // 1. Weather Context
+    if (context.isRaining && (text.includes('rain') || text.includes('lofi') || text.includes('acoustic') || text.includes('sad'))) {
+      score += 30;
+    }
+    if (context.isSunny && (text.includes('sun') || text.includes('pop') || text.includes('happy') || text.includes('summer'))) {
+      score += 20;
+    }
+
+    // 2. Time of Day Context
+    if (context.hourOfDay >= 22 || context.hourOfDay <= 4) { // Late night
+      if (text.includes('night') || text.includes('sleep') || text.includes('chill') || text.includes('synthwave')) {
+        score += 25;
+      }
+    } else if (context.hourOfDay >= 5 && context.hourOfDay <= 10) { // Morning
+      if (text.includes('morning') || text.includes('coffee') || text.includes('energy') || text.includes('workout')) {
+        score += 25;
+      }
+    } else if (context.hourOfDay >= 11 && context.hourOfDay <= 16) { // Afternoon
+      if (text.includes('focus') || text.includes('study') || text.includes('work')) {
+        score += 15;
+      }
+    }
+
+    // 3. User Gamification History
+    topMoods.forEach((mood, idx) => {
+      // higher weight for the #1 mood
+      const weight = idx === 0 ? 30 : idx === 1 ? 20 : 10;
+      if (text.includes(mood) || (mood === 'energy' && text.includes('workout')) || (mood === 'chill' && text.includes('lofi'))) {
+        score += weight;
+      }
+    });
+
+    // Randomize slightly to keep feed fresh if scores tie
+    score += Math.random() * 5;
+
+    return { vibe, score };
+  });
+
+  scoredVibes.sort((a, b) => b.score - a.score);
+  return scoredVibes.map(s => s.vibe);
+}

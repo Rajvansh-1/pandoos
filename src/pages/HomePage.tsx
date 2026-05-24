@@ -9,7 +9,8 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
 import { getBestThumbnail, searchTracks } from '@/services/youtube';
-import { buildSearchQuery } from '@/services/recommendEngine';
+import { buildSearchQuery, rankOracleVibes } from '@/services/recommendEngine';
+import { useBeastOracle } from '@/features/search/hooks/useBeastOracle';
 import { TrackImage } from '@/components/shared/TrackImage';
 import type { Track } from '@/types/track';
 import { useInView } from '@/hooks/useInView';
@@ -138,6 +139,21 @@ export function HomePage() {
   const { data: workoutTracks, isLoading: isWorkoutLoading } = useSearch('heavy workout gym phonk', shouldLoadMore);
   const { data: lateNightTracks, isLoading: isLateLoading } = useSearch('late night drive synthwave retro', shouldLoadMore);
   const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending(shouldLoadMore);
+
+  // ── THE BEAST ENGINE ──
+  const { data: oracleData, isLoading: isOracleLoading } = useBeastOracle();
+  const moodSessionCounts = useGamificationStore(s => s.moodSessionCounts);
+
+  const rankedOracleVibes = useMemo(() => {
+    if (!oracleData?.oracle) return [];
+    return rankOracleVibes(oracleData.oracle, {
+      weatherTemp: weather.temp,
+      isSunny: weather.isSunny,
+      isRaining: weather.isRaining,
+      hourOfDay: new Date().getHours(),
+      moodSessionCounts
+    });
+  }, [oracleData, weather.temp, weather.isSunny, weather.isRaining, moodSessionCounts]);
 
   // Deduplicate tracks across lanes top-to-bottom to ensure zero repetitions
   const deduplicatedLanes = useMemo(() => {
@@ -362,6 +378,23 @@ export function HomePage() {
             badge={`🎵 Because you played ${artistDisplayName}`}
           />
         )}
+
+        {/* ── BEAST ORACLE SECTIONS ── */}
+        {rankedOracleVibes.map((vibe, idx) => (
+          <RealmSection
+            key={`oracle-${vibe.id}`}
+            title={vibe.title}
+            description="Curated by the AI Beast Engine for this exact moment."
+            gradient={idx === 0 ? "from-emerald-600 to-teal-800" : idx === 1 ? "from-rose-600 to-orange-700" : "from-blue-600 to-indigo-800"}
+            emotion="energy"
+            icon={Brain}
+            tracks={vibe.songs.filter(s => !deduplicatedLanes.oracle?.some(t => t.videoId === s.videoId))}
+            isLoading={isOracleLoading}
+            onPlay={handlePlayTrack}
+            lovedIds={lovedIds}
+            badge={idx === 0 ? "🔮 Top AI Match" : undefined}
+          />
+        ))}
 
         {/* --- INVISIBLE SPACER FOR LAZY LOADING BOTTOM SECTIONS --- */}
         <div ref={loadMoreRef} className="w-full h-1" />
