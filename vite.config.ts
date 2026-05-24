@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
-// Custom Vite Plugin to execute our Vercel Serverless Functions locally during dev
+// Custom Vite Plugin to emulate Vercel Node Serverless Functions locally
 const apiProxyPlugin = () => ({
   name: 'api-proxy-plugin',
   configureServer(server: any) {
@@ -12,36 +12,37 @@ const apiProxyPlugin = () => ({
       if (!req.url?.startsWith('/api')) return next();
 
       try {
-        // req.url is the full path including /api prefix when not mounted at /api
         const fullUrl = `http://localhost:5173${req.url}`;
         const url = new URL(fullUrl);
 
         // e.g. /api/search  → search, /api/lyrics/search → lyrics/search
         const apiPath = url.pathname.replace(/^\/api\//, '');
-        // Absolute path to the handler file
         const filePath = path.resolve(__dirname, 'api', `${apiPath}.ts`);
 
-        // Dynamically load the TypeScript handler via Vite's SSR engine
         const mod = await server.ssrLoadModule(filePath);
         const handler = mod.default;
 
         if (typeof handler === 'function') {
-          // Build a Web-standard Request object so handlers work identically to production
-          const webReq = new Request(url.href, {
-            method: req.method ?? 'GET',
-            headers: req.headers as any,
-          });
+          // 1. Mock Vercel's `req.query`
+          req.query = Object.fromEntries(url.searchParams.entries());
 
-          const webRes = await handler(webReq);
-          res.statusCode = webRes.status;
-          webRes.headers.forEach((value: string, key: string) => res.setHeader(key, value));
-          res.setHeader('Access-Control-Allow-Origin', '*');
-          const text = await webRes.text();
-          res.end(text);
+          // 2. Mock Vercel's `res.status()` and `res.json()`
+          res.status = (statusCode: number) => {
+            res.statusCode = statusCode;
+            return res;
+          };
+
+          res.json = (data: any) => {
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.end(JSON.stringify(data));
+          };
+
+          // 3. Execute the handler with standard Node signature (req, res)
+          await handler(req, res);
           return;
         }
       } catch (err: any) {
-        // Surface useful errors in the Vite terminal
         console.error(`[API Proxy] Error handling ${req.url}:`, err?.message ?? err);
         res.statusCode = 500;
         res.end(JSON.stringify({ error: err?.message ?? 'Internal server error' }));

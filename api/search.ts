@@ -1,29 +1,20 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import YTMusic from 'ytmusic-api';
 
-// No edge runtime config here, so it runs on standard Node serverless
-// export const config = { runtime: 'edge' };
-
-// Initialize the API outside the handler to reuse across warm invocations
 const ytmusic = new YTMusic();
 let initialized = false;
 
-export default async function handler(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const query = searchParams.get('q');
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const query = (req.query.q || req.query.query) as string;
 
   if (!query) {
-    return new Response(JSON.stringify({ error: 'Query parameter "q" is required' }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    });
+    return res.status(400).json({ error: 'Query parameter "q" is required' });
   }
 
-  // Redis Cache Key
-  const cacheKey = `pandoos:ytm_search_v2:${query.toLowerCase().trim()}`;
+  const cacheKey = `pandoos:ytm_search_v3:${query.toLowerCase().trim()}`;
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
-  // 1. Try Cache First
   if (upstashUrl && upstashToken) {
     try {
       const cacheRes = await fetch(`${upstashUrl}/get/${encodeURIComponent(cacheKey)}`, {
@@ -33,10 +24,8 @@ export default async function handler(req: Request) {
         const cacheData = await cacheRes.json();
         if (cacheData.result) {
           const items = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
-          return new Response(JSON.stringify({ items, cached: true }), {
-            status: 200,
-            headers: { 'content-type': 'application/json' },
-          });
+          res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
+          return res.status(200).json({ items, cached: true });
         }
       }
     } catch (e) {
@@ -44,17 +33,14 @@ export default async function handler(req: Request) {
     }
   }
 
-  // 2. Cache Miss -> Fetch from InnerTube API
   try {
     if (!initialized) {
       await ytmusic.initialize();
       initialized = true;
     }
 
-    // T-Series latest workaround for India/Trending if needed, but let's just search
     const results = await ytmusic.searchSongs(query);
 
-    // Map the results to our internal Track format structure
     const mappedItems = results.map(song => ({
       id: { videoId: song.videoId },
       snippet: {
@@ -69,30 +55,17 @@ export default async function handler(req: Request) {
       }
     })).slice(0, 15);
 
-    // 3. Save to Cache (Async, fire and forget)
     if (upstashUrl && upstashToken && mappedItems.length > 0) {
-      // 24 hours = 86400 seconds
       fetch(`${upstashUrl}/set/${encodeURIComponent(cacheKey)}?ex=86400`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${upstashToken}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { Authorization: `Bearer ${upstashToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(mappedItems),
-      }).catch((e) => console.error('Redis cache write failed:', e));
+      }).catch(e => console.error('Redis cache write failed:', e));
     }
 
-    return new Response(JSON.stringify({ items: mappedItems, cached: false }), {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
-        'cache-control': 'public, s-maxage=86400, stale-while-revalidate=43200',
-      },
-    });
+    res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
+    return res.status(200).json({ items: mappedItems, cached: false });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    });
+    return res.status(500).json({ error: error.message });
   }
 }
