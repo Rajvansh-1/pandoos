@@ -7,6 +7,7 @@ import { useUIStore } from '@/stores/useUIStore';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { AddToPlaylistModal } from '@/features/library/components/AddToPlaylistModal';
 import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
+import { useOfflineStore } from '@/stores/useOfflineStore';
 
 interface PlayerOptionsModalProps {
   isOpen: boolean;
@@ -23,19 +24,23 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
   const likeTrack = useLikeTrack();
   const unlikeTrack = useUnlikeTrack();
 
-  const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'done'>('idle');
+  const downloadTrack = useOfflineStore((s) => s.downloadTrack);
+  const removeTrack = useOfflineStore((s) => s.removeTrack);
+  const isDownloading = useOfflineStore((s) => s.isDownloading(currentTrack?.videoId || ''));
+  const isDownloaded = useOfflineStore((s) => s.isDownloaded(currentTrack?.videoId || ''));
+
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
   if (!currentTrack) return null;
 
-  const handleDownload = () => {
-    if (downloadState !== 'idle') return;
-    setDownloadState('downloading');
-    // Mock download delay
-    setTimeout(() => {
-      setDownloadState('done');
-    }, 2000);
+  const handleDownload = async () => {
+    if (isDownloading) return;
+    if (isDownloaded) {
+      await removeTrack(currentTrack.videoId);
+    } else {
+      await downloadTrack(currentTrack);
+    }
   };
 
   const handleSetTimer = (minutes: number) => {
@@ -147,24 +152,24 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
                       </button>
                     )}
 
-                    {/* Download Mock */}
+                    {/* Download Button */}
                     <button 
                       onClick={handleDownload}
                       className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl hover:bg-white/[0.04] active:scale-[0.98] transition-all"
                     >
                       <div className="flex items-center gap-4">
-                        {downloadState === 'done' ? (
+                        {isDownloaded ? (
                           <Check size={24} className="text-brand-primary" />
                         ) : (
-                          <Download size={24} className={downloadState === 'downloading' ? "text-brand-primary animate-pulse" : "text-white/60"} />
+                          <Download size={24} className={isDownloading ? "text-brand-primary animate-pulse" : "text-white/60"} />
                         )}
-                        <span className={`text-base font-medium ${downloadState !== 'idle' ? "text-brand-primary" : "text-white/80"}`}>
-                          {downloadState === 'idle' && 'Save to Bamboo Stash'}
-                          {downloadState === 'downloading' && 'Downloading...'}
-                          {downloadState === 'done' && 'Saved to Stash'}
+                        <span className={`text-base font-medium ${(isDownloading || isDownloaded) ? "text-brand-primary" : "text-white/80"}`}>
+                          {!isDownloading && !isDownloaded && 'Save for Offline Play'}
+                          {isDownloading && 'Downloading...'}
+                          {isDownloaded && 'Remove Download'}
                         </span>
                       </div>
-                      {downloadState === 'downloading' && (
+                      {isDownloading && (
                         <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
                       )}
                     </button>

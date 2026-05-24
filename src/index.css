@@ -256,6 +256,12 @@
       8px
     );
   }
+
+  /* ---- Mask Image Fade (for lyrics fading at top/bottom) ---- */
+  .mask-image-fade {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+  }
 }
 
 @layer utilities {

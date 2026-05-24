@@ -12,6 +12,7 @@ import { BadgeRevealModal } from '@/features/profile/BadgeRevealModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
+import { useOfflineStore } from '@/stores/useOfflineStore';
 
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { VolumeIndicator } from '@/components/ui/VolumeIndicator';
@@ -49,6 +50,8 @@ export function App() {
 
   const welcomeAwardedRef = useRef(false);
 
+  const initOfflineStore = useOfflineStore((state) => state.initOfflineStore);
+
   useAudioEngine();
   useRadioEngine();
   useMediaSession();
@@ -57,7 +60,8 @@ export function App() {
 
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+    initOfflineStore();
+  }, [initializeAuth, initOfflineStore]);
 
   useEffect(() => {
     if (user && !welcomeAwardedRef.current && !earnedBadges.includes('welcome_panda')) {

@@ -78,8 +78,9 @@ Return ONLY a valid JSON object in this exact structure:
             videoId: song.videoId,
             title: song.name,
             artist: song.artist?.name || 'Unknown Artist',
-            thumbnail: song.thumbnails?.[1]?.url || song.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg`,
-            duration: song.duration ? `${Math.floor(song.duration / 60)}:${String(song.duration % 60).padStart(2, '0')}` : undefined,
+            albumArt: song.thumbnails?.[1]?.url || song.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg`,
+            duration: song.duration || 0,
+            source: 'youtube',
             artistId: song.artist?.artistId || song.artist?.browseId || null,
             albumId: song.album?.albumId || song.album?.browseId || null,
           }));
