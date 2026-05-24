@@ -3,6 +3,7 @@ import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion
 import { ChevronDown, MoreVertical, Heart, X, Play, Shuffle, GripVertical, Trash2, ListMusic } from 'lucide-react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { useTasteStore } from '@/stores/useTasteStore';
 import { useColorExtractor } from '@/features/player/hooks/useColorExtractor';
 import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
 import { BottomSheet } from '@/components/ui/BottomSheet';
@@ -118,9 +119,13 @@ export function FullscreenPlayer() {
   React.useEffect(() => {
     if (mobileTab === 'related' && currentTrack) {
       setIsLoadingRelated(true);
+      const getAffinityScore = useTasteStore.getState().getAffinityScore;
+      const skippedIds = useTasteStore.getState().skippedIds;
       getRecommendations({
-        seedTracks: [currentTrack],
-        skippedIds: [],
+        currentTrack,
+        history: historyTracks,
+        skippedIds,
+        getAffinityScore,
         count: 15
       }).then(tracks => {
         setRelatedTracks(tracks);
