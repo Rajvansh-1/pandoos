@@ -297,7 +297,9 @@ export function FullscreenPlayer() {
       {isPlayerOpen && (
         <motion.div 
           className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/60 backdrop-blur-md"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          initial={{ opacity: 0, pointerEvents: 'none' }}
+          animate={{ opacity: 1, pointerEvents: 'auto' }}
+          exit={{ opacity: 0, pointerEvents: 'none' }}
           onClick={closePlayer}
         >
           <motion.div 
