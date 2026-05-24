@@ -7,12 +7,14 @@ import { useAudioEngine } from '@/features/player/hooks/useAudioEngine';
 import { useRadioEngine } from '@/features/player/hooks/useRadioEngine';
 import { useMediaSession } from '@/hooks/useMediaSession';
 import { useRecommendEngine } from '@/hooks/useRecommendEngine';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { BadgeRevealModal } from '@/features/profile/BadgeRevealModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 
 import { ToastContainer } from '@/components/ui/ToastContainer';
+import { VolumeIndicator } from '@/components/ui/VolumeIndicator';
 import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow';
 
 const HomePage = React.lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })));
@@ -49,6 +51,7 @@ export function App() {
   useRadioEngine();
   useMediaSession();
   useRecommendEngine();
+  useKeyboardShortcuts();
 
   useEffect(() => {
     initializeAuth();
@@ -88,6 +91,7 @@ export function App() {
 
       <OfflineIndicator />
       <ToastContainer />
+      <VolumeIndicator />
       {/* Global Badge Reveal Modal — renders on top of everything */}
       <BadgeRevealModal />
       <OnboardingFlow />
