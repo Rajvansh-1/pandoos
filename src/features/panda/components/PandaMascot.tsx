@@ -32,7 +32,7 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
   };
 
   return (
-    <div 
+    <div
       className={cn("relative flex items-center justify-center pointer-events-none drop-shadow-2xl", className)}
       style={{ width: size, height: size }}
     >
@@ -45,21 +45,21 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
         transition={state === 'nodding' ? { repeat: Infinity, duration: 0.5, ease: "easeInOut" } : { duration: 0.5 }}
       >
         {/* ---- Head Base ---- */}
-        <motion.circle 
-          cx="45" cy="55" r="22" 
+        <motion.circle
+          cx="45" cy="55" r="22"
           fill="#111" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5"
           animate={state === 'nodding' ? { y: [0, 2, 0] } : { y: 0 }}
           transition={{ repeat: Infinity, duration: 0.5 }}
         />
-        <motion.circle 
-          cx="155" cy="55" r="22" 
+        <motion.circle
+          cx="155" cy="55" r="22"
           fill="#111" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5"
           animate={state === 'nodding' ? { y: [0, 2, 0] } : { y: 0 }}
           transition={{ repeat: Infinity, duration: 0.5 }}
         />
 
         <path d="M100 25 C145 25 180 55 180 100 C180 145 145 175 100 175 C55 175 20 145 20 100 C20 55 55 25 100 25 Z" fill="#F8F9FA" stroke="#E2E8F0" strokeWidth="2" />
-        
+
         {/* Blush */}
         <ellipse cx="50" cy="120" rx="12" ry="8" fill="#FFB7B2" opacity="0.4" />
         <ellipse cx="150" cy="120" rx="12" ry="8" fill="#FFB7B2" opacity="0.4" />
@@ -73,15 +73,15 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
           <motion.g
             animate={
               state === 'loading' ? { scale: [1, 1.2, 1], opacity: [1, 0.5, 1] } :
-              (emotion === 'chill' || emotion === 'latenight') ? { scaleY: 0.5 } : 
-              (emotion === 'angry' || emotion === 'workout') ? { scaleY: 0.8, scaleX: 1.1 } : 
-              state === 'idle' ? { scaleY: [1, 0.1, 1] } : 
-              { scaleY: 1 }
+                (emotion === 'chill' || emotion === 'latenight') ? { scaleY: 0.5 } :
+                  (emotion === 'angry' || emotion === 'workout') ? { scaleY: 0.8, scaleX: 1.1 } :
+                    state === 'idle' ? { scaleY: [1, 0.1, 1] } :
+                      { scaleY: 1 }
             }
             transition={
               state === 'loading' ? { repeat: Infinity, duration: 1 } :
-              state === 'idle' ? { repeat: Infinity, repeatDelay: 4, duration: 0.2 } :
-              {}
+                state === 'idle' ? { repeat: Infinity, repeatDelay: 4, duration: 0.2 } :
+                  {}
             }
           >
             <circle cx="65" cy="95" r="6" fill="#FFF" />
@@ -102,17 +102,17 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
         {/* Bollywood Starry Eyes */}
         {emotion === 'bollywood' && (
           <>
-            <motion.polygon 
-              fill="#facc15" 
-              points="65,85 68,92 75,95 68,98 65,105 62,98 55,95 62,92" 
-              animate={{ rotate: [0, 180, 360], scale: [1, 1.3, 1] }} 
+            <motion.polygon
+              fill="#facc15"
+              points="65,85 68,92 75,95 68,98 65,105 62,98 55,95 62,92"
+              animate={{ rotate: [0, 180, 360], scale: [1, 1.3, 1] }}
               transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
               style={{ transformOrigin: "65px 95px" }}
             />
-            <motion.polygon 
-              fill="#facc15" 
-              points="135,85 138,92 145,95 138,98 135,105 132,98 125,95 132,92" 
-              animate={{ rotate: [0, 180, 360], scale: [1, 1.3, 1] }} 
+            <motion.polygon
+              fill="#facc15"
+              points="135,85 138,92 145,95 138,98 135,105 132,98 125,95 132,92"
+              animate={{ rotate: [0, 180, 360], scale: [1, 1.3, 1] }}
               transition={{ repeat: Infinity, duration: 3, ease: "linear" }}
               style={{ transformOrigin: "135px 95px" }}
             />
@@ -186,9 +186,9 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
 
         {/* Sufi Cap */}
         {emotion === 'sufi' && (
-          <motion.path 
-            d="M60 45 Q100 5 140 45 L135 55 Q100 45 65 55 Z" 
-            fill="#166534" 
+          <motion.path
+            d="M60 45 Q100 5 140 45 L135 55 Q100 45 65 55 Z"
+            fill="#166534"
             stroke="#facc15" strokeWidth="2"
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -197,9 +197,9 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
 
         {/* Devotional Tilak */}
         {emotion === 'devotional' && (
-          <motion.path 
-            d="M95 45 Q100 60 105 45 Z M100 65 A3 3 0 1 0 100 71 A3 3 0 1 0 100 65" 
-            fill="#ea580c" 
+          <motion.path
+            d="M95 45 Q100 60 105 45 Z M100 65 A3 3 0 1 0 100 71 A3 3 0 1 0 100 65"
+            fill="#ea580c"
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
             style={{ transformOrigin: "100px 55px" }}
@@ -242,8 +242,8 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
 
         {/* Nose & Mouth */}
         <path d="M90 125 Q100 120 110 125 Q105 135 100 135 Q95 135 90 125 Z" fill="#222" />
-        <motion.path 
-          d={getMouthPath()} 
+        <motion.path
+          d={getMouthPath()}
           stroke="#222" strokeWidth="3" strokeLinecap="round" fill={(emotion === 'energy' || emotion === 'happy' || emotion === 'bollywood' || emotion === 'romantic') ? '#ff7b72' : 'none'}
           animate={{ d: getMouthPath() }}
           transition={{ duration: 0.3 }}
@@ -251,8 +251,8 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
 
         {/* Chill Bamboo Leaf */}
         {emotion === 'chill' && (
-          <motion.path 
-            d="M100 140 Q130 160 145 135 Q135 140 100 140" 
+          <motion.path
+            d="M100 140 Q130 160 145 135 Q135 140 100 140"
             fill="#4ade80" stroke="#166534" strokeWidth="2"
             animate={{ rotate: [0, 5, 0] }}
             transition={{ repeat: Infinity, duration: 2 }}

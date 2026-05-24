@@ -3,6 +3,7 @@ import { immer } from 'zustand/middleware/immer';
 import { persist } from 'zustand/middleware';
 import type { Track } from '@/types/track';
 import { STORAGE_KEYS } from '@/utils/constants';
+import { useUIStore } from '@/stores/useUIStore';
 
 // ─────────────────────────────────────────────
 // State & Action Types
@@ -172,6 +173,9 @@ export const usePlayerStore = create<PlayerStore>()(
           state.duration = 0;
           state.isLoading = true;
         });
+        
+        // Auto-open player modal when user explicitly plays a track
+        useUIStore.getState().openPlayer();
       },
 
       pauseTrack: () => {

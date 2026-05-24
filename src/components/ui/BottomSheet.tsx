@@ -78,8 +78,8 @@ export function BottomSheet({ isOpen, onClose, children, className, fullScreen =
           className
         )}
         variants={{
-          visible: { y: 0, transition: { type: 'spring', damping: 25, stiffness: 200 } },
-          hidden: { y: '100%', transition: { type: 'spring', damping: 25, stiffness: 200 } },
+          visible: { y: 0, transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
+          hidden: { y: '100%', transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] } },
         }}
         drag="y"
         dragControls={dragControls}
