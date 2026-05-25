@@ -20,20 +20,20 @@
 @layer base {
   :root {
     /* ---- Brand / Mood Colors (mutated by Mood Engine) ---- */
-    --color-primary: 270 80% 68%;       /* Default: Panda Purple */
-    --color-secondary: 200 90% 60%;     /* Default: Electric Blue */
-    --color-accent: 320 85% 65%;        /* Default: Vibrant Pink */
-    --color-muted: 270 25% 55%;         /* Desaturated primary */
+    --color-primary: 220 80% 60%;       /* Default: Vibrant Blue */
+    --color-secondary: 190 90% 50%;     /* Default: Cyan */
+    --color-accent: 250 80% 65%;        /* Default: Indigo */
+    --color-muted: 220 20% 40%;         /* Desaturated primary */
 
-    /* ---- Surfaces (dynamic dark theme based on hue 270) ---- */
-    --surface-base: 270 30% 10%;         /* Deep tinted base background */
-    --surface-elevated: 270 25% 14%;     /* Cards, sheets, elevated content */
-    --surface-overlay: 270 20% 18%;     /* Modals, overlays, tooltips */
+    /* ---- Surfaces (dynamic dark theme based on hue 220) ---- */
+    --surface-base: 220 30% 10%;         /* Deep tinted base background */
+    --surface-elevated: 220 25% 14%;     /* Cards, sheets, elevated content */
+    --surface-overlay: 220 20% 18%;     /* Modals, overlays, tooltips */
 
-    /* ---- Text (dynamic tint based on hue 270) ---- */
-    --text-primary: 270 20% 96%;
-    --text-secondary: 270 15% 75%;
-    --text-muted: 270 10% 55%;
+    /* ---- Text (dynamic tint based on hue 220) ---- */
+    --text-primary: 220 20% 96%;
+    --text-secondary: 220 15% 75%;
+    --text-muted: 220 10% 55%;
 
     /* ---- Glass Effect Variables ---- */
     --glass-bg: rgba(255, 255, 255, 0.05);
@@ -51,42 +51,7 @@
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* ---- Gamification Themes (Overrides Mood Engine) ---- */
-  html.theme-zen {
-    --color-primary: 160 80% 40% !important;
-    --color-secondary: 175 70% 35% !important;
-    --color-accent: 140 70% 50% !important;
-    --surface-base: 160 30% 6% !important;
-    --surface-elevated: 160 25% 10% !important;
-    --surface-overlay: 160 20% 14% !important;
-  }
 
-  html.theme-midnight {
-    --color-primary: 280 90% 60% !important;
-    --color-secondary: 260 80% 50% !important;
-    --color-accent: 300 85% 65% !important;
-    --surface-base: 260 40% 4% !important;
-    --surface-elevated: 260 35% 8% !important;
-    --surface-overlay: 260 30% 12% !important;
-  }
-
-  html.theme-cyberpunk {
-    --color-primary: 320 100% 60% !important;
-    --color-secondary: 190 100% 50% !important;
-    --color-accent: 60 100% 50% !important;
-    --surface-base: 240 100% 5% !important;
-    --surface-elevated: 240 80% 8% !important;
-    --surface-overlay: 240 70% 12% !important;
-  }
-
-  html.theme-gold {
-    --color-primary: 45 100% 50% !important;
-    --color-secondary: 35 100% 45% !important;
-    --color-accent: 55 100% 60% !important;
-    --surface-base: 45 40% 6% !important;
-    --surface-elevated: 45 35% 10% !important;
-    --surface-overlay: 45 30% 14% !important;
-  }
 
   /* Smooth color transitions when Mood Engine updates variables.
      Only transition color-related properties to avoid expensive
