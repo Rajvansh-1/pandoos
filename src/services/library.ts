@@ -177,7 +177,7 @@ export async function followArtist(userId: string, artist: any): Promise<void> {
   const allFollowed = getStorage<Record<string, any[]>>(FOLLOWED_ARTISTS_KEY, {});
   if (!allFollowed[userId]) allFollowed[userId] = [];
   
-  if (!allFollowed[userId].find(a => a.id === artist.id)) {
+  if (!allFollowed[userId].find(a => a.artistId === artist.artistId)) {
     allFollowed[userId].unshift(artist);
     setStorage(FOLLOWED_ARTISTS_KEY, allFollowed);
   }
@@ -186,7 +186,7 @@ export async function followArtist(userId: string, artist: any): Promise<void> {
 export async function unfollowArtist(userId: string, artistId: string): Promise<void> {
   const allFollowed = getStorage<Record<string, any[]>>(FOLLOWED_ARTISTS_KEY, {});
   if (allFollowed[userId]) {
-    allFollowed[userId] = allFollowed[userId].filter(a => a.id !== artistId);
+    allFollowed[userId] = allFollowed[userId].filter(a => a.artistId !== artistId);
     setStorage(FOLLOWED_ARTISTS_KEY, allFollowed);
   }
 }
@@ -194,6 +194,6 @@ export async function unfollowArtist(userId: string, artistId: string): Promise<
 export async function isArtistFollowed(userId: string, artistId: string): Promise<boolean> {
   const allFollowed = getStorage<Record<string, any[]>>(FOLLOWED_ARTISTS_KEY, {});
   if (!allFollowed[userId]) return false;
-  return allFollowed[userId].some(a => a.id === artistId);
+  return allFollowed[userId].some(a => a.artistId === artistId);
 }
 

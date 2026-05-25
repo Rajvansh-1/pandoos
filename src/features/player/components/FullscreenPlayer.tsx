@@ -308,7 +308,7 @@ export function FullscreenPlayer() {
     <AnimatePresence>
       {isPlayerOpen && (
         <motion.div 
-          className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/60 backdrop-blur-md"
+          className="fixed inset-0 z-[500] flex items-center justify-center p-8 bg-black/60 backdrop-blur-md"
           initial={{ opacity: 0, pointerEvents: 'none' }}
           animate={{ opacity: 1, pointerEvents: 'auto' }}
           exit={{ opacity: 0, pointerEvents: 'none' }}

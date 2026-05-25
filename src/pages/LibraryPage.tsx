@@ -118,15 +118,17 @@ export function LibraryPage() {
               {loadingArtists ? (
                 [1, 2, 3, 4].map(i => <div key={i} className="w-28 h-28 rounded-full skeleton shrink-0 snap-start" />)
               ) : (
-                followedArtists!.map(artist => (
+                followedArtists!.map(artist => {
+                  const thumbUrl = artist.thumbnails?.[0]?.url;
+                  return (
                   <button 
-                    key={artist.id}
-                    onClick={() => openArtist(artist.id)}
+                    key={artist.artistId}
+                    onClick={() => openArtist(artist.artistId)}
                     className="shrink-0 snap-start flex flex-col items-center group w-28 text-center"
                   >
                     <div className="w-24 h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-brand-primary transition-colors shadow-lg relative bg-[#0a0a0f]">
-                      {artist.thumbnail ? (
-                        <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                      {thumbUrl ? (
+                        <img src={thumbUrl} alt={artist.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-primary to-brand-accent text-white font-display font-bold text-3xl shadow-inner group-hover:scale-110 transition-transform duration-500">
                           {artist.name.charAt(0).toUpperCase()}
@@ -135,7 +137,7 @@ export function LibraryPage() {
                     </div>
                     <span className="text-sm font-bold text-white line-clamp-1 group-hover:text-brand-primary transition-colors">{artist.name}</span>
                   </button>
-                ))
+                )})
               )}
             </div>
           </div>

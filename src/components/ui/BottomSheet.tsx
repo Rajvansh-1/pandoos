@@ -53,7 +53,7 @@ export function BottomSheet({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex flex-col justify-end"
+          className="fixed inset-0 z-[500] flex flex-col justify-end"
           // The outer wrapper instantly gets pointer-events-none when exit starts.
           initial={{ pointerEvents: 'auto' }}
           animate={{ pointerEvents: 'auto' }}

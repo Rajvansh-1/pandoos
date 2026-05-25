@@ -231,7 +231,7 @@ export function useFollowArtist() {
   return useMutation({
     mutationFn: (artist: any) => followArtist(userId, artist),
     onMutate: async (artist) => {
-      const checkKey = [...QUERY_KEYS.followedArtists(userId), 'check', artist.id];
+      const checkKey = [...QUERY_KEYS.followedArtists(userId), 'check', artist.artistId];
       await queryClient.cancelQueries({ queryKey: checkKey });
       queryClient.setQueryData(checkKey, true);
     },
@@ -240,7 +240,7 @@ export function useFollowArtist() {
     },
     onSettled: (_, __, artist) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.followedArtists(userId) });
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.followedArtists(userId), 'check', artist.id] });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.followedArtists(userId), 'check', artist.artistId] });
     },
   });
 }

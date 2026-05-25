@@ -306,11 +306,11 @@ export function ArtistOverlay() {
                       if (isFollowed) {
                         unfollowArtist.mutate(activeArtistId);
                       } else {
-                        // Create a simple artist object for the library
+                        // Create a simple artist object for the library matching the Artist interface
                         followArtist.mutate({
-                          id: activeArtistId,
+                          artistId: activeArtistId,
                           name: artist.name,
-                          thumbnail: bannerUrl
+                          thumbnails: [{ url: bannerUrl, width: 800, height: 800 }]
                         });
                       }
                     }}

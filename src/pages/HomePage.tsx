@@ -156,8 +156,8 @@ export function HomePage() {
     // Add explicit artists from search API (these usually have real artist thumbnails)
     const addArtists = (list?: Artist[]) => {
       list?.forEach(a => {
-        if (a.id && !seen.has(a.id)) {
-          seen.add(a.id);
+        if (a.artistId && !seen.has(a.artistId)) {
+          seen.add(a.artistId);
           artists.push(a);
         }
       });
@@ -177,9 +177,9 @@ export function HomePage() {
         if (t.artistId && t.artist && t.artist !== 'Unknown' && !seen.has(t.artistId)) {
           seen.add(t.artistId);
           artists.push({
-            id: t.artistId,
+            artistId: t.artistId,
             name: t.artist,
-            thumbnail: undefined // Force undefined so it renders the beautiful gradient initial
+            thumbnails: [] // Empty array triggers fallback
           });
         }
       });
@@ -616,18 +616,20 @@ function ArtistCarousel({ artists }: { artists: Artist[] }) {
 
       <div className="w-full">
         <div className="flex overflow-x-auto gap-5 md:gap-6 pb-4 snap-x snap-mandatory scroll-container px-4 md:px-8">
-          {artists.map((artist, i) => (
+          {artists.map((artist, i) => {
+            const thumbUrl = artist.thumbnails?.[0]?.url;
+            return (
             <motion.div
-              key={artist.id}
+              key={artist.artistId}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 }}
               className="shrink-0 snap-start flex flex-col items-center cursor-pointer group w-28 md:w-32"
-              onClick={() => openArtist(artist.id)}
+              onClick={() => openArtist(artist.artistId)}
             >
               <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-brand-primary transition-colors shadow-lg relative bg-[#0a0a0f]">
-                {artist.thumbnail ? (
-                  <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                {thumbUrl ? (
+                  <img src={thumbUrl} alt={artist.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-primary to-brand-accent text-white font-display font-bold text-4xl shadow-inner group-hover:scale-110 transition-transform duration-500">
                     {artist.name.charAt(0).toUpperCase()}
@@ -636,7 +638,7 @@ function ArtistCarousel({ artists }: { artists: Artist[] }) {
               </div>
               <span className="text-sm md:text-base font-bold text-white line-clamp-1 text-center group-hover:text-brand-primary transition-colors">{artist.name}</span>
             </motion.div>
-          ))}
+          )})}
         </div>
       </div>
     </section>
