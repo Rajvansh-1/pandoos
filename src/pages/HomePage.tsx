@@ -255,28 +255,32 @@ export function HomePage() {
       {/* Alive Aurora Background — RESTORED for emotional connection */}
       <div className="absolute top-0 left-0 w-full h-[600px] mood-bg -z-10 pointer-events-none" />
 
-      {/* ── HEADER ── */}
-      <header className="w-full px-4 md:px-8 pt-6 pb-2 z-50">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight flex items-center gap-2 drop-shadow-md">
-              {greeting}
-              {user && (
-                <span className="bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent">
-                  , {user.username.split(' ')[0]}!
-                </span>
-              )}
-              {!user && <span>!</span>}
-            </h1>
-            <p className="text-xs text-white/70 font-medium mt-1 drop-shadow-sm flex items-center gap-2">
-              {weather.temp !== null && !weather.isLoading && (
-                <span>{weather.isSunny ? '☀️' : weather.isRaining ? '🌧️' : '☁️'} {Math.round(weather.temp)}°C</span>
-              )}
-              {isPersonalized && "✨ Personalized for you"}
-            </p>
+      {/* ── HEADER (Floating Widget) ── */}
+      <div className="sticky top-6 z-50 w-full max-w-7xl px-4 md:px-8 flex items-start justify-between mb-6 pointer-events-none">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="pointer-events-auto bg-[#111]/80 backdrop-blur-2xl border border-white/10 px-6 py-4 rounded-[2rem] shadow-2xl flex flex-col items-start transition-all hover:bg-[#111]/90"
+        >
+          <h1 className="text-lg md:text-xl font-serif font-black tracking-tight text-white drop-shadow-lg flex items-center flex-wrap gap-2">
+            {greeting}{user ? <span className="text-brand-primary">, {user.username}</span> : ''}
+            <span className="inline-block animate-[wave_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
+          </h1>
+          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+            {isPersonalized && (
+              <p className="text-white/60 text-[11px] font-medium tracking-wide flex items-center gap-1 uppercase">
+                <Sparkles size={10} className="text-brand-primary" />
+                Personalized for your taste
+              </p>
+            )}
+            {!weather.isLoading && weather.temp !== null && (
+              <span className="text-[10px] font-bold bg-white/5 text-white/80 px-2 py-0.5 rounded-md border border-white/10 flex items-center gap-1 shadow-inner">
+                {weather.isSunny ? '☀️' : weather.isRaining ? '🌧️' : '☁️'} {Math.round(weather.temp)}°C
+              </span>
+            )}
           </div>
-        </div>
-      </header>
+        </motion.div>
+      </div>
 
       {/* ── HERO (Emotional Centerpiece) ── */}
       <section className="relative w-full px-4 md:px-8 mt-2 mb-8 flex flex-col items-center z-10">
