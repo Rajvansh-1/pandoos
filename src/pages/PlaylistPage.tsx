@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Play, Shuffle, Heart, ArrowLeft, MoreHorizontal, Music2, Plus } from 'lucide-react';
-import { usePlaylists, usePlaylistTracks, useLikedSongs, useRemoveTrackFromPlaylist } from '@/features/library/hooks/useLibrary';
+import { Play, Shuffle, Heart, ArrowLeft, Trash2, Music2, Plus } from 'lucide-react';
+import { usePlaylists, usePlaylistTracks, useLikedSongs, useRemoveTrackFromPlaylist, useDeletePlaylist } from '@/features/library/hooks/useLibrary';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { PlaylistTrackItem } from '@/features/library/components/PlaylistTrackItem';
 import { AddSongsSearchModal } from '@/features/library/components/AddSongsSearchModal';
@@ -27,6 +27,7 @@ export function PlaylistPage() {
   const isShuffling = usePlayerStore((state) => state.isShuffling);
   
   const removeTrack = useRemoveTrackFromPlaylist();
+  const deletePlaylist = useDeletePlaylist();
   const [isAddSongsModalOpen, setIsAddSongsModalOpen] = React.useState(false);
 
   const handlePlayAll = () => {
@@ -114,8 +115,20 @@ export function PlaylistPage() {
           <Shuffle size={24} />
         </button>
         {!isLiked && (
-          <button className="p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all ml-auto">
-            <MoreHorizontal size={24} />
+          <button 
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete this playlist?')) {
+                if (id) {
+                  deletePlaylist.mutate(id, {
+                    onSuccess: () => navigate('/library')
+                  });
+                }
+              }
+            }}
+            className="p-3 text-white/70 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all ml-auto"
+            title="Delete Playlist"
+          >
+            <Trash2 size={24} />
           </button>
         )}
       </div>
@@ -138,7 +151,17 @@ export function PlaylistPage() {
                 onPlay={() => playTrack(track, tracks)}
                 isLikedPlaylist={isLiked}
                 onRemove={!isLiked ? () => {
-                  if (id) removeTrack.mutate({ playlistId: id, videoId: track.videoId });
+                  if (id) {
+                    removeTrack.mutate({ playlistId: id, videoId: track.videoId }, {
+                      onSuccess: () => {
+                        if (tracks.length === 1) {
+                          deletePlaylist.mutate(id, {
+                            onSuccess: () => navigate('/library')
+                          });
+                        }
+                      }
+                    });
+                  }
                 } : undefined}
               />
             ))}
