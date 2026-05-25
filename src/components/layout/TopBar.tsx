@@ -2,8 +2,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useGamificationStore, computeXP, getRankForXP } from '@/stores/useGamificationStore';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, User } from 'lucide-react';
+import { Flame, User, Settings } from 'lucide-react';
+import { SettingsModal } from './SettingsModal';
 
 export function TopBar() {
   const user = useAuthStore((state) => state.user);
@@ -14,6 +16,8 @@ export function TopBar() {
   const xp = computeXP(gamification);
   const rank = getRankForXP(xp);
   const streak = gamification.streakDays;
+  
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Hide the top bar when the full-screen player is open
   if (isPlayerOpen) return null;
@@ -47,36 +51,13 @@ export function TopBar() {
             </motion.div>
           )}
 
-          {/* Profile Avatar Button */}
+          {/* Settings Button */}
           <motion.button
-            onClick={() => navigate('/profile')}
+            onClick={() => setIsSettingsOpen(true)}
             whileTap={{ scale: 0.92 }}
-            className="relative group"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-surface-elevated border border-white/10 hover:bg-white/10 transition-colors group shadow-lg"
           >
-            {/* Glowing rank ring */}
-            <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${rank.color} p-[2px] shadow-lg group-hover:shadow-xl transition-shadow`}>
-              <div className="w-full h-full rounded-full bg-surface-base overflow-hidden flex items-center justify-center">
-                {user?.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-sm">{rank.emoji}</span>
-                )}
-              </div>
-            </div>
-
-            {/* XP badge tooltip on hover */}
-            <div className="absolute -bottom-7 right-0 hidden group-hover:flex items-center gap-1 bg-black/90 border border-white/10 rounded-full px-2 py-0.5 text-[10px] font-bold text-white whitespace-nowrap shadow-xl z-50">
-              ⭐ {xp} XP
-            </div>
-
-            {/* Pulse ring for logged-in users */}
-            {user && (
-              <span className="absolute inset-0 rounded-full ring-2 ring-brand-primary/0 group-hover:ring-brand-primary/40 transition-all duration-300" />
-            )}
+            <Settings size={20} className="text-white/80 group-hover:text-white transition-colors" />
           </motion.button>
 
           {/* Show "Sign In" button if not logged in */}
@@ -91,6 +72,11 @@ export function TopBar() {
           )}
         </div>
       </div>
+      
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </header>
   );
 }

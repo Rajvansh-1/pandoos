@@ -29,6 +29,7 @@ const ProfilePage = React.lazy(() => import('@/pages/ProfilePage').then(m => ({ 
 const PlaylistPage = React.lazy(() => import('@/pages/PlaylistPage').then(m => ({ default: m.PlaylistPage })));
 const LoginPage = React.lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const ErrorPage = React.lazy(() => import('@/pages/ErrorPage').then(m => ({ default: m.ErrorPage })));
+const LegalPage = React.lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.LegalPage })));
 
 function RouteTracker() {
   useEffect(() => {
@@ -109,6 +110,7 @@ export function App() {
             <Route path="/library" element={<LibraryPage />} />
             <Route path="/playlist/:id" element={<PlaylistPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/legal" element={<LegalPage />} />
             <Route path="*" element={<ErrorPage />} />
           </Route>
         </Routes>

@@ -89,8 +89,8 @@ export function HomePage() {
 
   const isPersonalized = topGenres.length > 0 || recentArtists.length > 0;
 
-  // Quick picks from history
-  const quickPicks = useMemo(() => history.slice(0, 12), [history]);
+  // Quick picks from history - ensure tracks are valid and playable
+  const quickPicks = useMemo(() => history.filter(t => t && t.videoId).slice(0, 12), [history]);
 
   // "For You" — seeded from top genre
   const forYouQuery = useMemo(() => {
@@ -261,6 +261,12 @@ export function HomePage() {
           <div>
             <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight flex items-center gap-2 drop-shadow-md">
               {greeting}
+              {user && (
+                <span className="bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent">
+                  , {user.username.split(' ')[0]}!
+                </span>
+              )}
+              {!user && <span>!</span>}
             </h1>
             <p className="text-xs text-white/70 font-medium mt-1 drop-shadow-sm flex items-center gap-2">
               {weather.temp !== null && !weather.isLoading && (
