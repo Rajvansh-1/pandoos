@@ -20,20 +20,20 @@
 @layer base {
   :root {
     /* ---- Brand / Mood Colors (mutated by Mood Engine) ---- */
-    --color-primary: 270 80% 68%;       /* Default: Panda Purple */
-    --color-secondary: 200 90% 60%;     /* Default: Electric Blue */
-    --color-accent: 320 85% 65%;        /* Default: Vibrant Pink */
-    --color-muted: 270 25% 55%;         /* Desaturated primary */
+    --color-primary: 220 80% 60%;       /* Default: Vibrant Blue */
+    --color-secondary: 190 90% 50%;     /* Default: Cyan */
+    --color-accent: 250 80% 65%;        /* Default: Indigo */
+    --color-muted: 220 20% 40%;         /* Desaturated primary */
 
-    /* ---- Surfaces (dynamic dark theme based on hue 270) ---- */
-    --surface-base: 270 30% 10%;         /* Deep tinted base background */
-    --surface-elevated: 270 25% 14%;     /* Cards, sheets, elevated content */
-    --surface-overlay: 270 20% 18%;     /* Modals, overlays, tooltips */
+    /* ---- Surfaces (dynamic dark theme based on hue 220) ---- */
+    --surface-base: 220 30% 10%;         /* Deep tinted base background */
+    --surface-elevated: 220 25% 14%;     /* Cards, sheets, elevated content */
+    --surface-overlay: 220 20% 18%;     /* Modals, overlays, tooltips */
 
-    /* ---- Text (dynamic tint based on hue 270) ---- */
-    --text-primary: 270 20% 96%;
-    --text-secondary: 270 15% 75%;
-    --text-muted: 270 10% 55%;
+    /* ---- Text (dynamic tint based on hue 220) ---- */
+    --text-primary: 220 20% 96%;
+    --text-secondary: 220 15% 75%;
+    --text-muted: 220 10% 55%;
 
     /* ---- Glass Effect Variables ---- */
     --glass-bg: rgba(255, 255, 255, 0.05);
@@ -46,9 +46,12 @@
     --top-bar-height: 56px;
 
     /* ---- Safe area insets (Capacitor / notch support) ---- */
+    /* ---- Safe area insets (Capacitor / notch support) ---- */
     --safe-area-top: env(safe-area-inset-top, 0px);
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+
 
   /* Smooth color transitions when Mood Engine updates variables.
      Only transition color-related properties to avoid expensive
@@ -255,6 +258,12 @@
       var(--safe-area-bottom) +
       8px
     );
+  }
+
+  /* ---- Mask Image Fade (for lyrics fading at top/bottom) ---- */
+  .mask-image-fade {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
   }
 }
 

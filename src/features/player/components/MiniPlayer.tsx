@@ -54,7 +54,15 @@ export function MiniPlayer() {
             <p className="text-sm font-semibold text-white truncate">
               {currentTrack.title}
             </p>
-            <p className="text-xs text-text-muted truncate">
+            <p 
+              className="text-xs text-text-muted truncate cursor-pointer hover:underline relative z-30"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (currentTrack.artistId) {
+                  useUIStore.getState().openArtist(currentTrack.artistId);
+                }
+              }}
+            >
               {currentTrack.artist}
             </p>
           </div>

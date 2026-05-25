@@ -1,7 +1,6 @@
 /**
- * api/lyrics/search.ts — Edge function proxy for LRCLIB /api/search
+ * api/lyrics/search.ts — Proxy for LRCLIB /api/search
  */
-export const config = { runtime: 'edge' };
 
 export default async function handler(req: Request) {
   const { searchParams } = new URL(req.url);

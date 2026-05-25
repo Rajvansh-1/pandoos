@@ -12,10 +12,15 @@ import { BadgeRevealModal } from '@/features/profile/BadgeRevealModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
+import { useOfflineStore } from '@/stores/useOfflineStore';
+import { useThemeStore } from '@/stores/useThemeStore';
+import { LevelUpConfetti } from '@/components/ui/LevelUpConfetti';
 
 import { ToastContainer } from '@/components/ui/ToastContainer';
 import { VolumeIndicator } from '@/components/ui/VolumeIndicator';
 import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow';
+import { ArtistOverlay } from '@/features/artist/components/ArtistOverlay';
+import { AlbumOverlay } from '@/features/album/components/AlbumOverlay';
 
 const HomePage = React.lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })));
 const SearchPage = React.lazy(() => import('@/pages/SearchPage').then(m => ({ default: m.SearchPage })));
@@ -24,6 +29,7 @@ const ProfilePage = React.lazy(() => import('@/pages/ProfilePage').then(m => ({ 
 const PlaylistPage = React.lazy(() => import('@/pages/PlaylistPage').then(m => ({ default: m.PlaylistPage })));
 const LoginPage = React.lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
 const ErrorPage = React.lazy(() => import('@/pages/ErrorPage').then(m => ({ default: m.ErrorPage })));
+const LegalPage = React.lazy(() => import('@/pages/LegalPage').then(m => ({ default: m.LegalPage })));
 
 function RouteTracker() {
   useEffect(() => {
@@ -47,6 +53,9 @@ export function App() {
 
   const welcomeAwardedRef = useRef(false);
 
+  const initOfflineStore = useOfflineStore((state) => state.initOfflineStore);
+  const activeTheme = useThemeStore((state) => state.activeTheme);
+
   useAudioEngine();
   useRadioEngine();
   useMediaSession();
@@ -55,7 +64,25 @@ export function App() {
 
   useEffect(() => {
     initializeAuth();
-  }, [initializeAuth]);
+    initOfflineStore();
+  }, [initializeAuth, initOfflineStore]);
+
+  // Apply Theme to HTML root
+  useEffect(() => {
+    const html = document.documentElement;
+    
+    // Remove any existing theme classes
+    html.classList.forEach((cls) => {
+      if (cls.startsWith('theme-')) {
+        html.classList.remove(cls);
+      }
+    });
+
+    // Add new theme class if not dynamic
+    if (activeTheme !== 'dynamic') {
+      html.classList.add(`theme-${activeTheme}`);
+    }
+  }, [activeTheme]);
 
   useEffect(() => {
     if (user && !welcomeAwardedRef.current && !earnedBadges.includes('welcome_panda')) {
@@ -83,18 +110,24 @@ export function App() {
             <Route path="/library" element={<LibraryPage />} />
             <Route path="/playlist/:id" element={<PlaylistPage />} />
             <Route path="/profile" element={<ProfilePage />} />
-            {/* Catch-all */}
+            <Route path="/legal" element={<LegalPage />} />
             <Route path="*" element={<ErrorPage />} />
           </Route>
         </Routes>
       </Suspense>
 
       <OfflineIndicator />
+      <LevelUpConfetti />
       <ToastContainer />
       <VolumeIndicator />
-      {/* Global Badge Reveal Modal — renders on top of everything */}
+      
+      {/* Dynamic Overlays */}
+      <ArtistOverlay />
+      <AlbumOverlay />
+
       <BadgeRevealModal />
       <OnboardingFlow />
     </>
   );
 }
+

@@ -76,19 +76,17 @@ function cleanArtist(artist: string): string {
 /** Build the correct API URL for dev vs. production */
 function buildUrl(params: Record<string, string>): string {
   const qs = new URLSearchParams(params).toString();
-  if (import.meta.env.DEV) {
-    return `https://lrclib.net/api/get?${qs}`;
-  }
-  return `/api/lyrics?${qs}`;
+  // LRCLIB supports CORS, so we can always fetch directly from the client.
+  // This bypasses serverless function cold starts and proxy overhead in production,
+  // making it "lightning fast" and exactly like Spotify/Apple Music.
+  return `https://lrclib.net/api/get?${qs}`;
 }
 
 /** Build the search API URL */
 function buildSearchUrl(params: Record<string, string>): string {
   const qs = new URLSearchParams(params).toString();
-  if (import.meta.env.DEV) {
-    return `https://lrclib.net/api/search?${qs}`;
-  }
-  return `/api/lyrics/search?${qs}`;
+  // Call LRCLIB directly to avoid proxy overhead
+  return `https://lrclib.net/api/search?${qs}`;
 }
 
 interface LRCLIBItem {
@@ -100,10 +98,10 @@ interface LRCLIBItem {
 
 async function fetchFromLRCLIB(params: Record<string, string>): Promise<LRCLIBItem | null> {
   try {
-    const headers: Record<string, string> = {};
-    if (import.meta.env.DEV) {
-      headers['User-Agent'] = 'PandoosMusic/1.0 (https://github.com/Rajvansh-1/pandoos)';
-    }
+    const headers: Record<string, string> = {
+      // LRCLIB requests a user agent, but browser 'fetch' doesn't allow setting User-Agent directly.
+      // We skip setting it to prevent preflight errors in some older browsers.
+    };
     const res = await fetch(buildUrl(params), { headers });
     if (!res.ok) return null;
     const data = await res.json() as LRCLIBItem;
@@ -118,9 +116,6 @@ async function fetchFromLRCLIB(params: Record<string, string>): Promise<LRCLIBIt
 async function searchLRCLIB(query: string): Promise<LRCLIBItem | null> {
   try {
     const headers: Record<string, string> = {};
-    if (import.meta.env.DEV) {
-      headers['User-Agent'] = 'PandoosMusic/1.0 (https://github.com/Rajvansh-1/pandoos)';
-    }
     const url = buildSearchUrl({ q: query });
     const res = await fetch(url, { headers });
     if (!res.ok) return null;
@@ -149,7 +144,8 @@ function itemToResult(item: LRCLIBItem, matchType: 'exact' | 'fuzzy'): LyricsRes
  */
 export async function fetchLyrics(
   rawTitle: string,
-  rawArtist: string
+  rawArtist: string,
+  videoId?: string
 ): Promise<LyricsResult> {
   const empty: LyricsResult = { synced: null, plain: '', matchType: 'none' };
 
@@ -181,6 +177,31 @@ export async function fetchLyrics(
   // Strategy 4: Title-only search (for instrumental/compilation names)
   const s4 = await searchLRCLIB(fuzzyTitle);
   if (s4) return itemToResult(s4, 'fuzzy');
+
+  // Strategy 5: Fallback to YouTube Music via backend proxy
+  if (videoId) {
+    try {
+      const qs = new URLSearchParams();
+      if (exactTitle) qs.set('track_name', exactTitle);
+      if (exactArtist) qs.set('artist_name', exactArtist);
+      qs.set('videoId', videoId);
+      
+      const res = await fetch(`/api/lyrics?${qs.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.plainLyrics || data.syncedLyrics) {
+          const synced = data.syncedLyrics ? parseLRC(data.syncedLyrics) : null;
+          return {
+            synced: synced && synced.length > 0 ? synced : null,
+            plain: data.plainLyrics ?? '',
+            matchType: 'fuzzy', // YTM plain lyrics are considered a fuzzy fallback
+          };
+        }
+      }
+    } catch {
+      // Ignore proxy errors, return empty
+    }
+  }
 
   return empty;
 }

@@ -1,32 +1,20 @@
-export const config = {
-  runtime: 'edge',
-};
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import YTMusic from 'ytmusic-api';
 
-export default async function handler(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const query = searchParams.get('q');
+const ytmusic = new YTMusic();
+let initialized = false;
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const query = (req.query.q || req.query.query) as string;
 
   if (!query) {
-    return new Response(JSON.stringify({ error: 'Query parameter "q" is required' }), {
-      status: 400,
-      headers: { 'content-type': 'application/json' },
-    });
+    return res.status(400).json({ error: 'Query parameter "q" is required' });
   }
 
-  // Redis Cache Key
-  const cacheKey = `pandoos:search:${query.toLowerCase().trim()}`;
+  const cacheKey = `pandoos:ytm_search_v4:${query.toLowerCase().trim()}`;
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-  const ytApiKey = process.env.YOUTUBE_API_KEY;
 
-  if (!ytApiKey) {
-    return new Response(JSON.stringify({ error: 'Server misconfiguration: missing YT API key' }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    });
-  }
-
-  // 1. Try Cache First
   if (upstashUrl && upstashToken) {
     try {
       const cacheRes = await fetch(`${upstashUrl}/get/${encodeURIComponent(cacheKey)}`, {
@@ -35,12 +23,9 @@ export default async function handler(req: Request) {
       if (cacheRes.ok) {
         const cacheData = await cacheRes.json();
         if (cacheData.result) {
-          // Upstash returns JSON strings for stored objects
-          const items = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
-          return new Response(JSON.stringify({ items, cached: true }), {
-            status: 200,
-            headers: { 'content-type': 'application/json' },
-          });
+          const resultObj = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
+          res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
+          return res.status(200).json({ ...resultObj, cached: true });
         }
       }
     } catch (e) {
@@ -48,61 +33,50 @@ export default async function handler(req: Request) {
     }
   }
 
-  // 2. Cache Miss -> Fetch from YouTube
   try {
-    const ytUrl = new URL('https://www.googleapis.com/youtube/v3/search');
-    ytUrl.searchParams.set('part', 'snippet');
-    ytUrl.searchParams.set('type', 'video');
-    ytUrl.searchParams.set('videoCategoryId', '10'); // Music
-    ytUrl.searchParams.set('maxResults', '15');
-    ytUrl.searchParams.set('key', ytApiKey);
-
-    if (query === 'TSERIES_LATEST') {
-      ytUrl.searchParams.set('channelId', 'UCq-Fj5jknLsUf-MWSy4_brA');
-      ytUrl.searchParams.set('order', 'date');
-    } else {
-      ytUrl.searchParams.set('q', query);
+    if (!initialized) {
+      await ytmusic.initialize();
+      initialized = true;
     }
 
-    let ytRes = await fetch(ytUrl.toString());
-    
-    // Fallback logic for secondary key if primary fails with 403 (Quota Exceeded)
-    if (!ytRes.ok && ytRes.status === 403 && process.env.YOUTUBE_API_KEY_2) {
-      console.warn('Primary API Key failed with 403. Trying backup key...');
-      ytUrl.searchParams.set('key', process.env.YOUTUBE_API_KEY_2);
-      ytRes = await fetch(ytUrl.toString());
-    }
+    const [songResults, artistResults] = await Promise.all([
+      ytmusic.searchSongs(query).catch(() => []),
+      ytmusic.searchArtists(query).catch(() => [])
+    ]);
 
-    if (!ytRes.ok) {
-      throw new Error(`YouTube API returned ${ytRes.status}`);
-    }
+    const mappedSongs = songResults.map(song => ({
+      id: { videoId: song.videoId },
+      snippet: {
+        title: song.name,
+        channelTitle: song.artist?.name || 'Unknown Artist',
+        thumbnails: {
+          high: { url: song.thumbnails?.[1]?.url || song.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg` }
+        },
+        publishedAt: new Date().toISOString(),
+        artistId: song.artist?.artistId || song.artist?.browseId || null,
+        albumId: song.album?.albumId || song.album?.browseId || null,
+      }
+    })).slice(0, 15);
 
-    const data = await ytRes.json();
+    const mappedArtists = artistResults.map(artist => ({
+      artistId: artist.artistId || artist.browseId,
+      name: artist.name,
+      thumbnails: artist.thumbnails || []
+    })).slice(0, 5);
 
-    // 3. Save to Cache (Async, fire and forget)
-    if (upstashUrl && upstashToken && data.items) {
-      // 24 hours = 86400 seconds
+    const responseObj = { items: mappedSongs, artists: mappedArtists };
+
+    if (upstashUrl && upstashToken && (mappedSongs.length > 0 || mappedArtists.length > 0)) {
       fetch(`${upstashUrl}/set/${encodeURIComponent(cacheKey)}?ex=86400`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${upstashToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data.items),
-      }).catch((e) => console.error('Redis cache write failed:', e));
+        headers: { Authorization: `Bearer ${upstashToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(responseObj),
+      }).catch(e => console.error('Redis cache write failed:', e));
     }
 
-    return new Response(JSON.stringify({ items: data.items, cached: false }), {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
-        'cache-control': 'public, s-maxage=86400, stale-while-revalidate=43200',
-      },
-    });
+    res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
+    return res.status(200).json({ ...responseObj, cached: false });
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'content-type': 'application/json' },
-    });
+    return res.status(500).json({ error: error.message });
   }
 }

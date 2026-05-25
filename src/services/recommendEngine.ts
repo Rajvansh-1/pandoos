@@ -4,7 +4,6 @@
  */
 import type { Track } from '@/types/track';
 import { inferTags, tagSimilarity } from '@/services/trackGraph';
-import { MOOD_SEEDS } from '@/data/moodSeeds';
 import { searchTracks } from '@/services/youtube';
 
 interface RecommendOptions {
@@ -15,10 +14,6 @@ interface RecommendOptions {
   count?: number;
 }
 
-/**
- * Score a candidate track against the current track + taste profile.
- * Returns a value roughly in the range [-1, 2].
- */
 function scoreCandidate(
   candidate: Track,
   currentTags: ReturnType<typeof inferTags>,
@@ -27,24 +22,20 @@ function scoreCandidate(
   isLoved: boolean,
   alreadyPlayed: boolean
 ): number {
-  if (isSkipped) return -999; // Hard exclude
-  if (alreadyPlayed) return -10; // Strong discourage (but not hard block)
+  if (isSkipped) return -999;
+  if (alreadyPlayed) return -10;
 
   const candidateTags = inferTags(candidate.title, candidate.artist);
-  const similarity = tagSimilarity(currentTags, candidateTags); // 0–1
+  const similarity = tagSimilarity(currentTags, candidateTags);
 
   return (
-    similarity * 0.45 +          // tag similarity to current song
-    affinityScore * 0.35 +        // personal affinity
-    (isLoved ? 0.2 : 0) +         // bonus for loved tracks
-    (alreadyPlayed ? -0.3 : 0.1)  // novelty bonus
+    similarity * 0.45 +
+    affinityScore * 0.35 +
+    (isLoved ? 0.2 : 0) +
+    (alreadyPlayed ? -0.3 : 0.1)
   );
 }
 
-/**
- * Build a rich search query from a track's inferred tags.
- * This is what gets sent to YouTube to find fresh recommendations.
- */
 export function buildSearchQuery(track: Track): string {
   const tags = inferTags(track.title, track.artist);
 
@@ -76,59 +67,23 @@ export function buildSearchQuery(track: Track): string {
     return 'relaxing acoustic chill songs';
   }
 
-  // Default: artist-based
   return `${track.artist} top songs`;
 }
 
-/**
- * Main recommendation function.
- * Returns up to `count` recommended tracks, scored and sorted.
- */
 export async function getRecommendations(opts: RecommendOptions): Promise<Track[]> {
   const { currentTrack, history, skippedIds, getAffinityScore, count = 5 } = opts;
 
   const currentTags = inferTags(currentTrack.title, currentTrack.artist);
   const historyIds = new Set(history.map(t => t.videoId));
-  const lovedIds = new Set<string>(); // populated from store in hook
+  const lovedIds = new Set<string>();
 
-  // --- Candidate pool: all mood seeds ---
-  const allSeeds = Object.values(MOOD_SEEDS).flat();
-  // Deduplicate seeds by videoId
-  const seenIds = new Set<string>();
-  const uniqueSeeds = allSeeds.filter(t => {
-    if (seenIds.has(t.videoId)) return false;
-    seenIds.add(t.videoId);
-    return true;
-  });
-
-  // Score all seeds
-  const scoredSeeds = uniqueSeeds.map(candidate => ({
-    track: candidate,
-    score: scoreCandidate(
-      candidate,
-      currentTags,
-      getAffinityScore(candidate),
-      skippedIds.includes(candidate.videoId),
-      lovedIds.has(candidate.videoId),
-      historyIds.has(candidate.videoId)
-    ),
-  })).sort((a, b) => b.score - a.score);
-
-  // Take top seeds (not skipped)
-  const topSeeds = scoredSeeds
-    .filter(s => s.score > -999)
-    .slice(0, count + 3)
-    .map(s => s.track);
-
-  // --- Fresh picks: fetch from YouTube ---
   let freshTracks: Track[] = [];
   try {
     const query = buildSearchQuery(currentTrack);
-    const results = await searchTracks(query);
-    // Score the fresh results too
+    const { songs: results } = await searchTracks(query);
     freshTracks = results
-      .filter(t => !skippedIds.includes(t.videoId))
-      .map(t => ({
+      .filter((t: Track) => !skippedIds.includes(t.videoId))
+      .map((t: Track) => ({
         track: t,
         score: scoreCandidate(
           t,
@@ -139,28 +94,95 @@ export async function getRecommendations(opts: RecommendOptions): Promise<Track[
           historyIds.has(t.videoId)
         ),
       }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, count + 3)
-      .map(s => s.track);
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+      .slice(0, count + 5)
+      .map((s: { track: Track }) => s.track);
   } catch {
-    // Quota exceeded or offline — fall back to seeds only
+    console.warn('Failed to fetch recommendations from YouTube');
   }
 
-  // --- Interleave seeds + fresh (alternating) for variety ---
-  const combined: Track[] = [];
-  const maxLen = Math.max(topSeeds.length, freshTracks.length);
-  for (let i = 0; i < maxLen && combined.length < count * 2; i++) {
-    if (freshTracks[i]) combined.push(freshTracks[i]!);
-    if (topSeeds[i]) combined.push(topSeeds[i]!);
-  }
-
-  // Final dedup by videoId, exclude current track
   const finalIds = new Set<string>([currentTrack.videoId]);
-  const deduped = combined.filter(t => {
+  const deduped = freshTracks.filter(t => {
     if (finalIds.has(t.videoId)) return false;
     finalIds.add(t.videoId);
     return true;
   });
 
   return deduped.slice(0, count);
+}
+
+// ─────────────────────────────────────────────
+// The Beast Engine (Home Page Scoring)
+// ─────────────────────────────────────────────
+
+interface OracleVibe {
+  id: string;
+  title: string;
+  query: string;
+  songs: Track[];
+}
+
+interface BeastContext {
+  weatherTemp: number | null;
+  isSunny: boolean;
+  isRaining: boolean;
+  hourOfDay: number;
+  moodSessionCounts: Record<string, number>;
+}
+
+export function rankOracleVibes(vibes: OracleVibe[], context: BeastContext): OracleVibe[] {
+  if (!vibes || vibes.length === 0) return [];
+
+  // Determine top 3 local moods
+  const topMoods = Object.entries(context.moodSessionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(entry => entry[0].toLowerCase());
+
+  const scoredVibes = vibes.map(vibe => {
+    let score = 0;
+    const title = vibe.title.toLowerCase();
+    const query = vibe.query.toLowerCase();
+    const text = `${title} ${query}`;
+
+    // 1. Weather Context
+    if (context.isRaining && (text.includes('rain') || text.includes('lofi') || text.includes('acoustic') || text.includes('sad'))) {
+      score += 30;
+    }
+    if (context.isSunny && (text.includes('sun') || text.includes('pop') || text.includes('happy') || text.includes('summer'))) {
+      score += 20;
+    }
+
+    // 2. Time of Day Context
+    if (context.hourOfDay >= 22 || context.hourOfDay <= 4) { // Late night
+      if (text.includes('night') || text.includes('sleep') || text.includes('chill') || text.includes('synthwave')) {
+        score += 25;
+      }
+    } else if (context.hourOfDay >= 5 && context.hourOfDay <= 10) { // Morning
+      if (text.includes('morning') || text.includes('coffee') || text.includes('energy') || text.includes('workout')) {
+        score += 25;
+      }
+    } else if (context.hourOfDay >= 11 && context.hourOfDay <= 16) { // Afternoon
+      if (text.includes('focus') || text.includes('study') || text.includes('work')) {
+        score += 15;
+      }
+    }
+
+    // 3. User Gamification History
+    topMoods.forEach((mood, idx) => {
+      // higher weight for the #1 mood
+      const weight = idx === 0 ? 30 : idx === 1 ? 20 : 10;
+      if (text.includes(mood) || (mood === 'energy' && text.includes('workout')) || (mood === 'chill' && text.includes('lofi'))) {
+        score += weight;
+      }
+    });
+
+    // Randomize slightly to keep feed fresh if scores tie
+    score += Math.random() * 5;
+
+    return { vibe, score };
+  });
+
+  scoredVibes.sort((a, b) => b.score - a.score);
+  return scoredVibes.map(s => s.vibe);
 }

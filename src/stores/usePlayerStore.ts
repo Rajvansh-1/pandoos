@@ -144,14 +144,13 @@ export const usePlayerStore = create<PlayerStore>()(
         set((state) => {
           // Build the new queue. If no queue passed, queue is just this track.
           const newQueue = queue ?? [track];
-          const trackIndex = newQueue.findIndex((t) => t.id === track.id);
+          const trackIndex = newQueue.findIndex((t) => t.videoId === track.videoId || t.id === track.id);
           const startIndex = trackIndex >= 0 ? trackIndex : 0;
 
-          // Push current track to history before switching
           if (state.currentTrack) {
             state.history = [
               state.currentTrack,
-              ...state.history.filter((t) => t.id !== state.currentTrack!.id),
+              ...state.history.filter((t) => t.videoId !== state.currentTrack!.videoId),
             ].slice(0, MAX_HISTORY);
           }
 

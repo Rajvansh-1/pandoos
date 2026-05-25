@@ -185,7 +185,19 @@ export function FullscreenPlayer() {
         <div className="w-full flex flex-col items-center justify-center gap-5 pb-6 px-6 shrink-0">
           <div className="flex flex-col w-full text-center items-center">
             <h2 className="text-2xl font-bold text-white truncate">{currentTrack?.title ?? 'Not Playing'}</h2>
-            <p className="text-base text-white/80 truncate mt-1">{currentTrack?.artist ?? 'Select a track'}</p>
+            <p 
+              className="text-base text-white/80 truncate mt-1 cursor-pointer hover:underline hover:text-white active:scale-95 transition-all relative z-50 px-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                const artistId = currentTrack?.artistId;
+                if (artistId) {
+                  useUIStore.getState().openArtist(artistId);
+                }
+              }}
+            >
+              {currentTrack?.artist ?? 'Select a track'}
+            </p>
           </div>
           <div className="w-full mt-2"><SeekBar /></div>
           <div className="w-full pb-4 pt-2 flex items-center justify-center"><PlayerControls /></div>
@@ -295,8 +307,8 @@ export function FullscreenPlayer() {
   const DesktopPlayerModal = (
     <AnimatePresence>
       {isPlayerOpen && (
-        <motion.div
-          className="fixed inset-0 z-[200] flex items-center justify-center p-8 bg-black/60 backdrop-blur-md"
+        <motion.div 
+          className="fixed inset-0 z-[500] flex items-center justify-center p-8 bg-black/60 backdrop-blur-md"
           initial={{ opacity: 0, pointerEvents: 'none' }}
           animate={{ opacity: 1, pointerEvents: 'auto' }}
           exit={{ opacity: 0, pointerEvents: 'none' }}
@@ -339,39 +351,51 @@ export function FullscreenPlayer() {
                 <div className="flex-1 w-full min-h-[500px] flex flex-col items-center justify-center pt-4">
                   {/* Visualizer Area */}
                   <div className="w-full flex-1 min-h-0 flex items-center justify-center relative max-w-[280px] max-h-[280px]">
-                    <div className="relative w-full h-full aspect-square flex items-center justify-center">
-                      {visualMode === 'vinyl' ? (
-                        <><VinylRecord track={currentTrack} isPlaying={isPlaying} className="z-10 shadow-2xl" /><Tonearm isPlaying={isPlaying} className="top-[-8%] right-[-8%]" /></>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[hsl(var(--color-primary)/0.3)] to-purple-900/30 rounded-[3rem] backdrop-blur-3xl shadow-[0_0_80px_rgba(var(--color-primary),0.2)] border border-white/5 transition-colors duration-1000">
-                          <PandaMascot size={260} emotion={trackEmotion} className="drop-shadow-2xl" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Track Info & Controls */}
-                  <div className="w-full max-w-[500px] mt-6 flex flex-col items-center shrink-0">
-                    <div className="flex items-center justify-between w-full mb-4">
-                      <div className="flex flex-col min-w-0">
-                        <h2 className="text-3xl font-display font-extrabold text-white truncate drop-shadow-md">{currentTrack?.title ?? 'Not Playing'}</h2>
-                        <p className="text-lg text-white/60 truncate font-medium mt-1">{currentTrack?.artist ?? 'Select a track'}</p>
+                  <div className="relative w-full h-full aspect-square flex items-center justify-center">
+                    {visualMode === 'vinyl' ? (
+                      <><VinylRecord track={currentTrack} isPlaying={isPlaying} className="z-10 shadow-2xl" /><Tonearm isPlaying={isPlaying} className="top-[-8%] right-[-8%]" /></>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[hsl(var(--color-primary)/0.3)] to-purple-900/30 rounded-[3rem] backdrop-blur-3xl shadow-[0_0_80px_rgba(var(--color-primary),0.2)] border border-white/5 transition-colors duration-1000">
+                        <PandaMascot size={260} emotion={trackEmotion} className="drop-shadow-2xl" />
                       </div>
-                      {currentTrack && (
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => isLiked ? unlikeTrack.mutate(currentTrack.videoId) : likeTrack.mutate(currentTrack)} className="p-3 rounded-full hover:bg-white/10 transition-colors">
-                            <Heart size={24} className={isLiked ? "text-[#ff5f56]" : "text-white/40"} fill={isLiked ? "currentColor" : "none"} />
-                          </button>
-                          <button onClick={() => setIsOptionsOpen(true)} className="p-3 rounded-full hover:bg-white/10 transition-colors text-white/40">
-                            <MoreVertical size={24} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="w-full"><SeekBar /></div>
-                    <div className="w-full mt-4"><PlayerControls className="w-full scale-110" /></div>
+                    )}
                   </div>
+                </div>
+
+                {/* Track Info & Controls */}
+                <div className="w-full max-w-[500px] mt-6 flex flex-col items-center shrink-0">
+                  <div className="flex items-center justify-between w-full mb-4">
+                    <div className="flex flex-col min-w-0">
+                      <h2 className="text-3xl font-display font-extrabold text-white truncate drop-shadow-md">{currentTrack?.title ?? 'Not Playing'}</h2>
+                      <p 
+                        className="text-lg text-white/60 truncate font-medium mt-1 cursor-pointer hover:underline hover:text-white active:scale-95 transition-all self-start relative z-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          const artistId = currentTrack?.artistId;
+                          if (artistId) {
+                            useUIStore.getState().openArtist(artistId);
+                          }
+                        }}
+                      >
+                        {currentTrack?.artist ?? 'Select a track'}
+                      </p>
+                    </div>
+                    {currentTrack && (
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => isLiked ? unlikeTrack.mutate(currentTrack.videoId) : likeTrack.mutate(currentTrack)} className="p-3 rounded-full hover:bg-white/10 transition-colors">
+                          <Heart size={24} className={isLiked ? "text-[#ff5f56]" : "text-white/40"} fill={isLiked ? "currentColor" : "none"} />
+                        </button>
+                        <button onClick={() => setIsOptionsOpen(true)} className="p-3 rounded-full hover:bg-white/10 transition-colors text-white/40">
+                          <MoreVertical size={24} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-full"><SeekBar /></div>
+                  <div className="w-full mt-4"><PlayerControls className="w-full scale-110" /></div>
+                </div>
                 </div>
 
                 {/* Scroll Indicator */}

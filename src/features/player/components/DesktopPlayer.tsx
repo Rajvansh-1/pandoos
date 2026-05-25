@@ -41,7 +41,14 @@ export function DesktopPlayer() {
           <h4 className="text-sm font-bold text-white truncate cursor-pointer hover:underline">
             {currentTrack.title}
           </h4>
-          <p className="text-xs text-white/60 truncate cursor-pointer hover:underline mt-0.5">
+          <p 
+            className="text-xs text-white/60 truncate cursor-pointer hover:underline mt-0.5"
+            onClick={() => {
+              if (currentTrack.artistId) {
+                useUIStore.getState().openArtist(currentTrack.artistId);
+              }
+            }}
+          >
             {currentTrack.artist}
           </p>
         </div>

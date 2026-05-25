@@ -21,6 +21,7 @@ export const QUERY_KEYS = {
   playlists: (userId: string) => ['playlists', userId] as const,
   playlist: (id: string) => ['playlist', id] as const,
   likedSongs: (userId: string) => ['liked-songs', userId] as const,
+  followedArtists: (userId: string) => ['followed-artists', userId] as const,
 } as const;
 
 /** Zustand persist storage keys */
@@ -32,10 +33,10 @@ export const STORAGE_KEYS = {
 
 /** Default colors for the Mood Engine (fallback when extraction fails) */
 export const DEFAULT_THEME = {
-  primary: '270 80% 68%',
-  secondary: '200 90% 60%',
-  accent: '320 85% 65%',
-  muted: '270 25% 55%',
+  primary: '220 80% 60%', // Vibrant blue accent
+  secondary: '190 90% 50%', // Cyan secondary
+  accent: '250 80% 65%', // Indigo accent
+  muted: '220 20% 40%',
 } as const;
 
 /** Moods mapped to search query prefixes for the Home page Mood Grid */

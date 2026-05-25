@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Play, Shuffle, Heart, ArrowLeft, MoreHorizontal, Music2 } from 'lucide-react';
-import { usePlaylists, usePlaylistTracks, useLikedSongs } from '@/features/library/hooks/useLibrary';
+import { Play, Shuffle, Heart, ArrowLeft, Trash2, Music2, Plus } from 'lucide-react';
+import { usePlaylists, usePlaylistTracks, useLikedSongs, useRemoveTrackFromPlaylist, useDeletePlaylist } from '@/features/library/hooks/useLibrary';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { PlaylistTrackItem } from '@/features/library/components/PlaylistTrackItem';
+import { AddSongsSearchModal } from '@/features/library/components/AddSongsSearchModal';
 
 export function PlaylistPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +25,10 @@ export function PlaylistPage() {
   const playTrack = usePlayerStore((state) => state.playTrack);
   const toggleShuffle = usePlayerStore((state) => state.toggleShuffle);
   const isShuffling = usePlayerStore((state) => state.isShuffling);
+  
+  const removeTrack = useRemoveTrackFromPlaylist();
+  const deletePlaylist = useDeletePlaylist();
+  const [isAddSongsModalOpen, setIsAddSongsModalOpen] = React.useState(false);
 
   const handlePlayAll = () => {
     if (!tracks || tracks.length === 0) return;
@@ -110,8 +115,20 @@ export function PlaylistPage() {
           <Shuffle size={24} />
         </button>
         {!isLiked && (
-          <button className="p-3 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all ml-auto">
-            <MoreHorizontal size={24} />
+          <button 
+            onClick={() => {
+              if (window.confirm('Are you sure you want to delete this playlist?')) {
+                if (id) {
+                  deletePlaylist.mutate(id, {
+                    onSuccess: () => navigate('/library')
+                  });
+                }
+              }
+            }}
+            className="p-3 text-white/70 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-all ml-auto"
+            title="Delete Playlist"
+          >
+            <Trash2 size={24} />
           </button>
         )}
       </div>
@@ -125,23 +142,64 @@ export function PlaylistPage() {
             ))}
           </div>
         ) : tracks && tracks.length > 0 ? (
-          tracks.map((track, index) => (
-            <PlaylistTrackItem 
-              key={track.id} 
-              track={track} 
-              index={index} 
-              onPlay={() => playTrack(track, tracks)}
-              isLikedPlaylist={isLiked}
-            />
-          ))
+          <>
+            {tracks.map((track, index) => (
+              <PlaylistTrackItem 
+                key={`${track.id}-${index}`} 
+                track={track} 
+                index={index} 
+                onPlay={() => playTrack(track, tracks)}
+                isLikedPlaylist={isLiked}
+                onRemove={!isLiked ? () => {
+                  if (id) {
+                    removeTrack.mutate({ playlistId: id, videoId: track.videoId }, {
+                      onSuccess: () => {
+                        if (tracks.length === 1) {
+                          deletePlaylist.mutate(id, {
+                            onSuccess: () => navigate('/library')
+                          });
+                        }
+                      }
+                    });
+                  }
+                } : undefined}
+              />
+            ))}
+            {!isLiked && (
+              <button 
+                onClick={() => setIsAddSongsModalOpen(true)}
+                className="mt-4 mx-auto flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-full transition-colors font-bold text-sm"
+              >
+                <Plus size={18} />
+                Find more songs
+              </button>
+            )}
+          </>
         ) : (
-          <div className="text-center py-20 text-text-muted">
+          <div className="text-center py-20 text-text-muted flex flex-col items-center">
             <Music2 size={48} className="mx-auto mb-4 opacity-20" />
             <h3 className="text-lg font-bold text-white mb-2">It's quiet here...</h3>
-            <p>Add some tracks to this {isLiked ? 'collection' : 'playlist'} to get started.</p>
+            <p className="mb-6">Add some tracks to this {isLiked ? 'collection' : 'playlist'} to get started.</p>
+            {!isLiked && (
+              <button 
+                onClick={() => setIsAddSongsModalOpen(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-brand-primary text-white rounded-full font-bold hover:scale-105 active:scale-95 transition-all shadow-lg"
+              >
+                <Plus size={18} />
+                Add Songs
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {!isLiked && id && (
+        <AddSongsSearchModal 
+          isOpen={isAddSongsModalOpen}
+          onClose={() => setIsAddSongsModalOpen(false)}
+          playlistId={id}
+        />
+      )}
     </div>
   );
 }

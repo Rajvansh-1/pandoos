@@ -1,24 +1,21 @@
 // @ts-nocheck
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
 import { PROGRESS_INTERVAL_MS } from '@/utils/constants';
 import audioClock from '@/services/audioClock';
+import { getTrackBlob } from '@/services/offlineDB';
 
 /**
- * useAudioEngine — The core bridge between Zustand and the YouTube IFrame API.
- * 
- * Architecture:
- * - This hook mounts EXACTLY ONCE (in App.tsx).
- * - It creates a hidden YouTube IFrame.
- * - It subscribes to usePlayerStore and commands the IFrame.
- * - It listens to IFrame events and updates usePlayerStore.
- * - This decoupled design means UI components NEVER touch the audio directly;
- *   they just call `playTrack()` on the store, and this hook handles the rest.
+ * useAudioEngine — Dual Engine Architecture (YouTube IFrame + HTML5 Audio)
  */
 export function useAudioEngine() {
   const playerRef = useRef<YT.Player | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  
+  const activeEngineRef = useRef<'youtube' | 'local'>('youtube');
+
   const progressIntervalRef = useRef<number | null>(null);
   const timeSyncRafRef = useRef<number | null>(null);
   const sessionStartRef = useRef<number | null>(null);
@@ -42,42 +39,86 @@ export function useAudioEngine() {
   const sleepTimerEnd = usePlayerStore((state) => state.sleepTimerEnd);
   const clearSleepTimer = usePlayerStore((state) => state.clearSleepTimer);
 
-  // Gamification
+  // Gamification & Taste
   const recordListenSession = useGamificationStore((state) => state.recordListenSession);
-
-  // Taste signals
   const recordSkip = useTasteStore((state) => state.recordSkip);
   const recordLoveTaste = useTasteStore((state) => state.recordLove);
   const recordPlayTaste = useTasteStore((state) => state.recordPlay);
 
-  // Track time listened for gamification
   const recordSession = (durationSeconds: number) => {
-    if (durationSeconds > 5) { // Only count if more than 5s played
+    if (durationSeconds > 5) {
       recordListenSession(durationSeconds);
     }
   };
 
-  // 1. Initialize YouTube IFrame API
+  const handleEnded = () => {
+    setIsPlaying(false);
+    stopProgressTracker();
+    stopTimeSync();
+    if (sessionStartRef.current) {
+      const listenedMs = Date.now() - sessionStartRef.current;
+      const listenedSec = listenedMs / 1000;
+      recordSession(listenedSec);
+      
+      const curTrack = usePlayerStore.getState().currentTrack;
+      if (curTrack) {
+        if (listenedSec < 30) recordSkip(curTrack);
+        else recordPlayTaste(curTrack);
+      }
+      sessionStartRef.current = null;
+    }
+    nextTrack();
+  };
+
+  // 1. Initialize Engines
   useEffect(() => {
-    // The script is loaded in index.html. We wait for it to be ready.
+    // A. Init HTML5 Audio (Offline Engine)
+    audioRef.current = new Audio();
+    audioRef.current.crossOrigin = 'anonymous';
+    audioRef.current.oncanplay = () => {
+      if (activeEngineRef.current === 'local') {
+        setIsLoading(false);
+        setDuration(audioRef.current?.duration || 0);
+        if (usePlayerStore.getState().isPlaying) {
+          audioRef.current?.play().catch(console.error);
+        }
+      }
+    };
+    audioRef.current.onplay = () => {
+      if (activeEngineRef.current === 'local') {
+        setIsPlaying(true);
+        startProgressTracker();
+        startTimeSync();
+        if (!sessionStartRef.current) sessionStartRef.current = Date.now();
+      }
+    };
+    audioRef.current.onpause = () => {
+      if (activeEngineRef.current === 'local') {
+        setIsPlaying(false);
+        stopProgressTracker();
+        stopTimeSync();
+        if (sessionStartRef.current) {
+          recordSession((Date.now() - sessionStartRef.current) / 1000);
+          sessionStartRef.current = null;
+        }
+      }
+    };
+    audioRef.current.onended = () => {
+      if (activeEngineRef.current === 'local') handleEnded();
+    };
+
+    // B. Init YouTube IFrame (Online Engine)
     const initPlayer = () => {
       playerRef.current = new window.YT.Player('yt-player-root', {
-        height: '1',
-        width: '1',
-        playerVars: {
-          autoplay: 0,
-          controls: 0,
-          disablekb: 1,
-          playsinline: 1, // Crucial for iOS WebView background play
-          origin: window.location.origin,
-        },
+        height: '1', width: '1',
+        playerVars: { autoplay: 0, controls: 0, disablekb: 1, playsinline: 1, origin: window.location.origin },
         events: {
           onReady: (event) => {
-            // Apply initial volume
             event.target.setVolume(volume * 100);
             if (isMuted) event.target.mute();
           },
           onStateChange: (event) => {
+            if (activeEngineRef.current !== 'youtube') return;
             switch (event.data) {
               case window.YT.PlayerState.PLAYING:
                 setIsLoading(false);
@@ -85,9 +126,7 @@ export function useAudioEngine() {
                 setDuration(event.target.getDuration());
                 startProgressTracker();
                 startTimeSync();
-                if (!sessionStartRef.current) {
-                  sessionStartRef.current = Date.now();
-                }
+                if (!sessionStartRef.current) sessionStartRef.current = Date.now();
                 break;
               case window.YT.PlayerState.PAUSED:
                 setIsPlaying(false);
@@ -99,25 +138,7 @@ export function useAudioEngine() {
                 }
                 break;
               case window.YT.PlayerState.ENDED:
-                setIsPlaying(false);
-                stopProgressTracker();
-                stopTimeSync();
-                if (sessionStartRef.current) {
-                  const listenedMs = Date.now() - sessionStartRef.current;
-                  const listenedSec = listenedMs / 1000;
-                  recordSession(listenedSec);
-                  // Taste signal: if listened < 30s it's a skip
-                  const curTrack = usePlayerStore.getState().currentTrack;
-                  if (curTrack) {
-                    if (listenedSec < 30) {
-                      recordSkip(curTrack);
-                    } else {
-                      recordPlayTaste(curTrack);
-                    }
-                  }
-                  sessionStartRef.current = null;
-                }
-                nextTrack(); // Auto-advance queue
+                handleEnded();
                 break;
               case window.YT.PlayerState.BUFFERING:
                 setIsLoading(true);
@@ -125,67 +146,50 @@ export function useAudioEngine() {
             }
           },
           onError: async (event) => {
+            if (activeEngineRef.current !== 'youtube') return;
             console.error('YouTube Player Error:', event.data);
-            
             const state = usePlayerStore.getState();
-            const curTrack = state.currentTrack;
-            
-            // 150/101 = embed restricted, 100 = video not found/deleted
-            if (curTrack && [150, 101, 100].includes(event.data)) {
-              console.log('Video blocked or unavailable. Searching for alternative...');
-              
-              try {
-                // Dynamically import to avoid circular dependencies
-                const { searchTracks } = await import('@/services/youtube');
-                // Search for an audio/lyric alternative
-                const query = `${curTrack.title} ${curTrack.artist} lyrics audio`;
-                const alternatives = await searchTracks(query);
-                
-                // Find first alternative that isn't the current broken ID
-                const alt = alternatives.find(t => t.id !== curTrack.id);
-                
-                if (alt) {
-                  console.log('Found alternative track:', alt.title);
-                  state.replaceCurrentTrack(alt);
-                  return; // Stop here, don't skip!
-                }
-              } catch (e) {
-                console.error('Failed to find alternative track', e);
-              }
+            const current = state.currentTrack;
+            if (!current) {
+              setIsLoading(false);
+              setTimeout(state.nextTrack, 1000);
+              return;
             }
-            
-            setIsLoading(false);
-            // On unplayable track and no alt found, skip to next to prevent dead lock
-            setTimeout(state.nextTrack, 1000);
+
+            // Error 150/101 indicates the video is blocked from embedding.
+            // Instead of skipping and playing the wrong song, fallback to the backend proxy stream!
+            console.log('Falling back to proxy audio stream for', current.videoId);
+            activeEngineRef.current = 'local';
+            if (audioRef.current) {
+              audioRef.current.src = `/api/download?videoId=${current.videoId}`;
+              audioRef.current.load();
+              if (state.isPlaying) audioRef.current.play().catch(console.error);
+            }
           },
         },
       });
     };
 
-    if (window.YT && window.YT.Player) {
-      initPlayer();
-    } else {
-      window.onYouTubeIframeAPIReady = initPlayer;
-    }
+    if (window.YT && window.YT.Player) initPlayer();
+    else window.onYouTubeIframeAPIReady = initPlayer;
 
     return () => {
       stopProgressTracker();
       stopTimeSync();
-      if (playerRef.current) {
-        playerRef.current.destroy();
-        playerRef.current = null;
+      if (playerRef.current) playerRef.current.destroy();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const ignoreProgressUpdatesRef = useRef<number>(0);
 
-  // 2. Track Progress Tracker & Sleep Timer
+  // 2. Track Progress Tracker
   const startProgressTracker = () => {
     stopProgressTracker();
     progressIntervalRef.current = window.setInterval(() => {
-      // Check sleep timer first
       const currentSleepTimer = usePlayerStore.getState().sleepTimerEnd;
       if (currentSleepTimer && Date.now() >= currentSleepTimer) {
         usePlayerStore.getState().pauseTrack();
@@ -193,15 +197,16 @@ export function useAudioEngine() {
         return;
       }
 
-      if (Date.now() < ignoreProgressUpdatesRef.current) {
-        return; // Temporarily ignore interval updates immediately after a seek to prevent rubber-banding
-      }
+      if (Date.now() < ignoreProgressUpdatesRef.current) return;
 
-      if (playerRef.current && typeof playerRef.current.getPlayerState === 'function' && playerRef.current.getPlayerState() === window.YT.PlayerState.PLAYING) {
-        const currentTime = playerRef.current.getCurrentTime();
-        const duration = playerRef.current.getDuration();
-        if (duration > 0) {
-          setProgress(currentTime / duration);
+      if (activeEngineRef.current === 'local') {
+        if (audioRef.current && !audioRef.current.paused && audioRef.current.duration > 0) {
+          setProgress(audioRef.current.currentTime / audioRef.current.duration);
+        }
+      } else {
+        if (playerRef.current?.getPlayerState?.() === window.YT.PlayerState.PLAYING) {
+          const duration = playerRef.current.getDuration();
+          if (duration > 0) setProgress(playerRef.current.getCurrentTime() / duration);
         }
       }
     }, PROGRESS_INTERVAL_MS);
@@ -214,21 +219,44 @@ export function useAudioEngine() {
     }
   };
 
-  // 2b. High-frequency audio clock — feeds audioClock at rAF rate (~60fps)
-  //     This is the source of truth for lyrics sync. It bypasses the 500ms
-  //     setInterval and reads getCurrentTime() directly from the IFrame player.
+  // 2b. High-frequency audio clock for Lyrics Sync (Interpolated for flawless 1ms precision)
   const startTimeSync = () => {
     stopTimeSync();
-    const tick = () => {
-      if (
-        playerRef.current &&
-        typeof playerRef.current.getCurrentTime === 'function' &&
-        typeof playerRef.current.getPlayerState === 'function'
-      ) {
-        const state = playerRef.current.getPlayerState();
-        audioClock.isPlaying = state === window.YT?.PlayerState?.PLAYING;
-        if (audioClock.isPlaying) {
-          audioClock.currentTimeMs = playerRef.current.getCurrentTime() * 1000;
+    
+    let lastReportedTime = -1;
+    let lastUpdateTs = performance.now();
+
+    const tick = (ts: number) => {
+      if (activeEngineRef.current === 'local') {
+        if (audioRef.current) {
+          audioClock.isPlaying = !audioRef.current.paused;
+          if (audioClock.isPlaying) {
+            const reportedTime = audioRef.current.currentTime * 1000;
+            if (reportedTime !== lastReportedTime) {
+              lastReportedTime = reportedTime;
+              lastUpdateTs = ts;
+              audioClock.currentTimeMs = reportedTime;
+            } else {
+              // Interpolate for perfect smoothness between updates
+              audioClock.currentTimeMs = lastReportedTime + (ts - lastUpdateTs);
+            }
+          }
+        }
+      } else {
+        if (playerRef.current?.getCurrentTime && playerRef.current?.getPlayerState) {
+          audioClock.isPlaying = playerRef.current.getPlayerState() === window.YT?.PlayerState?.PLAYING;
+          if (audioClock.isPlaying) {
+            const reportedTime = playerRef.current.getCurrentTime() * 1000;
+            if (reportedTime !== lastReportedTime) {
+              lastReportedTime = reportedTime;
+              lastUpdateTs = ts;
+              audioClock.currentTimeMs = reportedTime;
+            } else {
+              // YouTube IFrame API only updates time every 100-250ms. 
+              // We MUST interpolate here otherwise lyrics will stutter and lag.
+              audioClock.currentTimeMs = lastReportedTime + (ts - lastUpdateTs);
+            }
+          }
         }
       }
       timeSyncRafRef.current = requestAnimationFrame(tick);
@@ -237,67 +265,112 @@ export function useAudioEngine() {
   };
 
   const stopTimeSync = () => {
-    if (timeSyncRafRef.current !== null) {
-      cancelAnimationFrame(timeSyncRafRef.current);
-      timeSyncRafRef.current = null;
-    }
+    if (timeSyncRafRef.current !== null) cancelAnimationFrame(timeSyncRafRef.current);
     audioClock.isPlaying = false;
   };
 
-  // 3. React to Track Changes
+  // 3. React to Track Changes (Dual Engine Switcher)
   useEffect(() => {
-    if (!playerRef.current || !currentTrack) return;
-    if (typeof playerRef.current.loadVideoById !== 'function') return;
+    if (!currentTrack) return;
     
-    // loadVideoById automatically starts playback.
-    playerRef.current.loadVideoById(currentTrack.videoId);
     setIsLoading(true);
-  }, [currentTrack?.videoId]);
 
+    getTrackBlob(currentTrack.videoId).then((blob) => {
+      // CRITICAL FIX: Prevent race conditions if the user rapidly clicks multiple songs.
+      // If the current track in the store has changed since we started fetching, abort.
+      if (usePlayerStore.getState().currentTrack?.videoId !== currentTrack.videoId) return;
+
+      if (blob) {
+        // Switch to Offline Engine
+        activeEngineRef.current = 'local';
+        if (playerRef.current?.pauseVideo) playerRef.current.pauseVideo();
+        
+        if (audioRef.current) {
+          // Free memory of old blob url
+          if (audioRef.current.src && audioRef.current.src.startsWith('blob:')) {
+            URL.revokeObjectURL(audioRef.current.src);
+          }
+          audioRef.current.src = URL.createObjectURL(blob);
+          audioRef.current.load();
+          if (isPlaying) audioRef.current.play().catch(console.error);
+        }
+      } else {
+        // Switch to Online Engine (YouTube)
+        activeEngineRef.current = 'youtube';
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = '';
+        }
+        
+        if (playerRef.current?.loadVideoById) {
+          playerRef.current.loadVideoById(currentTrack.videoId);
+        }
+      }
+      
+      // Smart Queue
+      const state = usePlayerStore.getState();
+      const currentIndex = state.queue.findIndex((t) => t.id === currentTrack.id);
+      if (currentIndex >= state.queue.length - 3) {
+        import('@/services/youtube').then(({ getRadioTracks }) => {
+          getRadioTracks(currentTrack.videoId).then((tracks) => {
+            if (tracks.length > 0) usePlayerStore.getState().addTracksToQueue(tracks);
+          });
+        });
+      }
+    });
+  }, [currentTrack?.videoId]);
 
   // 5. React to Volume/Mute Changes
   useEffect(() => {
-    if (!playerRef.current) return;
-    if (typeof playerRef.current.setVolume !== 'function') return;
-    
-    playerRef.current.setVolume(volume * 100);
-    
-    if (isMuted) {
-      if (typeof playerRef.current.mute === 'function') playerRef.current.mute();
-    } else {
-      if (typeof playerRef.current.unMute === 'function') playerRef.current.unMute();
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+      audioRef.current.muted = isMuted;
+    }
+    if (playerRef.current?.setVolume) {
+      playerRef.current.setVolume(volume * 100);
+      if (isMuted) playerRef.current.mute?.();
+      else playerRef.current.unMute?.();
     }
   }, [volume, isMuted]);
 
   // Handle Play/Pause
   useEffect(() => {
-    if (!playerRef.current || !currentTrack) return;
-    if (typeof playerRef.current.getPlayerState !== 'function') return;
+    if (!currentTrack) return;
     
-    const state = playerRef.current.getPlayerState();
-    
-    if (isPlaying && state !== window.YT.PlayerState.PLAYING && state !== window.YT.PlayerState.BUFFERING) {
-      // Ensure volume is correctly set when resuming
-      playerRef.current.setVolume(volume * 100);
-      playerRef.current.playVideo();
-    } else if (!isPlaying && state === window.YT.PlayerState.PLAYING) {
-      playerRef.current.pauseVideo();
+    if (activeEngineRef.current === 'local') {
+      if (audioRef.current) {
+        if (isPlaying && audioRef.current.paused) audioRef.current.play().catch(console.error);
+        else if (!isPlaying && !audioRef.current.paused) audioRef.current.pause();
+      }
+    } else {
+      if (playerRef.current?.getPlayerState) {
+        const state = playerRef.current.getPlayerState();
+        if (isPlaying && state !== window.YT.PlayerState.PLAYING && state !== window.YT.PlayerState.BUFFERING) {
+          playerRef.current.playVideo();
+        } else if (!isPlaying && state === window.YT.PlayerState.PLAYING) {
+          playerRef.current.pauseVideo();
+        }
+      }
     }
-  }, [isPlaying, currentTrack, volume]);
+  }, [isPlaying, currentTrack]);
 
   // 6. React to UI Seeking
-  // We use a ref to track the last programmatic progress so we don't seek loop
   const lastSetProgress = useRef(progress);
   useEffect(() => {
-    if (!playerRef.current || !currentTrack) return;
-    if (typeof playerRef.current.getDuration !== 'function') return;
+    if (!currentTrack) return;
     
-    // If the difference is large, it was a manual UI seek, not the interval tracker
     if (Math.abs(progress - lastSetProgress.current) > 0.02) {
-      const duration = playerRef.current.getDuration();
-      if (duration > 0) {
-        ignoreProgressUpdatesRef.current = Date.now() + 1000;
-        playerRef.current.seekTo(progress * duration, true);
+      ignoreProgressUpdatesRef.current = Date.now() + 1000;
+      
+      if (activeEngineRef.current === 'local') {
+        if (audioRef.current && audioRef.current.duration > 0) {
+          audioRef.current.currentTime = progress * audioRef.current.duration;
+        }
+      } else {
+        if (playerRef.current?.getDuration) {
+          const duration = playerRef.current.getDuration();
+          if (duration > 0) playerRef.current.seekTo(progress * duration, true);
+        }
       }
     }
     lastSetProgress.current = progress;

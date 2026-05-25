@@ -138,8 +138,9 @@ export function LyricsView() {
 
     const rawTitle = currentTrack.title;
     const rawArtist = currentTrack.artist;
+    const videoId = currentTrack.videoId;
 
-    fetchLyrics(rawTitle, rawArtist)
+    fetchLyrics(rawTitle, rawArtist, videoId)
       .then((res) => {
         if (cancelled) return;
         if (res.matchType === 'none' && !res.plain && (!res.synced || res.synced.length === 0)) {
@@ -190,11 +191,7 @@ export function LyricsView() {
 
       if (found !== activeIndexRef.current) {
         activeIndexRef.current = found;
-        // Throttle React state updates to ~30fps
-        if (ts - lastRenderTime > 32) {
-          lastRenderTime = ts;
-          setActiveIndex(found);
-        }
+        setActiveIndex(found);
       }
     }
 

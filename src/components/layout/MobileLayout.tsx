@@ -30,7 +30,7 @@ export function MobileLayout() {
         We conditionally render a placeholder for now until we build it.
       */}
       {currentTrack && (
-        <div className="fixed bottom-[calc(var(--bottom-nav-height)+var(--safe-area-bottom))] left-0 right-0 z-40 px-2 pb-2">
+        <div className="fixed bottom-[calc(var(--bottom-nav-height)+var(--safe-area-bottom))] left-0 right-0 z-[400] px-2 pb-2">
            <MiniPlayer />
         </div>
       )}

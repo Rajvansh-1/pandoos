@@ -9,6 +9,7 @@ import {
   useGamificationStore, computeXP, getRankForXP, getXPProgress,
   ALL_BADGES, PANDA_RANKS, type Badge,
 } from '@/stores/useGamificationStore';
+import { useThemeStore } from '@/stores/useThemeStore';
 import { APP_VERSION } from '@/utils/constants';
 
 const PANDOOS_URL = 'https://pandoos.vercel.app';
@@ -215,6 +216,8 @@ export function ProfilePage() {
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
   const g = useGamificationStore();
+  const activeTheme = useThemeStore((s) => s.activeTheme);
+  
   const history = usePlayerStore((s) => s.history);
   const xp = computeXP(g);
   const rank = getRankForXP(xp);
@@ -328,7 +331,7 @@ export function ProfilePage() {
       <div className="px-5 mb-4">
         <div className="flex bg-white/[0.03] rounded-xl p-1 border border-white/[0.05]">
           {(['overview', 'badges', 'history'] as const).map((t) => (
-            <button key={t} onClick={() => setTab(t)}
+            <button key={t} onClick={() => setTab(t as any)}
               className={`flex-1 py-2 text-xs font-bold rounded-lg capitalize transition-all ${tab === t ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/55'}`}
             >{t}</button>
           ))}

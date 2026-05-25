@@ -9,7 +9,11 @@ import {
   getLikedSongs,
   likeTrack,
   unlikeTrack,
-  isTrackLiked
+  isTrackLiked,
+  getFollowedArtists,
+  followArtist,
+  unfollowArtist,
+  isArtistFollowed
 } from '@/services/library';
 import { QUERY_KEYS } from '@/utils/constants';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -193,6 +197,73 @@ export function useUnlikeTrack() {
       useGamificationStore.getState().unlikeSong(videoId);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.likedSongs(userId) });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.likedSongs(userId), 'check', videoId] });
+    },
+  });
+}
+
+// ── Followed Artists ──────────────────────────────────────────────────
+
+export function useFollowedArtists() {
+  const user = useAuthStore((state) => state.user);
+  const userId = user?.id || 'guest';
+  return useQuery({
+    queryKey: QUERY_KEYS.followedArtists(userId),
+    queryFn: () => getFollowedArtists(userId),
+  });
+}
+
+export function useIsArtistFollowed(artistId: string) {
+  const user = useAuthStore((state) => state.user);
+  const userId = user?.id || 'guest';
+  return useQuery({
+    queryKey: [...QUERY_KEYS.followedArtists(userId), 'check', artistId],
+    queryFn: () => isArtistFollowed(userId, artistId),
+    enabled: !!artistId,
+  });
+}
+
+export function useFollowArtist() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const addToast = useToastStore((state) => state.addToast);
+  const userId = user?.id || 'guest';
+
+  return useMutation({
+    mutationFn: (artist: any) => followArtist(userId, artist),
+    onMutate: async (artist) => {
+      const checkKey = [...QUERY_KEYS.followedArtists(userId), 'check', artist.artistId];
+      await queryClient.cancelQueries({ queryKey: checkKey });
+      queryClient.setQueryData(checkKey, true);
+    },
+    onSuccess: (_, artist) => {
+      addToast(`Followed ${artist.name}`, 'success');
+    },
+    onSettled: (_, __, artist) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.followedArtists(userId) });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.followedArtists(userId), 'check', artist.artistId] });
+    },
+  });
+}
+
+export function useUnfollowArtist() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const addToast = useToastStore((state) => state.addToast);
+  const userId = user?.id || 'guest';
+
+  return useMutation({
+    mutationFn: (artistId: string) => unfollowArtist(userId, artistId),
+    onMutate: async (artistId) => {
+      const checkKey = [...QUERY_KEYS.followedArtists(userId), 'check', artistId];
+      await queryClient.cancelQueries({ queryKey: checkKey });
+      queryClient.setQueryData(checkKey, false);
+    },
+    onSuccess: () => {
+      addToast('Unfollowed artist', 'info');
+    },
+    onSettled: (_, __, artistId) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.followedArtists(userId) });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.followedArtists(userId), 'check', artistId] });
     },
   });
 }

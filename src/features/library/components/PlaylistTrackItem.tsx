@@ -85,7 +85,7 @@ export function PlaylistTrackItem({ track, index, onPlay, onRemove, isLikedPlayl
 
       {/* Actions */}
       <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-        <TrackContextMenu track={track} />
+        <TrackContextMenu track={track} onRemove={onRemove} />
       </div>
     </div>
   );

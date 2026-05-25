@@ -3,7 +3,10 @@ import { Home, Search, Library, LogIn, LogOut, Flame } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useGamificationStore, computeXP, getRankForXP, getXPProgress } from '@/stores/useGamificationStore';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { Settings } from 'lucide-react';
+import { SettingsModal } from './SettingsModal';
 
 const NAV_ITEMS = [
   { to: '/', icon: <Home size={20} />, label: 'Home' },
@@ -25,6 +28,8 @@ export function Sidebar() {
 
   const circumference = 2 * Math.PI * 22;
   const dash = (xpProgress.percent / 100) * circumference;
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
     <aside
@@ -115,6 +120,15 @@ export function Sidebar() {
               </div>
             </motion.button>
 
+            {/* Settings */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-white/50 hover:text-white hover:bg-white/5 transition-all"
+            >
+              <Settings size={16} />
+              Settings
+            </button>
+
             {/* Logout */}
             <button
               onClick={() => signOut()}
@@ -134,6 +148,11 @@ export function Sidebar() {
           </NavLink>
         )}
       </div>
+
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </aside>
   );
 }
