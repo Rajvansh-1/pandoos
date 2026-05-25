@@ -58,7 +58,7 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
           <>
             {/* Backdrop */}
             <motion.div
-              className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm"
+              className="fixed inset-0 z-[600] bg-black/70 backdrop-blur-sm"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -67,7 +67,7 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
 
             {/* Modal Sheet */}
             <motion.div
-              className="fixed inset-x-0 bottom-0 z-[201] max-w-lg mx-auto bg-[#0a0f0d] rounded-t-3xl border-t border-emerald-900/30 overflow-hidden pb-safe"
+              className="fixed inset-x-0 bottom-0 z-[601] max-w-lg mx-auto bg-[#0a0f0d] rounded-t-3xl border-t border-emerald-900/30 overflow-hidden pb-safe"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
