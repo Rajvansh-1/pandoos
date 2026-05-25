@@ -157,7 +157,11 @@ function getFallbackColor(videoId: string): ExtractedColors {
  */
 export async function extractColors(imageUrl: string, videoId: string): Promise<ExtractedColors> {
   try {
-    const pixels = await sampleImageColors(imageUrl);
+    // Proxy the image request through our backend to bypass strict YouTube CORS
+    // headers that prevent <canvas> from reading the pixel data.
+    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+    const pixels = await sampleImageColors(proxyUrl);
+    
     if (pixels.length < 5) return getFallbackColor(videoId);
 
     const { vibrant, muted } = dominantColors(pixels);
@@ -175,7 +179,8 @@ export async function extractColors(imageUrl: string, videoId: string): Promise<
       : `${hue} 25% 55%`;
 
     return { primary, secondary, accent, muted: mutedStr };
-  } catch {
+  } catch (e) {
+    console.error("Color extraction failed:", e);
     // Silently fail — use fallback color
     return getFallbackColor(videoId);
   }

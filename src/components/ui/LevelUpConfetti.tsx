@@ -41,12 +41,8 @@ export function LevelUpConfetti() {
       
       frame();
 
-      // Show a toast about new themes unlocked!
-      const unlockedThemes = useThemeStore.getState().getUnlockedThemes();
-      if (unlockedThemes.length > 1) { // more than default
-        // In a real app we would use a toast system, but since gamification adds intrinsic value:
-        console.log(`Rank Up! You are now a ${currentRank.name}! New Themes Unlocked!`);
-      }
+      // Gamification toast
+      console.log(`Rank Up! You are now a ${currentRank.name}!`);
     }
   }, [currentRank.name]);
 

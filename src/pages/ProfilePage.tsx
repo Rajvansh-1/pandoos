@@ -9,7 +9,7 @@ import {
   useGamificationStore, computeXP, getRankForXP, getXPProgress,
   ALL_BADGES, PANDA_RANKS, type Badge,
 } from '@/stores/useGamificationStore';
-import { useThemeStore, THEMES } from '@/stores/useThemeStore';
+import { useThemeStore } from '@/stores/useThemeStore';
 import { APP_VERSION } from '@/utils/constants';
 
 const PANDOOS_URL = 'https://pandoos.vercel.app';
@@ -212,12 +212,11 @@ export function ProfilePage() {
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const navigate = useNavigate();
 
-  const [tab, setTab] = useState<'overview' | 'badges' | 'wardrobe' | 'history'>('overview');
+  const [tab, setTab] = useState<'overview' | 'badges' | 'history'>('overview');
   const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
 
   const g = useGamificationStore();
   const activeTheme = useThemeStore((s) => s.activeTheme);
-  const setActiveTheme = useThemeStore((s) => s.setActiveTheme);
   
   const history = usePlayerStore((s) => s.history);
   const xp = computeXP(g);
@@ -331,7 +330,7 @@ export function ProfilePage() {
       {/* Tab bar */}
       <div className="px-5 mb-4">
         <div className="flex bg-white/[0.03] rounded-xl p-1 border border-white/[0.05]">
-          {(['overview', 'badges', 'wardrobe', 'history'] as const).map((t) => (
+          {(['overview', 'badges', 'history'] as const).map((t) => (
             <button key={t} onClick={() => setTab(t as any)}
               className={`flex-1 py-2 text-xs font-bold rounded-lg capitalize transition-all ${tab === t ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/55'}`}
             >{t}</button>
@@ -395,70 +394,6 @@ export function ProfilePage() {
                 {ALL_BADGES.map((badge, i) => (
                   <BadgeTile key={badge.id} id={badge.id} earned={earnedBadges.includes(badge.id)} index={i} onClick={() => setSelectedBadge(badge)} />
                 ))}
-              </div>
-            </motion.div>
-          )}
-
-          {tab === 'wardrobe' && (
-            <motion.div key="wd" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-white/40 uppercase tracking-wider font-bold">Your Theme Wardrobe</p>
-                <span className="text-xs text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full font-bold">New!</span>
-              </div>
-              <p className="text-xs text-white/30 leading-relaxed -mt-3 mb-4">Unlock premium themes by increasing your Panda Rank! Each theme completely overrides the UI colors.</p>
-              
-              <div className="grid grid-cols-1 gap-3 pb-8">
-                {THEMES.map((theme, i) => {
-                  const reqRank = PANDA_RANKS.find((r) => r.name === theme.requiredRank);
-                  const isUnlocked = !reqRank || xp >= reqRank.minXP;
-                  const isActive = activeTheme === theme.id;
-
-                  return (
-                    <motion.button
-                      key={theme.id}
-                      initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
-                      onClick={() => {
-                        if (isUnlocked) setActiveTheme(theme.id as any);
-                      }}
-                      className={`relative w-full rounded-3xl p-[2px] overflow-hidden transition-all duration-300 ${
-                        isActive ? 'scale-100 shadow-[0_0_30px_rgba(255,255,255,0.15)]' : 'scale-[0.98] opacity-80 hover:opacity-100'
-                      } ${!isUnlocked ? 'opacity-40 grayscale-[50%]' : 'cursor-pointer'}`}
-                    >
-                      {/* Gradient Border */}
-                      <div className={`absolute inset-0 bg-gradient-to-br ${theme.previewGradient} ${isActive ? 'opacity-100' : 'opacity-0'}`} />
-                      
-                      {/* Card Content */}
-                      <div className="relative h-full w-full bg-[#0a0f0d] rounded-[22px] p-5 flex flex-col items-start text-left overflow-hidden">
-                        <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${theme.previewGradient} opacity-20 blur-3xl rounded-full translate-x-10 -translate-y-10`} />
-                        
-                        <div className="flex items-center justify-between w-full mb-3 relative z-10">
-                          <h3 className={`text-lg font-display font-bold ${isUnlocked ? 'text-white' : 'text-white/50'}`}>{theme.name}</h3>
-                          {isActive ? (
-                            <div className="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center"><Check size={14} strokeWidth={3} /></div>
-                          ) : !isUnlocked ? (
-                            <div className="w-6 h-6 rounded-full bg-white/5 text-white/30 flex items-center justify-center text-xs">🔒</div>
-                          ) : null}
-                        </div>
-                        
-                        <p className="text-xs text-white/50 mb-4 relative z-10">{theme.description}</p>
-                        
-                        <div className="mt-auto relative z-10">
-                          {!isUnlocked ? (
-                            <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
-                              <span className="text-[10px] text-white/30">Requires</span>
-                              <span className="text-xs font-bold text-white/60">{theme.requiredRank}</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              <div className={`w-3 h-3 rounded-full bg-gradient-to-br ${theme.previewGradient}`} />
-                              <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">{isActive ? 'Equipped' : 'Unlocked'}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </motion.button>
-                  );
-                })}
               </div>
             </motion.div>
           )}

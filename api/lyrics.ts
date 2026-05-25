@@ -15,11 +15,6 @@ export default async function handler(req: Request) {
   }
 
   try {
-    if (!initialized) {
-      await ytmusic.initialize();
-      initialized = true;
-    }
-
     const fetchLrclib = async () => {
       const lrcUrl = new URL('https://lrclib.net/api/get');
       if (title) lrcUrl.searchParams.set('track_name', title);
@@ -40,6 +35,13 @@ export default async function handler(req: Request) {
 
     const fetchYtm = async () => {
       if (!videoId) throw new Error('No videoId for YTM lyrics');
+      
+      // Initialize only when YTM is actually requested
+      if (!initialized) {
+        await ytmusic.initialize();
+        initialized = true;
+      }
+      
       const lyrics = await ytmusic.getLyrics(videoId);
       if (!lyrics) throw new Error('No lyrics found on YTM');
       
@@ -48,7 +50,8 @@ export default async function handler(req: Request) {
     };
 
     // Race them: whichever returns valid lyrics first wins
-    const promises = [fetchLrclib()];
+    const promises = [];
+    if (title || artist) promises.push(fetchLrclib());
     if (videoId) promises.push(fetchYtm());
 
     const result = await Promise.any(promises);

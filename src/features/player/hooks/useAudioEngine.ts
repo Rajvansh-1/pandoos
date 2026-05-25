@@ -149,8 +149,22 @@ export function useAudioEngine() {
             if (activeEngineRef.current !== 'youtube') return;
             console.error('YouTube Player Error:', event.data);
             const state = usePlayerStore.getState();
-            setIsLoading(false);
-            setTimeout(state.nextTrack, 1000);
+            const current = state.currentTrack;
+            if (!current) {
+              setIsLoading(false);
+              setTimeout(state.nextTrack, 1000);
+              return;
+            }
+
+            // Error 150/101 indicates the video is blocked from embedding.
+            // Instead of skipping and playing the wrong song, fallback to the backend proxy stream!
+            console.log('Falling back to proxy audio stream for', current.videoId);
+            activeEngineRef.current = 'local';
+            if (audioRef.current) {
+              audioRef.current.src = `/api/download?videoId=${current.videoId}`;
+              audioRef.current.load();
+              if (state.isPlaying) audioRef.current.play().catch(console.error);
+            }
           },
         },
       });
@@ -205,19 +219,44 @@ export function useAudioEngine() {
     }
   };
 
-  // 2b. High-frequency audio clock for Lyrics Sync
+  // 2b. High-frequency audio clock for Lyrics Sync (Interpolated for flawless 1ms precision)
   const startTimeSync = () => {
     stopTimeSync();
-    const tick = () => {
+    
+    let lastReportedTime = -1;
+    let lastUpdateTs = performance.now();
+
+    const tick = (ts: number) => {
       if (activeEngineRef.current === 'local') {
         if (audioRef.current) {
           audioClock.isPlaying = !audioRef.current.paused;
-          if (audioClock.isPlaying) audioClock.currentTimeMs = audioRef.current.currentTime * 1000;
+          if (audioClock.isPlaying) {
+            const reportedTime = audioRef.current.currentTime * 1000;
+            if (reportedTime !== lastReportedTime) {
+              lastReportedTime = reportedTime;
+              lastUpdateTs = ts;
+              audioClock.currentTimeMs = reportedTime;
+            } else {
+              // Interpolate for perfect smoothness between updates
+              audioClock.currentTimeMs = lastReportedTime + (ts - lastUpdateTs);
+            }
+          }
         }
       } else {
         if (playerRef.current?.getCurrentTime && playerRef.current?.getPlayerState) {
           audioClock.isPlaying = playerRef.current.getPlayerState() === window.YT?.PlayerState?.PLAYING;
-          if (audioClock.isPlaying) audioClock.currentTimeMs = playerRef.current.getCurrentTime() * 1000;
+          if (audioClock.isPlaying) {
+            const reportedTime = playerRef.current.getCurrentTime() * 1000;
+            if (reportedTime !== lastReportedTime) {
+              lastReportedTime = reportedTime;
+              lastUpdateTs = ts;
+              audioClock.currentTimeMs = reportedTime;
+            } else {
+              // YouTube IFrame API only updates time every 100-250ms. 
+              // We MUST interpolate here otherwise lyrics will stutter and lag.
+              audioClock.currentTimeMs = lastReportedTime + (ts - lastUpdateTs);
+            }
+          }
         }
       }
       timeSyncRafRef.current = requestAnimationFrame(tick);
@@ -237,6 +276,10 @@ export function useAudioEngine() {
     setIsLoading(true);
 
     getTrackBlob(currentTrack.videoId).then((blob) => {
+      // CRITICAL FIX: Prevent race conditions if the user rapidly clicks multiple songs.
+      // If the current track in the store has changed since we started fetching, abort.
+      if (usePlayerStore.getState().currentTrack?.videoId !== currentTrack.videoId) return;
+
       if (blob) {
         // Switch to Offline Engine
         activeEngineRef.current = 'local';
