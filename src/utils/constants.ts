@@ -21,6 +21,7 @@ export const QUERY_KEYS = {
   playlists: (userId: string) => ['playlists', userId] as const,
   playlist: (id: string) => ['playlist', id] as const,
   likedSongs: (userId: string) => ['liked-songs', userId] as const,
+  followedArtists: (userId: string) => ['followed-artists', userId] as const,
 } as const;
 
 /** Zustand persist storage keys */

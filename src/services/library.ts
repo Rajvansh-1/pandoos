@@ -165,3 +165,35 @@ export async function isTrackLiked(userId: string, videoId: string): Promise<boo
   return allLiked[userId].some(t => t.videoId === videoId);
 }
 
+// ── Followed Artists ─────────────────────────────────────────────
+const FOLLOWED_ARTISTS_KEY = 'pandoos_followed_artists_v1';
+
+export async function getFollowedArtists(userId: string): Promise<any[]> {
+  const allFollowed = getStorage<Record<string, any[]>>(FOLLOWED_ARTISTS_KEY, {});
+  return allFollowed[userId] || [];
+}
+
+export async function followArtist(userId: string, artist: any): Promise<void> {
+  const allFollowed = getStorage<Record<string, any[]>>(FOLLOWED_ARTISTS_KEY, {});
+  if (!allFollowed[userId]) allFollowed[userId] = [];
+  
+  if (!allFollowed[userId].find(a => a.id === artist.id)) {
+    allFollowed[userId].unshift(artist);
+    setStorage(FOLLOWED_ARTISTS_KEY, allFollowed);
+  }
+}
+
+export async function unfollowArtist(userId: string, artistId: string): Promise<void> {
+  const allFollowed = getStorage<Record<string, any[]>>(FOLLOWED_ARTISTS_KEY, {});
+  if (allFollowed[userId]) {
+    allFollowed[userId] = allFollowed[userId].filter(a => a.id !== artistId);
+    setStorage(FOLLOWED_ARTISTS_KEY, allFollowed);
+  }
+}
+
+export async function isArtistFollowed(userId: string, artistId: string): Promise<boolean> {
+  const allFollowed = getStorage<Record<string, any[]>>(FOLLOWED_ARTISTS_KEY, {});
+  if (!allFollowed[userId]) return false;
+  return allFollowed[userId].some(a => a.id === artistId);
+}
+

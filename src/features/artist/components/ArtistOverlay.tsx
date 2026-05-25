@@ -7,6 +7,7 @@ import {
 import { useUIStore } from '@/stores/useUIStore';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useArtist } from '../hooks/useArtist';
+import { useIsArtistFollowed, useFollowArtist, useUnfollowArtist } from '@/features/library/hooks/useLibrary';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import type { Track } from '@/types/track';
 import { cn } from '@/utils/cn';
@@ -163,6 +164,10 @@ export function ArtistOverlay() {
   const openArtist = useUIStore((s) => s.openArtist);
   const { data: artist, isLoading, error } = useArtist(activeArtistId);
   const playTrack = usePlayerStore((s) => s.playTrack);
+  
+  const { data: isFollowed } = useIsArtistFollowed(activeArtistId || '');
+  const followArtist = useFollowArtist();
+  const unfollowArtist = useUnfollowArtist();
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [headerSolid, setHeaderSolid] = useState(false);
@@ -234,12 +239,7 @@ export function ArtistOverlay() {
             <motion.span animate={{ opacity: headerSolid ? 1 : 0 }} className="text-white font-bold text-sm truncate max-w-[200px]">
               {artist?.name}
             </motion.span>
-            <button
-              onClick={closeArtist}
-              className="w-11 h-11 rounded-full bg-black/50 border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
-            >
-              <Share2 size={18} />
-            </button>
+            <div className="w-11 h-11" /> {/* Spacer for justify-between */}
           </motion.div>
 
           {/* ── Scrollable body ── */}
@@ -265,7 +265,7 @@ export function ArtistOverlay() {
 
             {/* ── Artist data ── */}
             {artist && (
-              <div className="pb-32">
+              <div className="pb-56">
 
                 {/* HERO — use banner as full-width bg, no separate "avatar" (API doesn't provide one separately) */}
                 <div className="relative w-full min-h-[320px] sm:min-h-[380px] overflow-hidden flex items-end">
@@ -285,7 +285,7 @@ export function ArtistOverlay() {
                       {artist.name}
                     </h1>
                     {artist.subscribers && (
-                      <p className="text-white/55 text-sm font-medium mt-2">{fmt(artist.subscribers)} subscribers</p>
+                      <p className="text-white/55 text-sm font-medium mt-2">{fmt(artist.subscribers)} subscribers / listeners</p>
                     )}
                   </div>
                 </div>
@@ -300,14 +300,28 @@ export function ArtistOverlay() {
                     <Shuffle size={18} />
                     Shuffle
                   </button>
-                  <button className="w-12 h-12 rounded-full border border-white/20 hover:border-white/50 flex items-center justify-center text-white/60 hover:text-white active:scale-90 transition-all">
-                    <Heart size={20} />
-                  </button>
-                  <button className="w-12 h-12 rounded-full border border-white/20 hover:border-white/50 flex items-center justify-center text-white/60 hover:text-white active:scale-90 transition-all">
-                    <Radio size={20} />
-                  </button>
-                  <button className="ml-auto w-12 h-12 rounded-full border border-white/20 hover:border-white/50 flex items-center justify-center text-white/60 hover:text-white active:scale-90 transition-all">
-                    <MoreHorizontal size={20} />
+                  <button 
+                    onClick={() => {
+                      if (!activeArtistId) return;
+                      if (isFollowed) {
+                        unfollowArtist.mutate(activeArtistId);
+                      } else {
+                        // Create a simple artist object for the library
+                        followArtist.mutate({
+                          id: activeArtistId,
+                          name: artist.name,
+                          thumbnail: bannerUrl
+                        });
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-6 py-3 rounded-full font-bold transition-all active:scale-95",
+                      isFollowed 
+                        ? "bg-white/10 text-white border border-white/20 hover:bg-white/20" 
+                        : "bg-transparent text-white border border-white/40 hover:border-white"
+                    )}
+                  >
+                    {isFollowed ? 'Following' : 'Follow'}
                   </button>
                 </div>
 

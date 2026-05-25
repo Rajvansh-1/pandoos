@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Heart, Music2, LogIn, Library as LibraryIcon } from 'lucide-react';
-import { usePlaylists, useLikedSongs, useCreatePlaylist } from '@/features/library/hooks/useLibrary';
+import { Plus, Heart, Music2, LogIn, Library as LibraryIcon, Users } from 'lucide-react';
+import { usePlaylists, useLikedSongs, useCreatePlaylist, useFollowedArtists } from '@/features/library/hooks/useLibrary';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useUIStore } from '@/stores/useUIStore';
 import { CreatePlaylistModal } from '@/features/library/components/CreatePlaylistModal';
 import { cn } from '@/utils/cn';
 
@@ -11,9 +12,11 @@ export function LibraryPage() {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
+  const openArtist = useUIStore((state) => state.openArtist);
   
   const { data: playlists, isLoading: loadingPlaylists } = usePlaylists();
   const { data: likedSongs, isLoading: loadingLiked } = useLikedSongs();
+  const { data: followedArtists, isLoading: loadingArtists } = useFollowedArtists();
   
   const createPlaylist = useCreatePlaylist();
   const [isCreating, setIsCreating] = useState(false);
@@ -106,6 +109,37 @@ export function LibraryPage() {
             )}
           </div>
         </button>
+
+        {/* Followed Artists */}
+        {loadingArtists || (followedArtists && followedArtists.length > 0) ? (
+          <div className="mb-10">
+            <h2 className="text-xl font-display font-bold text-white mb-6">Artists</h2>
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x scroll-container">
+              {loadingArtists ? (
+                [1, 2, 3, 4].map(i => <div key={i} className="w-28 h-28 rounded-full skeleton shrink-0 snap-start" />)
+              ) : (
+                followedArtists!.map(artist => (
+                  <button 
+                    key={artist.id}
+                    onClick={() => openArtist(artist.id)}
+                    className="shrink-0 snap-start flex flex-col items-center group w-28 text-center"
+                  >
+                    <div className="w-24 h-24 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-brand-primary transition-colors shadow-lg relative bg-[#0a0a0f]">
+                      {artist.thumbnail ? (
+                        <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-primary to-brand-accent text-white font-display font-bold text-3xl shadow-inner group-hover:scale-110 transition-transform duration-500">
+                          {artist.name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-sm font-bold text-white line-clamp-1 group-hover:text-brand-primary transition-colors">{artist.name}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        ) : null}
 
         {/* Playlists Grid */}
         <h2 className="text-xl font-display font-bold text-white mb-6">Playlists</h2>

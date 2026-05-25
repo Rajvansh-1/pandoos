@@ -6,6 +6,7 @@ import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { useSearch, useTrending } from '@/features/search/hooks/useSearch';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useUIStore } from '@/stores/useUIStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
 import { buildSearchQuery, rankOracleVibes } from '@/services/recommendEngine';
@@ -131,6 +132,7 @@ export function HomePage() {
   const { data: sufiTracks, isLoading: isSufiLoading } = useSearch('sufi ghazal peaceful lo-fi', shouldLoadMore);
   const { data: chillTracks, isLoading: isChillLoading } = useSearch('lofi chill relax aesthetic', shouldLoadMore);
   const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending(shouldLoadMore);
+  const { data: topArtistsSearch, isLoading: isTopArtistsLoading } = useSearch('top trending hit artists singers', shouldLoadMore);
 
   const { data: oracleData, isLoading: isOracleLoading } = useBeastOracle();
   const moodSessionCounts = useGamificationStore(s => s.moodSessionCounts);
@@ -150,19 +152,47 @@ export function HomePage() {
   const recommendedArtists = useMemo(() => {
     const seen = new Set<string>();
     const artists: Artist[] = [];
+    
+    // Add explicit artists from search API (these usually have real artist thumbnails)
     const addArtists = (list?: Artist[]) => {
       list?.forEach(a => {
-        if (!seen.has(a.id)) {
+        if (a.id && !seen.has(a.id)) {
           seen.add(a.id);
           artists.push(a);
         }
       });
     };
+    
     addArtists(forYouTracks?.artists);
     addArtists(moodTracks?.artists);
-    addArtists(trendingTracks?.artists);
+    addArtists(nowVibeTracks?.artists);
+    addArtists(artistTracks?.artists);
+    
+    // Extract artists from tracks (since Search API often only returns 1-2 artists)
+    // We intentionally do NOT use the track's albumArt as the thumbnail anymore, 
+    // because it looks like a song image squished into a circle.
+    const extractFromTracks = (data?: Track[] | { songs: Track[] }) => {
+      const list = Array.isArray(data) ? data : (data?.songs || []);
+      list.forEach(t => {
+        if (t.artistId && t.artist && t.artist !== 'Unknown' && !seen.has(t.artistId)) {
+          seen.add(t.artistId);
+          artists.push({
+            id: t.artistId,
+            name: t.artist,
+            thumbnail: undefined // Force undefined so it renders the beautiful gradient initial
+          });
+        }
+      });
+    };
+
+    extractFromTracks(trendingTracks);
+    extractFromTracks(forYouTracks);
+    extractFromTracks(moodTracks);
+    extractFromTracks(bollywoodTracks);
+    extractFromTracks(nowVibeTracks);
+    
     return artists.slice(0, 15);
-  }, [forYouTracks, moodTracks, trendingTracks]);
+  }, [forYouTracks, moodTracks, nowVibeTracks, artistTracks, trendingTracks, bollywoodTracks]);
 
   // Deduplicate tracks
   const deduplicatedLanes = useMemo(() => {
@@ -573,6 +603,8 @@ function ContentRow({ title, subtitle, gradient, emotion, icon: Icon, tracks, is
 }
 
 function ArtistCarousel({ artists }: { artists: Artist[] }) {
+  const openArtist = useUIStore((s) => s.openArtist);
+
   if (!artists || artists.length === 0) return null;
 
   return (
@@ -591,19 +623,18 @@ function ArtistCarousel({ artists }: { artists: Artist[] }) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 }}
               className="shrink-0 snap-start flex flex-col items-center cursor-pointer group w-28 md:w-32"
+              onClick={() => openArtist(artist.id)}
             >
               <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-brand-primary transition-colors shadow-lg relative bg-[#0a0a0f]">
                 {artist.thumbnail ? (
-                  <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
+                  <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
                 ) : (
-                  <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/30">
-                    <Users size={32} />
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-primary to-brand-accent text-white font-display font-bold text-4xl shadow-inner group-hover:scale-110 transition-transform duration-500">
+                    {artist.name.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
-              <h3 className="text-sm font-bold text-white text-center line-clamp-1 group-hover:text-brand-primary transition-colors px-1">
-                {artist.name}
-              </h3>
+              <span className="text-sm md:text-base font-bold text-white line-clamp-1 text-center group-hover:text-brand-primary transition-colors">{artist.name}</span>
             </motion.div>
           ))}
         </div>
