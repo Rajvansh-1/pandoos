@@ -1,19 +1,20 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Sparkles, TrendingUp, Music, Clock, Zap, Brain, Dumbbell, Moon, Compass, Heart, Radio, Flame } from 'lucide-react';
+import { Play, Sparkles, TrendingUp, Music, Clock, Zap, Brain, Dumbbell, Moon, Compass, Heart, Radio, Flame, Mic2, Users } from 'lucide-react';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { useSearch, useTrending } from '@/features/search/hooks/useSearch';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
-import { getBestThumbnail, searchTracks } from '@/services/youtube';
 import { buildSearchQuery, rankOracleVibes } from '@/services/recommendEngine';
 import { useBeastOracle } from '@/features/search/hooks/useBeastOracle';
 import { TrackImage } from '@/components/shared/TrackImage';
-import type { Track } from '@/types/track';
+import type { Track, Artist } from '@/types/track';
 import { useInView } from '@/hooks/useInView';
+import { PandaChatModal } from '@/features/panda/components/PandaChatModal';
+import { useWeatherContext } from '@/hooks/useWeatherContext';
 
 // Stable session seed so shuffles are consistent until page refresh
 const SESSION_SEED = Date.now();
@@ -39,9 +40,6 @@ const GENRE_LABELS: Record<string, string> = {
   sufi: 'Sufi 🕊️', devotional: 'Devotional 🛕', lofi: 'Lo-Fi 🍃', electronic: 'Electronic ⚡',
   rock: 'Rock 🎸', acoustic: 'Acoustic 🎻', pop: 'Pop ✨',
 };
-
-import { PandaChatModal } from '@/features/panda/components/PandaChatModal';
-import { useWeatherContext } from '@/hooks/useWeatherContext';
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -85,16 +83,13 @@ export function HomePage() {
 
   // Taste profile
   const topGenres = useTasteStore(s => s.topGenres);
-  const topArtists = useTasteStore(s => s.topArtists);
   const recentArtists = useTasteStore(s => s.recentArtists);
   const lovedIds = useTasteStore(s => s.lovedIds);
 
   const isPersonalized = topGenres.length > 0 || recentArtists.length > 0;
 
   // Quick picks from history
-  const quickPicks = useMemo(() => {
-    return history.slice(0, 12);
-  }, [history]);
+  const quickPicks = useMemo(() => history.slice(0, 12), [history]);
 
   // "For You" — seeded from top genre
   const forYouQuery = useMemo(() => {
@@ -108,39 +103,35 @@ export function HomePage() {
     return customQuery;
   }, [topGenres, customQuery]);
 
-  // "Because you listened to X" — top recent artist
   const recentArtist = recentArtists[0] ?? (history[0]?.artist ?? null);
   const artistDisplayName = recentArtist
     ? recentArtist.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
     : null;
 
-  // "Now Vibe" — derived from current track if playing
   const nowVibeQuery = useMemo(() => {
     if (!currentTrack) return null;
     return buildSearchQuery(currentTrack);
   }, [currentTrack?.videoId]);
 
-  // Searches
   const { ref: loadMoreRef, isInView: shouldLoadMore } = useInView({ rootMargin: '600px' });
 
-  // Immediate Searches (Top sections)
+  // Immediate Searches
   const { data: nowVibeTracks, isLoading: isNowVibeLoading } = useSearch(nowVibeQuery ?? '');
   const { data: forYouTracks, isLoading: isForYouLoading } = useSearch(isPersonalized ? forYouQuery : '');
   const { data: moodTracks, isLoading: isMoodLoading } = useSearch(customQuery);
   const { data: artistTracks, isLoading: isArtistLoading } = useSearch(recentArtist ? `${recentArtist} top songs` : '');
+  
+  // Podcasts & Artists
+  const { data: podcasts, isLoading: isPodcastsLoading } = useSearch('top trending hindi english podcasts', shouldLoadMore);
 
-  // Lazy Searches (Bottom sections) - Only enabled when scrolling down
+  // Lazy Searches
   const { data: tseriesTracks, isLoading: isTseriesLoading } = useSearch('TSERIES_LATEST', shouldLoadMore);
   const { data: bollywoodTracks, isLoading: isBollyLoading } = useSearch('bollywood pop romantic hits', shouldLoadMore);
   const { data: desiTracks, isLoading: isDesiLoading } = useSearch('desi hip hop punjabi swag', shouldLoadMore);
   const { data: sufiTracks, isLoading: isSufiLoading } = useSearch('sufi ghazal peaceful lo-fi', shouldLoadMore);
-  const { data: devotionalTracks, isLoading: isDevotionalLoading } = useSearch('bhakti bhajan devotional peaceful', shouldLoadMore);
   const { data: chillTracks, isLoading: isChillLoading } = useSearch('lofi chill relax aesthetic', shouldLoadMore);
-  const { data: workoutTracks, isLoading: isWorkoutLoading } = useSearch('heavy workout gym phonk', shouldLoadMore);
-  const { data: lateNightTracks, isLoading: isLateLoading } = useSearch('late night drive synthwave retro', shouldLoadMore);
   const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending(shouldLoadMore);
 
-  // ── THE BEAST ENGINE ──
   const { data: oracleData, isLoading: isOracleLoading } = useBeastOracle();
   const moodSessionCounts = useGamificationStore(s => s.moodSessionCounts);
 
@@ -155,11 +146,27 @@ export function HomePage() {
     });
   }, [oracleData, weather.temp, weather.isSunny, weather.isRaining, moodSessionCounts]);
 
-  // Deduplicate tracks across lanes top-to-bottom to ensure zero repetitions
+  // Extract recommended artists
+  const recommendedArtists = useMemo(() => {
+    const seen = new Set<string>();
+    const artists: Artist[] = [];
+    const addArtists = (list?: Artist[]) => {
+      list?.forEach(a => {
+        if (!seen.has(a.id)) {
+          seen.add(a.id);
+          artists.push(a);
+        }
+      });
+    };
+    addArtists(forYouTracks?.artists);
+    addArtists(moodTracks?.artists);
+    addArtists(trendingTracks?.artists);
+    return artists.slice(0, 15);
+  }, [forYouTracks, moodTracks, trendingTracks]);
+
+  // Deduplicate tracks
   const deduplicatedLanes = useMemo(() => {
     const seen = new Set<string>();
-
-    // We also don't want to repeat tracks that are already in quickPicks
     quickPicks.forEach(t => seen.add(t.videoId));
 
     const dedupe = (data?: Track[] | { songs: Track[] }) => {
@@ -177,20 +184,17 @@ export function HomePage() {
       forYou: dedupe(forYouTracks),
       oracle: dedupe(moodTracks),
       artist: dedupe(artistTracks),
+      podcasts: dedupe(podcasts),
       tseries: dedupe(tseriesTracks),
       bollywood: dedupe(bollywoodTracks),
       desi: dedupe(desiTracks),
       sufi: dedupe(sufiTracks),
-      devotional: dedupe(devotionalTracks),
       chill: dedupe(chillTracks),
-      lateNight: dedupe(lateNightTracks),
-      workout: dedupe(workoutTracks),
       trending: dedupe(trendingTracks),
     };
   }, [
-    quickPicks, nowVibeTracks, forYouTracks, moodTracks, artistTracks, tseriesTracks,
-    bollywoodTracks, desiTracks, sufiTracks, devotionalTracks, chillTracks, lateNightTracks,
-    workoutTracks, trendingTracks
+    quickPicks, nowVibeTracks, forYouTracks, moodTracks, artistTracks,
+    podcasts, tseriesTracks, bollywoodTracks, desiTracks, sufiTracks, chillTracks, trendingTracks
   ]);
 
   const handleMoodClick = (mood: typeof MOODS[0]) => {
@@ -213,132 +217,93 @@ export function HomePage() {
   };
 
   return (
-    <div className="w-full min-h-full pb-32 flex flex-col items-center overflow-x-hidden">
+    <div className="w-full min-h-full pb-32 flex flex-col bg-[hsl(var(--surface-base))] overflow-x-hidden pt-safe relative">
       <Helmet>
         <title>Pandoos | Where Pandas Vibe</title>
-        <meta name="description" content="Discover new music, curated for your mood and taste. Explore Bollywood, Desi, Lofi, and more." />
       </Helmet>
 
+      {/* Alive Aurora Background — RESTORED for emotional connection */}
+      <div className="absolute top-0 left-0 w-full h-[600px] mood-bg -z-10 pointer-events-none" />
+
       {/* ── HEADER ── */}
-      <header className="w-full max-w-7xl px-4 md:px-8 pt-10 flex items-center justify-between mb-6 z-20">
-        <div>
-          <h1 className="text-2xl md:text-4xl font-serif font-black tracking-tight text-white drop-shadow-lg flex items-center flex-wrap gap-2">
-            {greeting}{user ? <span className="text-brand-primary">, {user.username}</span> : ''}
-            <span className="inline-block animate-[wave_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
-          </h1>
-          <div className="flex items-center gap-3 mt-2 flex-wrap">
-            {isPersonalized && (
-              <p className="text-white/50 text-sm flex items-center gap-1">
-                <Sparkles size={12} className="text-brand-primary" />
-                Personalized for your taste
-              </p>
-            )}
-            {!weather.isLoading && weather.temp !== null && (
-              <span className="text-xs font-bold bg-white/5 text-white/70 px-2 py-0.5 rounded-md border border-white/10 backdrop-blur-md flex items-center gap-1">
-                {weather.isSunny ? '☀️' : weather.isRaining ? '🌧️' : '☁️'} {Math.round(weather.temp)}°C
-              </span>
-            )}
+      <header className="w-full px-4 md:px-8 pt-6 pb-2 z-50">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-display font-bold text-white tracking-tight flex items-center gap-2 drop-shadow-md">
+              {greeting}
+            </h1>
+            <p className="text-xs text-white/70 font-medium mt-1 drop-shadow-sm flex items-center gap-2">
+              {weather.temp !== null && !weather.isLoading && (
+                <span>{weather.isSunny ? '☀️' : weather.isRaining ? '🌧️' : '☁️'} {Math.round(weather.temp)}°C</span>
+              )}
+              {isPersonalized && "✨ Personalized for you"}
+            </p>
           </div>
         </div>
       </header>
 
-      {/* ── HERO ── */}
-      <section className="relative w-full max-w-7xl px-4 md:px-8 mb-14 flex flex-col items-center">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] max-w-3xl h-64 bg-brand-primary/20 blur-[80px] -z-10 rounded-[100%] pointer-events-none" style={{ willChange: 'transform' }} />
+      {/* ── HERO (Emotional Centerpiece) ── */}
+      <section className="relative w-full px-4 md:px-8 mt-2 mb-8 flex flex-col items-center z-10">
         <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsChatOpen(true)}
-          className="relative z-10 w-36 h-36 md:w-44 md:h-44 rounded-full glass-mood border border-white/20 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)] mb-6 cursor-pointer group"
+          className="relative w-32 h-32 md:w-40 md:h-40 rounded-full glass-mood border border-white/20 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.15)] mb-6 cursor-pointer group"
         >
-          <PandaMascot size={140} emotion={selectedMood.id} />
-
-          {/* Subtle "Talk to me" tooltip */}
+          <PandaMascot size={110} emotion={selectedMood.id} />
+          {/* Subtle tooltip */}
           <div className="absolute -top-3 -right-2 bg-brand-primary text-white text-xs font-bold px-3 py-1.5 rounded-2xl rounded-bl-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-glow-sm pointer-events-none transform -rotate-6">
             Talk to me! 💬
           </div>
         </motion.div>
 
-        <h2 className="text-3xl md:text-5xl font-serif font-black tracking-tight text-white mb-4 text-center drop-shadow-lg">
+        <h2 className="text-2xl md:text-3xl font-display font-black tracking-tight text-white mb-6 text-center drop-shadow-lg">
           Where are we traveling today?
         </h2>
-
-        <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-5 max-w-2xl">
-          {MOODS.map(mood => (
-            <button
-              key={mood.id}
-              onClick={() => handleMoodClick(mood)}
-              className={`px-5 py-2 rounded-full text-sm md:text-base font-bold transition-all duration-300 backdrop-blur-md border ${selectedMood.id === mood.id
-                ? 'bg-white text-black shadow-glow-md border-white scale-105'
-                : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10 hover:text-white hover:scale-105'
-                }`}
-            >
-              {mood.label}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleChatSubmit} className="relative w-full max-w-lg">
+        
+        {/* Compact Search Bar */}
+        <form onSubmit={handleChatSubmit} className="relative w-full max-w-lg mb-6">
           <input
             type="text"
             value={userInput}
             onChange={e => setUserInput(e.target.value)}
-            placeholder="Or tell me how you feel..."
-            className="w-full bg-black/40 text-white placeholder-white/40 px-6 py-4 rounded-full border border-white/10 focus:outline-none focus:border-brand-primary focus:bg-black/60 text-base backdrop-blur-xl transition-all shadow-inner"
+            placeholder="Search or ask the Panda..."
+            className="w-full bg-black/40 text-white placeholder-white/40 px-5 py-3.5 rounded-full border border-white/10 focus:outline-none focus:border-brand-primary focus:bg-black/60 text-sm backdrop-blur-xl transition-all shadow-inner"
           />
-          <button
-            type="submit"
-            aria-label="Search with AI"
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-brand-primary text-white rounded-full flex items-center justify-center transition-transform shadow-glow-sm hover:scale-110 active:scale-95"
-          >
-            <Sparkles size={16} fill="currentColor" />
+          <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 w-8 h-8 bg-brand-primary text-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-glow-sm">
+            <Sparkles size={14} />
           </button>
         </form>
+
+        {/* Dense Mood Chips */}
+        <div className="w-full max-w-3xl">
+          <div className="flex overflow-x-auto gap-2 pb-2 scroll-container snap-x -mx-4 px-4 md:mx-0 md:px-0">
+            {MOODS.map(mood => (
+              <button
+                key={mood.id}
+                onClick={() => handleMoodClick(mood)}
+                className={`shrink-0 snap-start px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                  selectedMood.id === mood.id
+                    ? 'bg-white text-black border-white shadow-glow-sm scale-105'
+                    : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {mood.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
 
-      {/* ── SECTIONS ── */}
-      <div className="w-full max-w-7xl px-4 md:px-8 flex flex-col gap-10 md:gap-16">
+      {/* ── DENSE CONTENT SECTIONS ── */}
+      <div className="w-full flex flex-col gap-8 md:gap-10 mt-2 z-10">
 
-        {/* NOW VIBE — if a track is playing */}
-        {currentTrack && nowVibeTracks && nowVibeTracks.songs.length > 0 && (
-          <RealmSection
-            title="Because You're Listening"
-            description={`More like "${currentTrack.title.slice(0, 40)}…"`}
-            gradient="from-violet-600 to-fuchsia-700"
-            emotion="energy"
-            icon={Radio}
-            tracks={deduplicatedLanes.nowVibe}
-            isLoading={isNowVibeLoading}
-            onPlay={handlePlayTrack}
-            lovedIds={lovedIds}
-            badge="🎯 Live Recommendation"
-            highlight
-          />
-        )}
-
-        {/* FOR YOU — personalized */}
-        {isPersonalized && (
-          <RealmSection
-            title="Made For You"
-            description={`Based on your love for ${topGenres.slice(0, 2).map(g => GENRE_LABELS[g] ?? g).join(' & ')}`}
-            gradient="from-brand-primary to-brand-secondary"
-            emotion={selectedMood.id}
-            icon={Heart}
-            tracks={deduplicatedLanes.forYou}
-            isLoading={isForYouLoading}
-            onPlay={handlePlayTrack}
-            lovedIds={lovedIds}
-            badge="✨ Personalized"
-            highlight
-          />
-        )}
-
-        {/* ORACLE — mood-based */}
-        <RealmSection
-          title="The Oracle's Vision"
-          description={`Portals aligned to: ${selectedMood.label}`}
+        {/* ORACLE — mood-based (MOVED TO TOP PER USER REQUEST) */}
+        <ContentRow
+          title={selectedMood.label.split(' ')[0] + " Mix"}
+          subtitle="Portals aligned to your current vibe."
           gradient="from-indigo-600 to-purple-700"
           emotion={selectedMood.id}
           icon={Sparkles}
@@ -346,14 +311,12 @@ export function HomePage() {
           isLoading={isMoodLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
-          highlight={!isPersonalized}
           expandMoodId={selectedMood.id}
         />
 
         {/* MEMORY LANE — history */}
-        <RealmSection
-          title="Memory Lane"
-          description="Familiar vibes you recently traveled through."
+        <ContentRow
+          title="Jump Back In"
           gradient="from-slate-600 to-slate-800"
           emotion="neutral"
           icon={Clock}
@@ -363,11 +326,47 @@ export function HomePage() {
           lovedIds={lovedIds}
         />
 
+        {/* NOW VIBE */}
+        {currentTrack && deduplicatedLanes.nowVibe && deduplicatedLanes.nowVibe.length > 0 && (
+          <ContentRow
+            title="Because You're Listening"
+            subtitle={`More like "${currentTrack.title.slice(0, 30)}…"`}
+            gradient="from-violet-600 to-fuchsia-700"
+            emotion="energy"
+            icon={Radio}
+            tracks={deduplicatedLanes.nowVibe}
+            isLoading={isNowVibeLoading}
+            onPlay={handlePlayTrack}
+            lovedIds={lovedIds}
+            highlight
+          />
+        )}
+
+        {/* FOR YOU */}
+        {isPersonalized && (
+          <ContentRow
+            title="Made For You"
+            subtitle={`Based on your love for ${topGenres.slice(0, 2).map(g => GENRE_LABELS[g] ?? g).join(' & ')}`}
+            gradient="from-brand-primary to-brand-secondary"
+            emotion={selectedMood.id}
+            icon={Heart}
+            tracks={deduplicatedLanes.forYou}
+            isLoading={isForYouLoading}
+            onPlay={handlePlayTrack}
+            lovedIds={lovedIds}
+          />
+        )}
+
+        {/* TOP ARTISTS CAROUSEL */}
+        {recommendedArtists.length > 0 && (
+          <ArtistCarousel artists={recommendedArtists} />
+        )}
+
         {/* BECAUSE YOU LISTENED TO X */}
-        {artistDisplayName && artistTracks && artistTracks.songs.length > 0 && (
-          <RealmSection
+        {artistDisplayName && deduplicatedLanes.artist && deduplicatedLanes.artist.length > 0 && (
+          <ContentRow
             title={`Echoes of ${artistDisplayName}`}
-            description="The timeline shifts based on your last adventure."
+            subtitle="The timeline shifts based on your last adventure."
             gradient="from-cyan-600 to-blue-700"
             emotion="focus"
             icon={Compass}
@@ -375,16 +374,15 @@ export function HomePage() {
             isLoading={isArtistLoading}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
-            badge={`🎵 Because you played ${artistDisplayName}`}
           />
         )}
 
-        {/* ── BEAST ORACLE SECTIONS ── */}
+        {/* BEAST ORACLE SECTIONS */}
         {rankedOracleVibes.map((vibe, idx) => (
-          <RealmSection
+          <ContentRow
             key={`oracle-${vibe.id}`}
             title={vibe.title}
-            description="Curated by the AI Beast Engine for this exact moment."
+            subtitle={idx === 0 ? "🔮 Top AI Match curated for this exact moment." : undefined}
             gradient={idx === 0 ? "from-emerald-600 to-teal-800" : idx === 1 ? "from-rose-600 to-orange-700" : "from-blue-600 to-indigo-800"}
             emotion="energy"
             icon={Brain}
@@ -392,17 +390,15 @@ export function HomePage() {
             isLoading={isOracleLoading}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
-            badge={idx === 0 ? "🔮 Top AI Match" : undefined}
           />
         ))}
 
-        {/* --- INVISIBLE SPACER FOR LAZY LOADING BOTTOM SECTIONS --- */}
-        <div ref={loadMoreRef} className="w-full h-1" />
+        {/* --- INVISIBLE SPACER FOR LAZY LOADING --- */}
+        <div ref={loadMoreRef} className="w-full h-[1px]" />
 
         {/* T-SERIES LATEST */}
-        <RealmSection
-          title="T-Series Exclusive"
-          description="The latest blockbusters and chart-toppers."
+        <ContentRow
+          title="T-Series Exclusives"
           gradient="from-red-600 to-red-900"
           emotion="energy"
           icon={Flame}
@@ -410,13 +406,23 @@ export function HomePage() {
           isLoading={isTseriesLoading}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
-          badge="🔥 Top Hits"
         />
 
-        {/* BOLLYWOOD GALA */}
-        <RealmSection
+        {/* PODCASTS */}
+        <ContentRow
+          title="Trending Podcasts"
+          gradient="from-slate-700 to-slate-900"
+          emotion="focus"
+          icon={Mic2}
+          tracks={deduplicatedLanes.podcasts}
+          isLoading={isPodcastsLoading}
+          onPlay={handlePlayTrack}
+          lovedIds={lovedIds}
+        />
+
+        {/* BOLLYWOOD */}
+        <ContentRow
           title="The Bollywood Gala"
-          description="Starry-eyed romance and vibrant pop hits."
           gradient="from-pink-600 to-amber-600"
           emotion="bollywood"
           icon={Sparkles}
@@ -427,10 +433,21 @@ export function HomePage() {
           expandMoodId="bollywood"
         />
 
-        {/* DESI GULLY */}
-        <RealmSection
+        {/* GLOBAL TRENDING */}
+        <ContentRow
+          title="Global Top Hits"
+          gradient="from-blue-600 to-sky-800"
+          emotion="focus"
+          icon={TrendingUp}
+          tracks={deduplicatedLanes.trending}
+          isLoading={isTrendingLoading}
+          onPlay={handlePlayTrack}
+          lovedIds={lovedIds}
+        />
+        
+        {/* DESI */}
+        <ContentRow
           title="The Desi Gully"
-          description="High-energy Punjabi beats and pure street swag."
           gradient="from-yellow-500 to-red-600"
           emotion="desi"
           icon={Zap}
@@ -441,274 +458,156 @@ export function HomePage() {
           expandMoodId="desi"
         />
 
-        {/* SUFI DARBAR */}
-        <RealmSection
-          title="The Sufi Darbar"
-          description="Deep, soulful ghazals to bring you peace."
-          gradient="from-indigo-800 to-purple-900"
-          emotion="sufi"
-          icon={Moon}
-          tracks={deduplicatedLanes.sufi}
-          isLoading={isSufiLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-          expandMoodId="sufi"
-        />
-
-        {/* DEVOTIONAL DARSHAN */}
-        <RealmSection
-          title="Devotional Darshan"
-          description="Aartis, bhajans, and spiritual connection."
-          gradient="from-orange-600 to-amber-700"
-          emotion="devotional"
-          icon={Sparkles}
-          tracks={deduplicatedLanes.devotional}
-          isLoading={isDevotionalLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-          expandMoodId="devotional"
-        />
-
-        {/* CHILL BAMBOO */}
-        <RealmSection
-          title="The Chill Bamboo Forest"
-          description="Rest your soul. Deep greens, lo-fi beats, pure tranquility."
-          gradient="from-emerald-700 to-teal-900"
-          emotion="chill"
-          icon={Music}
-          tracks={deduplicatedLanes.chill}
-          isLoading={isChillLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-          expandMoodId="chill"
-        />
-
-        {/* NEON CITY NIGHTS */}
-        <RealmSection
-          title="Neon City Nights"
-          description="Cruise down the retro highway under purple skies."
-          gradient="from-fuchsia-700 to-purple-900"
-          emotion="latenight"
-          icon={Moon}
-          tracks={deduplicatedLanes.lateNight}
-          isLoading={isLateLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-          expandMoodId="latenight"
-        />
-
-        {/* IRON DOJO */}
-        <RealmSection
-          title="The Iron Dojo"
-          description="Beast mode activated. Heavy phonk and relentless energy."
-          gradient="from-red-700 to-orange-800"
-          emotion="workout"
-          icon={Dumbbell}
-          tracks={deduplicatedLanes.workout}
-          isLoading={isWorkoutLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-          expandMoodId="workout"
-        />
-
-        {/* GLOBAL TRENDING */}
-        <RealmSection
-          title="The Global Archive"
-          description="What the world is traveling to right now."
-          gradient="from-blue-600 to-sky-800"
-          emotion="focus"
-          icon={TrendingUp}
-          tracks={deduplicatedLanes.trending}
-          isLoading={isTrendingLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-        />
-
       </div>
-
-      {/* ── FOOTER SLOGAN ── */}
-      <footer className="w-full max-w-7xl px-4 md:px-8 mt-8 mb-12 flex flex-col items-center justify-center text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-50px" }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="flex flex-col items-center gap-3"
-        >
-          <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-2 shadow-lg backdrop-blur-md">
-            <PandaMascot size={32} emotion="chill" />
-          </div>
-          <p className="text-lg md:text-xl font-medium italic text-white/70 drop-shadow-md px-4 tracking-wide">
-            "Life is short relax like a Panda and enjoy music"
-          </p>
-          <div className="w-24 h-[2px] mt-4 bg-gradient-to-r from-transparent via-brand-primary/50 to-transparent rounded-full" />
-        </motion.div>
-      </footer>
 
       <PandaChatModal
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         initialMessage={chatInitialMessage}
       />
-
     </div>
   );
 }
 
 // ─── Helper Components ─────────────────────────────────────────────────────────
 
-interface RealmSectionProps {
-  title: string;
-  description: string;
-  gradient: string;
-  emotion: string;
-  icon: React.ElementType;
-  tracks?: Track[];
-  isLoading: boolean;
-  onPlay: (track: Track, list: Track[]) => void;
-  lovedIds?: string[];
-  badge?: string;
-  highlight?: boolean;
-  expandMoodId?: string;
-}
-
-function RealmSection({ title, description, gradient, emotion, icon: Icon, tracks, isLoading, onPlay, lovedIds = [], badge, highlight, expandMoodId }: RealmSectionProps) {
+function ContentRow({ title, subtitle, gradient, emotion, icon: Icon, tracks, isLoading, onPlay, lovedIds = [], highlight, expandMoodId }: any) {
   if (!isLoading && (!tracks || tracks.length === 0)) return null;
 
+  const PAGE_SIZE = 12;
+  const [page, setPage] = React.useState(1);
+  const visible = (tracks || []).slice(0, page * PAGE_SIZE);
+  const hasMore = visible.length < (tracks || []).length;
+
+  React.useEffect(() => { setPage(1); }, [expandMoodId, tracks]);
+
   return (
-    <section className="relative w-full rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 border border-white/5 overflow-hidden">
-      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-20 blur-[80px] -z-10`} style={{ transform: 'translateZ(0)' }} />
+    <section className="relative w-full flex flex-col py-4 overflow-hidden">
+      {/* Emotional Gradient Flare */}
+      {gradient && (
+        <div className={`absolute top-0 right-0 w-3/4 h-full bg-gradient-to-l ${gradient} opacity-10 blur-[80px] -z-10 pointer-events-none`} />
+      )}
 
-      <div className="flex flex-col xl:flex-row gap-8 xl:gap-12 items-center xl:items-start relative z-10">
-        {/* Left column */}
-        <div className="flex flex-col items-center xl:items-start text-center xl:text-left shrink-0 w-full xl:w-64">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/10">
-              <Icon className="text-white" size={20} />
-            </div>
-            {badge && (
-              <span className="text-xs font-bold bg-white/10 text-white/80 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md">
-                {badge}
-              </span>
-            )}
+      <div className="px-4 md:px-8 mb-4 flex items-center justify-between">
+        <div className="flex flex-col max-w-[75%]">
+          <div className="flex items-center gap-2">
+            {Icon && <Icon className="text-white/80" size={18} />}
+            <h2 className="text-xl md:text-2xl font-display font-bold text-white tracking-tight leading-tight">{title}</h2>
           </div>
-          <h2 className="text-2xl md:text-3xl font-serif font-black tracking-tight text-white mb-2 drop-shadow-md leading-tight">
-            {title}
-          </h2>
-          <p className="text-white/60 text-sm font-medium mb-6 leading-relaxed max-w-xs">
-            {description}
-          </p>
-          <motion.div
-            whileHover={{ scale: 1.05, rotate: 5 }}
-            className="rounded-full glass-mood border border-white/10 flex items-center justify-center w-20 h-20 md:w-24 md:h-24 mt-0"
-          >
-            <PandaMascot size={70} emotion={emotion} />
-          </motion.div>
+          {subtitle && <p className="text-xs md:text-sm text-white/50 font-medium mt-1 leading-snug">{subtitle}</p>}
         </div>
+        
+        {emotion && (
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full glass border border-white/5 flex items-center justify-center shadow-lg shrink-0">
+            <PandaMascot size={28} emotion={emotion} />
+          </div>
+        )}
+      </div>
 
-        {/* Track list */}
-        <div className="flex-1 w-full min-w-0">
-          <TrackList tracks={tracks} isLoading={isLoading} onPlay={onPlay} highlight={highlight} lovedIds={lovedIds} expandMoodId={expandMoodId} />
+      <div className="w-full">
+        <div className="flex overflow-x-auto gap-3 md:gap-4 pb-4 snap-x snap-mandatory scroll-container px-4 md:px-8">
+          {isLoading
+            ? [...Array(6)].map((_, i) => (
+              <div key={i} className="shrink-0 snap-start w-[140px] md:w-[160px]">
+                <div className="w-full aspect-square rounded-xl bg-white/5 animate-pulse mb-3" />
+                <div className="w-3/4 h-3 rounded bg-white/5 animate-pulse mb-2" />
+                <div className="w-1/2 h-3 rounded bg-white/5 animate-pulse" />
+              </div>
+            ))
+            : (
+              <AnimatePresence mode="popLayout">
+                {visible.map((track: Track, i: number) => (
+                  <motion.div
+                    key={track.id}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: Math.min(i, 8) * 0.04 }}
+                    className="shrink-0 snap-start group cursor-pointer w-[140px] md:w-[160px]"
+                    onClick={() => onPlay(track, tracks)}
+                  >
+                    <div className="relative w-full rounded-xl overflow-hidden mb-2.5 shadow-md border border-white/5 aspect-square bg-[#0a0a0f]">
+                      <TrackImage
+                        videoId={track.videoId}
+                        title={track.title}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg scale-90 group-hover:scale-100 transition-transform">
+                          <Play fill="black" size={20} className="ml-1 text-black" />
+                        </div>
+                      </div>
+                      {lovedIds.includes(track.videoId) && (
+                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500/90 flex items-center justify-center">
+                          <Heart size={12} fill="white" className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    <h3 className={`text-sm font-bold leading-tight line-clamp-1 ${highlight ? 'text-brand-primary' : 'text-white'}`}>
+                      {track.title}
+                    </h3>
+                    <p className="text-xs text-white/50 line-clamp-1 mt-0.5">
+                      {track.artist}
+                    </p>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
+
+          {!isLoading && hasMore && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="shrink-0 snap-start flex flex-col items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/5 cursor-pointer hover:bg-white/10 transition-all w-[140px] md:w-[160px] aspect-square"
+              onClick={() => setPage(p => p + 1)}
+            >
+              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                <span className="text-white font-bold text-2xl">+</span>
+              </div>
+              <span className="text-sm text-white/50 font-semibold">More</span>
+            </motion.div>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function TrackList({ tracks, isLoading, onPlay, highlight, lovedIds = [], expandMoodId }: {
-  tracks?: Track[];
-  isLoading: boolean;
-  onPlay: (t: Track, list: Track[]) => void;
-  highlight?: boolean;
-  lovedIds?: string[];
-  expandMoodId?: string; // if set, enables infinite scroll from expansion engine
-}) {
-  const PAGE_SIZE = 12;
-  const [page, setPage] = React.useState(1);
-
-  const fullPool = React.useMemo(() => {
-    return tracks ?? [];
-  }, [tracks, expandMoodId]);
-
-  const visible = fullPool.slice(0, page * PAGE_SIZE);
-  const hasMore = visible.length < fullPool.length;
-
-  // Reset page when tracks change (mood switch)
-  React.useEffect(() => { setPage(1); }, [expandMoodId, tracks]);
+function ArtistCarousel({ artists }: { artists: Artist[] }) {
+  if (!artists || artists.length === 0) return null;
 
   return (
-    <div className="w-full">
-      <div className="flex overflow-x-auto gap-4 md:gap-5 pb-4 snap-x snap-mandatory scroll-container px-1 -mx-1">
-        {isLoading
-          ? [...Array(6)].map((_, i) => (
-            <div key={i} className="shrink-0 snap-start rounded-2xl animate-pulse bg-white/5 border border-white/5 w-[160px] md:w-[180px] aspect-square">
-              <div className="w-full h-full flex items-center justify-center">
-                <Music size={28} className="text-white/10" />
-              </div>
-            </div>
-          ))
-          : (
-            <AnimatePresence mode="popLayout">
-              {visible.map((track, i) => (
-                <motion.div
-                  key={track.id}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: Math.min(i, 8) * 0.04 }}
-                  className="shrink-0 snap-start group cursor-pointer w-[160px] md:w-[180px]"
-                  onClick={() => onPlay(track, fullPool)}
-                >
-                  {/* Thumbnail — uses TrackImage for guaranteed no grey box */}
-                  <div className="relative w-full rounded-2xl overflow-hidden mb-3 shadow-lg border border-white/10 transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_20px_40px_rgba(0,0,0,0.5)] aspect-square">
-                    <TrackImage
-                      videoId={track.videoId}
-                      title={track.title}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                    {/* Loved badge */}
-                    {lovedIds.includes(track.videoId) && (
-                      <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500/80 flex items-center justify-center">
-                        <Heart size={12} fill="white" className="text-white" />
-                      </div>
-                    )}
-
-                    {/* Play button */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-xl scale-75 group-hover:scale-100 transition-transform duration-300">
-                        <Play fill="black" size={20} className="ml-1 text-black" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Text */}
-                  <h3 className="text-sm font-bold text-white leading-tight line-clamp-2 mb-1 group-hover:text-brand-primary transition-colors">
-                    {track.title}
-                  </h3>
-                  <p className="text-xs text-white/50 line-clamp-1 font-medium">
-                    {track.artist}
-                  </p>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          )}
-
-        {/* Inline Load More card */}
-        {!isLoading && hasMore && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="shrink-0 snap-start flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 cursor-pointer hover:bg-white/10 transition-all group w-[160px] md:w-[180px] aspect-square"
-            onClick={() => setPage(p => p + 1)}
-          >
-            <div className="w-10 h-10 rounded-full bg-brand-primary/20 border border-brand-primary/30 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-brand-primary font-bold text-xl">+</span>
-            </div>
-            <span className="text-xs text-white/50 font-semibold text-center px-2">More songs</span>
-          </motion.div>
-        )}
+    <section className="w-full flex flex-col my-4">
+      <div className="px-4 md:px-8 mb-4 flex items-center gap-2">
+        <Users size={20} className="text-white/80" />
+        <h2 className="text-xl md:text-2xl font-display font-bold text-white tracking-tight">Top Artists</h2>
       </div>
-    </div>
+
+      <div className="w-full">
+        <div className="flex overflow-x-auto gap-5 md:gap-6 pb-4 snap-x snap-mandatory scroll-container px-4 md:px-8">
+          {artists.map((artist, i) => (
+            <motion.div
+              key={artist.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
+              className="shrink-0 snap-start flex flex-col items-center cursor-pointer group w-28 md:w-32"
+            >
+              <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-brand-primary transition-colors shadow-lg relative bg-[#0a0a0f]">
+                {artist.thumbnail ? (
+                  <img src={artist.thumbnail} alt={artist.name} className="w-full h-full object-cover" loading="lazy" />
+                ) : (
+                  <div className="w-full h-full bg-white/10 flex items-center justify-center text-white/30">
+                    <Users size={32} />
+                  </div>
+                )}
+              </div>
+              <h3 className="text-sm font-bold text-white text-center line-clamp-1 group-hover:text-brand-primary transition-colors px-1">
+                {artist.name}
+              </h3>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
