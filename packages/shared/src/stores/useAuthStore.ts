@@ -64,8 +64,15 @@ export const useAuthStore = create<AuthStore>()(
 
     initialize: async () => {
       try {
-        // Load existing session (e.g., user refreshes the page)
-        const { data: { session } } = await supabase.auth.getSession();
+        // Wrap Supabase session check with a 5-second timeout.
+        // On native Capacitor builds, Supabase might be slow or CORS-blocked,
+        // which would leave the app stuck on the splash screen forever.
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 5000)
+        );
+
+        const { data: { session } } = await Promise.race([sessionPromise, timeoutPromise]);
 
         set((state) => {
           state.session = session;
@@ -100,6 +107,7 @@ export const useAuthStore = create<AuthStore>()(
         });
       }
     },
+
 
     signInWithEmail: async (email) => {
       set((state) => { state.isLoading = true; });
