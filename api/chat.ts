@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { setCors } from './_cors';
 
 // Hardcoded fallback logic when Gemini is not configured
 function fallbackNLP(text: string) {
@@ -61,8 +60,6 @@ function fallbackNLP(text: string) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (setCors(req, res)) return;
-
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

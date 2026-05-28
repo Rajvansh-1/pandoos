@@ -1,13 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import YTMusic from 'ytmusic-api';
-import { setCors } from './_cors';
 
 const ytmusic = new YTMusic();
 let initialized = false;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (setCors(req, res)) return;
-
   const query = (req.query.q || req.query.query) as string;
 
   if (!query) {

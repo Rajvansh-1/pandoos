@@ -1,19 +1,17 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import YTMusic from 'ytmusic-api';
-import { setCors } from './_cors';
 
 const ytmusic = new YTMusic();
 let initialized = false;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (setCors(req, res)) return;
-
-  const title = (req.query.track_name || req.query.title) as string | undefined;
-  const artist = (req.query.artist_name || req.query.artist) as string | undefined;
-  const videoId = req.query.videoId as string | undefined;
+// No edge runtime so ytmusic-api works smoothly
+export default async function handler(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const title = searchParams.get('track_name') ?? searchParams.get('title');
+  const artist = searchParams.get('artist_name') ?? searchParams.get('artist');
+  const videoId = searchParams.get('videoId');
 
   if (!title && !videoId) {
-    return res.status(400).json({ error: 'Missing track_name or videoId' });
+    return json({ error: 'Missing track_name or videoId' }, 400);
   }
 
   try {
@@ -22,40 +20,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (title) lrcUrl.searchParams.set('track_name', title);
       if (artist) lrcUrl.searchParams.set('artist_name', artist);
 
-      const resp = await fetch(lrcUrl.toString(), {
+      const res = await fetch(lrcUrl.toString(), {
         headers: { 'User-Agent': 'PandoosMusic/2.0' },
       });
 
-      if (!resp.ok) throw new Error(`LRCLIB error ${resp.status}`);
+      if (!res.ok) {
+        throw new Error(`LRCLIB error ${res.status}`);
+      }
 
-      const data = await resp.json() as any;
+      const data = await res.json() as any;
       if (!data.plainLyrics && !data.syncedLyrics) throw new Error('No lyrics found on LRCLIB');
       return { plainLyrics: data.plainLyrics ?? '', syncedLyrics: data.syncedLyrics ?? null };
     };
 
     const fetchYtm = async () => {
       if (!videoId) throw new Error('No videoId for YTM lyrics');
-
+      
+      // Initialize only when YTM is actually requested
       if (!initialized) {
         await ytmusic.initialize();
         initialized = true;
       }
-
+      
       const lyrics = await ytmusic.getLyrics(videoId);
       if (!lyrics) throw new Error('No lyrics found on YTM');
-
+      
+      // YTM typically returns a block of plain text, occasionally synced if supported
       return { plainLyrics: lyrics, syncedLyrics: null };
     };
 
-    const promises: Promise<any>[] = [];
+    // Race them: whichever returns valid lyrics first wins
+    const promises = [];
     if (title || artist) promises.push(fetchLrclib());
     if (videoId) promises.push(fetchYtm());
 
     const result = await Promise.any(promises);
 
-    res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=3600');
-    return res.status(200).json(result);
+    return json(result, 200, {
+      'cache-control': 'public, s-maxage=86400, stale-while-revalidate=3600',
+    });
   } catch (err: unknown) {
-    return res.status(200).json({ plainLyrics: '', syncedLyrics: null });
+    // If all promises reject, Promise.any throws an AggregateError
+    // In that case, we just return empty lyrics rather than crashing the player
+    return json({ plainLyrics: '', syncedLyrics: null }, 200);
   }
+}
+
+function json(
+  body: unknown,
+  status: number,
+  extraHeaders: Record<string, string> = {}
+): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json', ...extraHeaders },
+  });
 }

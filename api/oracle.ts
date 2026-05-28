@@ -1,6 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import YTMusic from 'ytmusic-api';
-import { setCors } from './_cors';
 
 const ytmusic = new YTMusic();
 
@@ -16,8 +15,8 @@ const FALLBACK_VIBES = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (setCors(req, res)) return;
   // Crucial: Cache the response globally on Vercel Edge nodes for 6 hours!
+  // This means Gemini is only hit 4 times a day, $0 cost, and zero latency for users.
   res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=86400');
   
   try {
