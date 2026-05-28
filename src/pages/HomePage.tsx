@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Sparkles, TrendingUp, Music, Clock, Zap, Brain, Dumbbell, Moon, Compass, Heart, Radio, Flame, Mic2, Users } from 'lucide-react';
+import { Play, Sparkles, TrendingUp, Music, Clock, Zap, Brain, Moon, Compass, Heart, Radio, Flame, Mic2, Users } from 'lucide-react';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { useSearch, useTrending } from '@/features/search/hooks/useSearch';
 import { usePlayerStore } from '@/stores/usePlayerStore';
@@ -9,15 +8,10 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
-import { buildSearchQuery, rankOracleVibes } from '@/services/recommendEngine';
 import { useBeastOracle } from '@/features/search/hooks/useBeastOracle';
 import { TrackImage } from '@/components/shared/TrackImage';
-import type { Track, Artist } from '@/types/track';
-import { useInView } from '@/hooks/useInView';
-import { useWeatherContext } from '@/hooks/useWeatherContext';
-
-// Stable session seed so shuffles are consistent until page refresh
-const SESSION_SEED = Date.now();
+import type { Track } from '@/types/track';
+import { IS_NATIVE } from '@/utils/isMobile';
 
 const MOODS = [
   { id: 'bollywood', label: 'Bollywood 💫', query: 'bollywood pop romantic hits' },
@@ -32,14 +26,7 @@ const MOODS = [
   { id: 'happy', label: 'Happy ☀️', query: 'happy feel good uplifting pop' },
   { id: 'romantic', label: 'Romantic 💖', query: 'romantic love songs acoustic' },
   { id: 'heartbroken', label: 'Sad 🌧️', query: 'sad emotional acoustic' },
-  { id: 'sleepy', label: 'Sleepy 💤', query: 'sleep ambient delta waves' },
 ];
-
-const GENRE_LABELS: Record<string, string> = {
-  bollywood: 'Bollywood 💫', desi: 'Desi 🔥', punjabi: 'Punjabi 🎵',
-  sufi: 'Sufi 🕊️', devotional: 'Devotional 🛕', lofi: 'Lo-Fi 🍃', electronic: 'Electronic ⚡',
-  rock: 'Rock 🎸', acoustic: 'Acoustic 🎻', pop: 'Pop ✨',
-};
 
 const getGreeting = () => {
   const h = new Date().getHours();
@@ -48,28 +35,9 @@ const getGreeting = () => {
 
 export function HomePage() {
   const [selectedMood, setSelectedMood] = useState(MOODS[0]);
-  const [customQuery, setCustomQuery] = useState(MOODS[0].query);
   const [userInput, setUserInput] = useState('');
   const [greeting] = useState(getGreeting);
-  const [hasManuallyChangedMood, setHasManuallyChangedMood] = useState(false);
-
-  const weather = useWeatherContext();
-
-  // Weather-based auto-mood
-  useEffect(() => {
-    if (weather.isLoading || weather.error || hasManuallyChangedMood) return;
-
-    let suggestedMood = MOODS[0];
-    const hour = new Date().getHours();
-
-    if (weather.isRaining) suggestedMood = MOODS.find(m => m.id === 'chill') || MOODS[0];
-    else if (weather.isSunny) suggestedMood = MOODS.find(m => m.id === 'happy') || MOODS[0];
-    else if (hour >= 22 || hour <= 4) suggestedMood = MOODS.find(m => m.id === 'latenight') || MOODS[0];
-    else if (hour >= 5 && hour <= 9) suggestedMood = MOODS.find(m => m.id === 'focus') || MOODS[0];
-
-    setSelectedMood(suggestedMood);
-    setCustomQuery(suggestedMood.query);
-  }, [weather.isLoading, weather.error, hasManuallyChangedMood]);
+  const [showMore, setShowMore] = useState(false);
 
   const openChat = useUIStore(s => s.openChat);
   const playTrack = usePlayerStore(s => s.playTrack);
@@ -77,157 +45,37 @@ export function HomePage() {
   const currentTrack = usePlayerStore(s => s.currentTrack);
   const recordListenSession = useGamificationStore(s => s.recordListenSession);
   const user = useAuthStore(s => s.user);
-
-  // Taste profile
   const topGenres = useTasteStore(s => s.topGenres);
-  const recentArtists = useTasteStore(s => s.recentArtists);
   const lovedIds = useTasteStore(s => s.lovedIds);
 
-  const isPersonalized = topGenres.length > 0 || recentArtists.length > 0;
+  const quickPicks = useMemo(() => history.filter(t => t?.videoId).slice(0, 10), [history]);
 
-  // Quick picks from history - ensure tracks are valid and playable
-  const quickPicks = useMemo(() => history.filter(t => t && t.videoId).slice(0, 12), [history]);
-
-  // "For You" — seeded from top genre
-  const forYouQuery = useMemo(() => {
-    if (topGenres[0] === 'bollywood') return 'bollywood pop romantic hits';
-    if (topGenres[0] === 'desi' || topGenres[0] === 'punjabi') return 'desi hip hop punjabi swag';
-    if (topGenres[0] === 'sufi') return 'sufi ghazal peaceful lo-fi';
-    if (topGenres[0] === 'devotional') return 'bhakti bhajan devotional peaceful';
-    if (topGenres[0] === 'lofi') return 'lofi chill relax aesthetic';
-    if (topGenres[0] === 'rock') return 'rock alternative best hits';
-    if (topGenres[0] === 'electronic') return 'high energy upbeat edm hits';
-    return customQuery;
-  }, [topGenres, customQuery]);
-
-  const recentArtist = recentArtists[0] ?? (history[0]?.artist ?? null);
-  const artistDisplayName = recentArtist
-    ? recentArtist.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-    : null;
-
-  const nowVibeQuery = useMemo(() => {
-    if (!currentTrack) return null;
-    return buildSearchQuery(currentTrack);
-  }, [currentTrack?.videoId]);
-
-  const { ref: loadMoreRef, isInView: shouldLoadMore } = useInView({ rootMargin: '600px' });
-
-  // Immediate Searches
-  const { data: nowVibeTracks, isLoading: isNowVibeLoading } = useSearch(nowVibeQuery ?? '');
-  const { data: forYouTracks, isLoading: isForYouLoading } = useSearch(isPersonalized ? forYouQuery : '');
-  const { data: moodTracks, isLoading: isMoodLoading } = useSearch(customQuery);
-  const { data: artistTracks, isLoading: isArtistLoading } = useSearch(recentArtist ? `${recentArtist} top songs` : '');
-  
-  // Podcasts & Artists
-  const { data: podcasts, isLoading: isPodcastsLoading } = useSearch('top trending hindi english podcasts', shouldLoadMore);
-
-  // Lazy Searches
-  const { data: tseriesTracks, isLoading: isTseriesLoading } = useSearch('TSERIES_LATEST', shouldLoadMore);
-  const { data: bollywoodTracks, isLoading: isBollyLoading } = useSearch('bollywood pop romantic hits', shouldLoadMore);
-  const { data: desiTracks, isLoading: isDesiLoading } = useSearch('desi hip hop punjabi swag', shouldLoadMore);
-  const { data: sufiTracks, isLoading: isSufiLoading } = useSearch('sufi ghazal peaceful lo-fi', shouldLoadMore);
-  const { data: chillTracks, isLoading: isChillLoading } = useSearch('lofi chill relax aesthetic', shouldLoadMore);
-  const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending(shouldLoadMore);
-  const { data: topArtistsSearch, isLoading: isTopArtistsLoading } = useSearch('top trending hit artists singers', shouldLoadMore);
-
+  // ── PHASE 1: Only 3 API calls on mount (fast first render) ──
+  const { data: moodTracks, isLoading: isMoodLoading } = useSearch(selectedMood.query);
+  const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending();
   const { data: oracleData, isLoading: isOracleLoading } = useBeastOracle();
-  const moodSessionCounts = useGamificationStore(s => s.moodSessionCounts);
 
-  const rankedOracleVibes = useMemo(() => {
-    if (!oracleData?.oracle) return [];
-    return rankOracleVibes(oracleData.oracle, {
-      weatherTemp: weather.temp,
-      isSunny: weather.isSunny,
-      isRaining: weather.isRaining,
-      hourOfDay: new Date().getHours(),
-      moodSessionCounts
-    });
-  }, [oracleData, weather.temp, weather.isSunny, weather.isRaining, moodSessionCounts]);
+  // ── PHASE 2: Load more only after user scrolls or waits ──
+  const { data: bollywoodTracks, isLoading: isBollyLoading } = useSearch(
+    'bollywood pop romantic hits', showMore
+  );
+  const { data: desiTracks, isLoading: isDesiLoading } = useSearch(
+    'desi hip hop punjabi swag', showMore
+  );
+  const { data: chillTracks } = useSearch('lofi chill relax aesthetic', showMore);
+  const { data: currentTrackMore } = useSearch(
+    currentTrack ? `${currentTrack.artist} ${currentTrack.title}` : '', showMore && !!currentTrack
+  );
 
-  // Extract recommended artists
-  const recommendedArtists = useMemo(() => {
-    const seen = new Set<string>();
-    const artists: Artist[] = [];
-    
-    // Add explicit artists from search API (these usually have real artist thumbnails)
-    const addArtists = (list?: Artist[]) => {
-      list?.forEach(a => {
-        if (a.artistId && !seen.has(a.artistId)) {
-          seen.add(a.artistId);
-          artists.push(a);
-        }
-      });
-    };
-    
-    addArtists(forYouTracks?.artists);
-    addArtists(moodTracks?.artists);
-    addArtists(nowVibeTracks?.artists);
-    addArtists(artistTracks?.artists);
-    
-    // Extract artists from tracks (since Search API often only returns 1-2 artists)
-    // We intentionally do NOT use the track's albumArt as the thumbnail anymore, 
-    // because it looks like a song image squished into a circle.
-    const extractFromTracks = (data?: Track[] | { songs: Track[] }) => {
-      const list = Array.isArray(data) ? data : (data?.songs || []);
-      list.forEach(t => {
-        if (t.artistId && t.artist && t.artist !== 'Unknown' && !seen.has(t.artistId)) {
-          seen.add(t.artistId);
-          artists.push({
-            artistId: t.artistId,
-            name: t.artist,
-            thumbnails: [] // Empty array triggers fallback
-          });
-        }
-      });
-    };
+  // Trigger phase 2 after 3 seconds (smooth UX, not immediate load)
+  useEffect(() => {
+    const t = setTimeout(() => setShowMore(true), 3000);
+    return () => clearTimeout(t);
+  }, []);
 
-    extractFromTracks(trendingTracks);
-    extractFromTracks(forYouTracks);
-    extractFromTracks(moodTracks);
-    extractFromTracks(bollywoodTracks);
-    extractFromTracks(nowVibeTracks);
-    
-    return artists.slice(0, 15);
-  }, [forYouTracks, moodTracks, nowVibeTracks, artistTracks, trendingTracks, bollywoodTracks]);
-
-  // Deduplicate tracks
-  const deduplicatedLanes = useMemo(() => {
-    const seen = new Set<string>();
-    quickPicks.forEach(t => seen.add(t.videoId));
-
-    const dedupe = (data?: Track[] | { songs: Track[] }) => {
-      if (!data) return undefined;
-      const tracks = Array.isArray(data) ? data : (data.songs || []);
-      if (!tracks || tracks.length === 0) return undefined;
-      
-      const unique = tracks.filter(t => !seen.has(t.videoId));
-      unique.forEach(t => seen.add(t.videoId));
-      return unique;
-    };
-
-    return {
-      nowVibe: dedupe(nowVibeTracks),
-      forYou: dedupe(forYouTracks),
-      oracle: dedupe(moodTracks),
-      artist: dedupe(artistTracks),
-      podcasts: dedupe(podcasts),
-      tseries: dedupe(tseriesTracks),
-      bollywood: dedupe(bollywoodTracks),
-      desi: dedupe(desiTracks),
-      sufi: dedupe(sufiTracks),
-      chill: dedupe(chillTracks),
-      trending: dedupe(trendingTracks),
-    };
-  }, [
-    quickPicks, nowVibeTracks, forYouTracks, moodTracks, artistTracks,
-    podcasts, tseriesTracks, bollywoodTracks, desiTracks, sufiTracks, chillTracks, trendingTracks
-  ]);
-
-  const handleMoodClick = (mood: typeof MOODS[0]) => {
+  const handleMoodClick = useCallback((mood: typeof MOODS[0]) => {
     setSelectedMood(mood);
-    setCustomQuery(mood.query);
-    setHasManuallyChangedMood(true);
-  };
+  }, []);
 
   const handleChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -236,466 +84,273 @@ export function HomePage() {
     setUserInput('');
   };
 
-  const handlePlayTrack = (track: Track, list: Track[] = []) => {
+  const handlePlay = useCallback((track: Track, list: Track[] = []) => {
     playTrack(track, list.length > 0 ? list : [track]);
     recordListenSession(0, selectedMood.id, list.length);
+  }, [playTrack, recordListenSession, selectedMood.id]);
+
+  const toTracks = (data: any): Track[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    return data.songs || [];
   };
 
+  // Deduplicate all visible tracks
+  const seen = useMemo(() => {
+    const s = new Set<string>();
+    quickPicks.forEach(t => s.add(t.videoId));
+    return s;
+  }, [quickPicks]);
+
+  const oraclePlaylists = oracleData?.oracle?.slice(0, 3) ?? [];
+
   return (
-    <div className="w-full min-h-full pb-32 flex flex-col bg-[hsl(var(--surface-base))] overflow-x-hidden pt-safe relative">
+    <div className="w-full min-h-full pb-32 flex flex-col bg-[hsl(var(--surface-base))] overflow-x-hidden">
       <Helmet>
         <title>Pandoos | Where Pandas Vibe</title>
       </Helmet>
 
-      {/* Alive Aurora Background — RESTORED for emotional connection */}
-      <div className="absolute top-0 left-0 w-full h-[600px] mood-bg -z-10 pointer-events-none" />
-
-      {/* ── HEADER (Floating Widget) ── */}
-      <div className="sticky top-6 z-50 w-full max-w-7xl px-4 md:px-8 flex items-start justify-between mb-6 pointer-events-none">
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="pointer-events-auto bg-[#111]/80 backdrop-blur-2xl border border-white/10 px-6 py-4 rounded-[2rem] shadow-2xl flex flex-col items-start transition-all hover:bg-[#111]/90"
-        >
-          <h1 className="text-lg md:text-xl font-serif font-black tracking-tight text-white drop-shadow-lg flex items-center flex-wrap gap-2">
-            {greeting}{user ? <span className="text-brand-primary">, {user.username}</span> : ''}
-            <span className="inline-block animate-[wave_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
+      {/* ── HEADER ── */}
+      <div className="px-4 pt-5 pb-3 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-black text-white flex items-center gap-2">
+            {greeting}{user && <span className="text-brand-primary">, {user.username.split(' ')[0]}</span>}
+            <span>👋</span>
           </h1>
-          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-            {isPersonalized && (
-              <p className="text-white/60 text-[11px] font-medium tracking-wide flex items-center gap-1 uppercase">
-                <Sparkles size={10} className="text-brand-primary" />
-                Personalized for your taste
-              </p>
-            )}
-            {!weather.isLoading && weather.temp !== null && (
-              <span className="text-[10px] font-bold bg-white/5 text-white/80 px-2 py-0.5 rounded-md border border-white/10 flex items-center gap-1 shadow-inner">
-                {weather.isSunny ? '☀️' : weather.isRaining ? '🌧️' : '☁️'} {Math.round(weather.temp)}°C
-              </span>
-            )}
-          </div>
-        </motion.div>
+          <p className="text-white/40 text-xs mt-0.5">
+            {topGenres.length > 0 ? '✨ Personalized for your taste' : 'What are we feeling today?'}
+          </p>
+        </div>
+        <div
+          onClick={() => openChat()}
+          className="w-14 h-14 rounded-full bg-white/5 border border-white/10 flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
+        >
+          <PandaMascot size={40} emotion={selectedMood.id} />
+        </div>
       </div>
 
-      {/* ── HERO (Emotional Centerpiece) ── */}
-      <section className="relative w-full px-4 md:px-8 mt-2 mb-8 flex flex-col items-center z-10">
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => openChat()}
-          className="relative w-32 h-32 md:w-40 md:h-40 rounded-full glass-mood border border-white/20 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.15)] mb-6 cursor-pointer group"
-        >
-          <PandaMascot size={110} emotion={selectedMood.id} />
-          {/* Subtle tooltip */}
-          <div className="absolute -top-3 -right-2 bg-brand-primary text-white text-xs font-bold px-3 py-1.5 rounded-2xl rounded-bl-sm opacity-0 group-hover:opacity-100 transition-opacity shadow-glow-sm pointer-events-none transform -rotate-6">
-            Talk to me! 💬
-          </div>
-        </motion.div>
-
-        <h2 className="text-2xl md:text-3xl font-display font-black tracking-tight text-white mb-6 text-center drop-shadow-lg">
-          Where are we traveling today?
-        </h2>
-        
-        {/* Compact Search Bar */}
-        <form onSubmit={handleChatSubmit} className="relative w-full max-w-lg mb-6">
+      {/* ── SEARCH BAR ── */}
+      <div className="px-4 mb-4">
+        <form onSubmit={handleChatSubmit} className="relative">
           <input
             type="text"
             value={userInput}
             onChange={e => setUserInput(e.target.value)}
             placeholder="Search or ask the Panda..."
-            className="w-full bg-black/40 text-white placeholder-white/40 px-5 py-3.5 rounded-full border border-white/10 focus:outline-none focus:border-brand-primary focus:bg-black/60 text-sm backdrop-blur-xl transition-all shadow-inner"
+            className="w-full bg-white/8 text-white placeholder-white/30 px-5 py-3.5 rounded-2xl border border-white/10 focus:outline-none focus:border-brand-primary text-sm transition-all"
           />
-          <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 p-2 w-8 h-8 bg-brand-primary text-white rounded-full flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-glow-sm">
-            <Sparkles size={14} />
+          <button
+            type="submit"
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 w-9 h-9 bg-brand-primary text-white rounded-xl flex items-center justify-center active:scale-95 transition-transform"
+          >
+            <Sparkles size={15} />
           </button>
         </form>
+      </div>
 
-        {/* Dense Mood Chips */}
-        <div className="w-full max-w-3xl">
-          <div className="flex overflow-x-auto gap-2 pb-2 scroll-container snap-x -mx-4 px-4 md:mx-0 md:px-0">
-            {MOODS.map(mood => (
-              <button
-                key={mood.id}
-                onClick={() => handleMoodClick(mood)}
-                className={`shrink-0 snap-start px-4 py-2 rounded-full text-xs font-bold transition-all border ${
-                  selectedMood.id === mood.id
-                    ? 'bg-white text-black border-white shadow-glow-sm scale-105'
-                    : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                {mood.label}
-              </button>
-            ))}
-          </div>
+      {/* ── MOOD CHIPS ── */}
+      <div className="px-4 mb-5">
+        <div className="flex overflow-x-auto gap-2 pb-1 scroll-container">
+          {MOODS.map(mood => (
+            <button
+              key={mood.id}
+              onClick={() => handleMoodClick(mood)}
+              className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-all active:scale-95 ${
+                selectedMood.id === mood.id
+                  ? 'bg-white text-black border-white'
+                  : 'bg-white/5 text-white/70 border-white/10'
+              }`}
+            >
+              {mood.label}
+            </button>
+          ))}
         </div>
-      </section>
+      </div>
 
-      {/* ── DENSE CONTENT SECTIONS ── */}
-      <div className="w-full flex flex-col gap-8 md:gap-10 mt-2 z-10">
+      {/* ── CONTENT SECTIONS ── */}
+      <div className="flex flex-col gap-7">
 
-        {/* ORACLE — mood-based (MOVED TO TOP PER USER REQUEST) */}
-        <ContentRow
-          title={selectedMood.label.split(' ')[0] + " Mix"}
-          subtitle="Portals aligned to your current vibe."
-          gradient="from-indigo-600 to-purple-700"
-          emotion={selectedMood.id}
+        {/* JUMP BACK IN */}
+        {quickPicks.length > 0 && (
+          <TrackRow
+            title="Jump Back In"
+            icon={Clock}
+            tracks={quickPicks}
+            isLoading={false}
+            onPlay={handlePlay}
+            lovedIds={lovedIds}
+          />
+        )}
+
+        {/* MOOD MIX — always first, 1 of our 3 initial calls */}
+        <TrackRow
+          title={`${selectedMood.label.split(' ')[0]} Mix`}
           icon={Sparkles}
-          tracks={deduplicatedLanes.oracle}
+          tracks={toTracks(moodTracks)}
           isLoading={isMoodLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-          expandMoodId={selectedMood.id}
-        />
-
-        {/* MEMORY LANE — history */}
-        <ContentRow
-          title="Jump Back In"
-          gradient="from-slate-600 to-slate-800"
-          emotion="chill"
-          icon={Clock}
-          tracks={quickPicks}
-          isLoading={false}
-          onPlay={handlePlayTrack}
+          onPlay={handlePlay}
           lovedIds={lovedIds}
         />
 
-        {/* NOW VIBE */}
-        {currentTrack && deduplicatedLanes.nowVibe && deduplicatedLanes.nowVibe.length > 0 && (
-          <ContentRow
-            title="Because You're Listening"
-            subtitle={`More like "${currentTrack.title.slice(0, 30)}…"`}
-            gradient="from-violet-600 to-fuchsia-700"
-            emotion={selectedMood.id}
-            icon={Radio}
-            tracks={deduplicatedLanes.nowVibe}
-            isLoading={isNowVibeLoading}
-            onPlay={handlePlayTrack}
-            lovedIds={lovedIds}
-            highlight
-          />
-        )}
-
-        {/* FOR YOU */}
-        {isPersonalized && (
-          <ContentRow
-            title="Made For You"
-            subtitle={`Based on your love for ${topGenres.slice(0, 2).map(g => GENRE_LABELS[g] ?? g).join(' & ')}`}
-            gradient="from-brand-primary to-brand-secondary"
-            emotion={selectedMood.id}
-            icon={Heart}
-            tracks={deduplicatedLanes.forYou}
-            isLoading={isForYouLoading}
-            onPlay={handlePlayTrack}
-            lovedIds={lovedIds}
-          />
-        )}
-
-        {/* TOP ARTISTS CAROUSEL */}
-        {recommendedArtists.length > 0 && (
-          <ArtistCarousel artists={recommendedArtists} />
-        )}
-
-        {/* BECAUSE YOU LISTENED TO X */}
-        {artistDisplayName && deduplicatedLanes.artist && deduplicatedLanes.artist.length > 0 && (
-          <ContentRow
-            title={`Echoes of ${artistDisplayName}`}
-            subtitle="The timeline shifts based on your last adventure."
-            gradient="from-cyan-600 to-blue-700"
-            emotion="chill"
-            icon={Compass}
-            tracks={deduplicatedLanes.artist}
-            isLoading={isArtistLoading}
-            onPlay={handlePlayTrack}
-            lovedIds={lovedIds}
-          />
-        )}
-
-        {/* BEAST ORACLE SECTIONS */}
-        {rankedOracleVibes.map((vibe, idx) => (
-          <ContentRow
-            key={`oracle-${vibe.id}`}
+        {/* ORACLE vibes (AI) */}
+        {!isOracleLoading && oraclePlaylists.map((vibe, i) => (
+          <TrackRow
+            key={vibe.id}
             title={vibe.title}
-            subtitle={idx === 0 ? "🔮 Top AI Match curated for this exact moment." : undefined}
-            gradient={idx === 0 ? "from-emerald-600 to-teal-800" : idx === 1 ? "from-rose-600 to-orange-700" : "from-blue-600 to-indigo-800"}
-            emotion={vibe.id}
             icon={Brain}
-            tracks={vibe.songs.filter(s => !deduplicatedLanes.oracle?.some(t => t.videoId === s.videoId))}
-            isLoading={isOracleLoading}
-            onPlay={handlePlayTrack}
+            tracks={vibe.songs.slice(0, 15)}
+            isLoading={false}
+            onPlay={handlePlay}
             lovedIds={lovedIds}
           />
         ))}
 
-        {/* --- INVISIBLE SPACER FOR LAZY LOADING --- */}
-        <div ref={loadMoreRef} className="w-full h-[1px]" />
+        {isOracleLoading && (
+          <TrackRow title="AI Curated For Now" icon={Brain} tracks={[]} isLoading={true} onPlay={handlePlay} lovedIds={lovedIds} />
+        )}
 
-        {/* T-SERIES LATEST */}
-        <ContentRow
-          title="T-Series Exclusives"
-          gradient="from-red-600 to-red-900"
-          emotion="bollywood"
-          icon={Flame}
-          tracks={deduplicatedLanes.tseries}
-          isLoading={isTseriesLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-        />
-
-        {/* PODCASTS */}
-        <ContentRow
-          title="Trending Podcasts"
-          gradient="from-slate-700 to-slate-900"
-          emotion="focus"
-          icon={Mic2}
-          tracks={deduplicatedLanes.podcasts}
-          isLoading={isPodcastsLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-        />
-
-        {/* BOLLYWOOD */}
-        <ContentRow
-          title="The Bollywood Gala"
-          gradient="from-pink-600 to-amber-600"
-          emotion="bollywood"
-          icon={Sparkles}
-          tracks={deduplicatedLanes.bollywood}
-          isLoading={isBollyLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-          expandMoodId="bollywood"
-        />
-
-        {/* GLOBAL TRENDING */}
-        <ContentRow
-          title="Global Top Hits"
-          gradient="from-blue-600 to-sky-800"
-          emotion="energy"
-          icon={TrendingUp}
-          tracks={deduplicatedLanes.trending}
-          isLoading={isTrendingLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-        />
-        
-        {/* DESI */}
-        <ContentRow
-          title="The Desi Gully"
-          gradient="from-yellow-500 to-red-600"
-          emotion="desi"
-          icon={Zap}
-          tracks={deduplicatedLanes.desi}
-          isLoading={isDesiLoading}
-          onPlay={handlePlayTrack}
-          lovedIds={lovedIds}
-          expandMoodId="desi"
-        />
-
-      </div>
-
-      <PandaFooter />
-    </div>
-  );
-}
-
-// ─── Helper Components ─────────────────────────────────────────────────────────
-
-function PandaFooter() {
-  const isPlaying = usePlayerStore(s => s.isPlaying);
-  
-  return (
-    <div className="w-full flex flex-col items-center justify-center mt-12 mb-12 gap-3 opacity-95">
-      <motion.div
-        animate={isPlaying ? { y: [0, -10, 0] } : { y: [0, -4, 0] }}
-        transition={{
-          duration: isPlaying ? 0.6 : 3,
-          repeat: Infinity,
-          ease: 'easeInOut'
-        }}
-        className="w-16 h-16 rounded-full glass border border-white/10 flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.08)] relative mb-2"
-      >
-        <PandaMascot size={42} emotion="chill" />
-        {isPlaying && (
-          <motion.div 
-            className="absolute -inset-2 rounded-full border-2 border-[hsl(var(--color-primary))] opacity-50"
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+        {/* NOW PLAYING VIBE */}
+        {currentTrack && toTracks(currentTrackMore).length > 0 && (
+          <TrackRow
+            title="Because You're Listening"
+            icon={Radio}
+            tracks={toTracks(currentTrackMore)}
+            isLoading={false}
+            onPlay={handlePlay}
+            lovedIds={lovedIds}
           />
         )}
-      </motion.div>
-      
-      <motion.h3 
-        className="text-lg md:text-xl font-display font-bold italic tracking-wide px-4 text-center"
-        style={{
-          background: 'linear-gradient(135deg, #ffffff 30%, hsl(var(--color-primary)) 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          filter: 'drop-shadow(0 0 12px rgba(255,255,255,0.15))'
-        }}
-        animate={{ opacity: [0.85, 1, 0.85], scale: [0.99, 1.01, 0.99] }}
-        transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-      >
-        "Life is short, relax like a Panda and enjoy music"
-      </motion.h3>
 
-      <motion.div 
-        className="h-[2px] rounded-full mt-3"
-        style={{
-          width: '180px',
-          background: 'linear-gradient(90deg, transparent, hsl(var(--color-primary)), transparent)',
-          boxShadow: '0 0 16px hsl(var(--color-primary))'
-        }}
-        animate={{ opacity: [0.4, 0.9, 0.4], width: ['140px', '200px', '140px'] }}
-        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-      />
+        {/* GLOBAL TRENDING */}
+        <TrackRow
+          title="Global Top Hits"
+          icon={TrendingUp}
+          tracks={toTracks(trendingTracks)}
+          isLoading={isTrendingLoading}
+          onPlay={handlePlay}
+          lovedIds={lovedIds}
+        />
+
+        {/* PHASE 2: lazy loaded sections */}
+        {showMore && (
+          <>
+            <TrackRow
+              title="The Bollywood Gala"
+              icon={Flame}
+              tracks={toTracks(bollywoodTracks)}
+              isLoading={isBollyLoading}
+              onPlay={handlePlay}
+              lovedIds={lovedIds}
+            />
+            <TrackRow
+              title="The Desi Gully"
+              icon={Zap}
+              tracks={toTracks(desiTracks)}
+              isLoading={isDesiLoading}
+              onPlay={handlePlay}
+              lovedIds={lovedIds}
+            />
+            <TrackRow
+              title="Chill Zone"
+              icon={Moon}
+              tracks={toTracks(chillTracks)}
+              isLoading={false}
+              onPlay={handlePlay}
+              lovedIds={lovedIds}
+            />
+          </>
+        )}
+      </div>
+
+      {/* FOOTER */}
+      <div className="flex flex-col items-center justify-center mt-12 mb-16 gap-3 opacity-80 px-4">
+        <PandaMascot size={42} emotion="chill" />
+        <p className="text-base font-bold italic text-white/60 text-center">
+          "Life is short, relax like a Panda and enjoy music"
+        </p>
+      </div>
     </div>
   );
 }
 
+// ─── TrackRow — fast, no Framer Motion stagger on mobile ─────────────────────
 
-function ContentRow({ title, subtitle, gradient, emotion, icon: Icon, tracks, isLoading, onPlay, lovedIds = [], highlight, expandMoodId }: any) {
-  if (!isLoading && (!tracks || tracks.length === 0)) return null;
-
-  const PAGE_SIZE = 12;
-  const [page, setPage] = React.useState(1);
-  const visible = (tracks || []).slice(0, page * PAGE_SIZE);
-  const hasMore = visible.length < (tracks || []).length;
-
-  React.useEffect(() => { setPage(1); }, [expandMoodId, tracks]);
+function TrackRow({ title, icon: Icon, tracks, isLoading, onPlay, lovedIds }: {
+  title: string;
+  icon: any;
+  tracks: Track[];
+  isLoading: boolean;
+  onPlay: (t: Track, list: Track[]) => void;
+  lovedIds: string[];
+}) {
+  if (!isLoading && tracks.length === 0) return null;
 
   return (
-    <section className="relative w-full flex flex-col py-4 overflow-hidden">
-      {/* Emotional Gradient Flare */}
-      {gradient && (
-        <div className={`absolute top-0 right-0 w-3/4 h-full bg-gradient-to-l ${gradient} opacity-10 blur-[80px] -z-10 pointer-events-none`} />
-      )}
+    <section className="w-full">
+      <div className="px-4 mb-3 flex items-center gap-2">
+        <Icon size={16} className="text-white/60 shrink-0" />
+        <h2 className="text-base font-bold text-white tracking-tight">{title}</h2>
+      </div>
 
-      <div className="px-4 md:px-8 mb-4 flex items-center justify-between">
-        <div className="flex flex-col max-w-[75%]">
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="text-white/80" size={18} />}
-            <h2 className="text-xl md:text-2xl font-display font-bold text-white tracking-tight leading-tight">{title}</h2>
+      <div className="flex overflow-x-auto gap-3 pb-3 px-4 scroll-container">
+        {isLoading
+          ? [...Array(6)].map((_, i) => (
+            <div key={i} className="shrink-0 w-[130px]">
+              <div className="w-full aspect-square rounded-xl bg-white/5 animate-pulse mb-2" />
+              <div className="w-3/4 h-2.5 rounded bg-white/5 animate-pulse mb-1.5" />
+              <div className="w-1/2 h-2.5 rounded bg-white/5 animate-pulse" />
+            </div>
+          ))
+          : tracks.map((track) => (
+            <TrackCard
+              key={track.videoId}
+              track={track}
+              onPlay={() => onPlay(track, tracks)}
+              isLoved={lovedIds.includes(track.videoId)}
+            />
+          ))
+        }
+      </div>
+    </section>
+  );
+}
+
+// ─── TrackCard — pure CSS hover, NO framer motion on mobile ──────────────────
+
+const TrackCard = React.memo(function TrackCard({
+  track,
+  onPlay,
+  isLoved,
+}: {
+  track: Track;
+  onPlay: () => void;
+  isLoved: boolean;
+}) {
+  return (
+    <div
+      className="shrink-0 w-[130px] cursor-pointer group"
+      onClick={onPlay}
+    >
+      <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-2 bg-white/5 border border-white/5">
+        <TrackImage
+          videoId={track.videoId}
+          title={track.title}
+          className="w-full h-full object-cover"
+        />
+        {/* Play overlay — CSS only, no JS animation */}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-active:opacity-100 flex items-center justify-center transition-opacity">
+          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="black"><path d="M5 3v18l15-9L5 3z"/></svg>
           </div>
-          {subtitle && <p className="text-xs md:text-sm text-white/50 font-medium mt-1 leading-snug">{subtitle}</p>}
         </div>
-        
-        {emotion && (
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full glass border border-white/5 flex items-center justify-center shadow-lg shrink-0">
-            <PandaMascot size={28} emotion={emotion} />
+        {isLoved && (
+          <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center">
+            <Heart size={10} fill="white" className="text-white" />
           </div>
         )}
       </div>
-
-      <div className="w-full">
-        <div className="flex overflow-x-auto gap-3 md:gap-4 pb-4 snap-x snap-mandatory scroll-container px-4 md:px-8">
-          {isLoading
-            ? [...Array(6)].map((_, i) => (
-              <div key={i} className="shrink-0 snap-start w-[140px] md:w-[160px]">
-                <div className="w-full aspect-square rounded-xl bg-white/5 animate-pulse mb-3" />
-                <div className="w-3/4 h-3 rounded bg-white/5 animate-pulse mb-2" />
-                <div className="w-1/2 h-3 rounded bg-white/5 animate-pulse" />
-              </div>
-            ))
-            : (
-              <AnimatePresence mode="popLayout">
-                {visible.map((track: Track, i: number) => (
-                  <motion.div
-                    key={track.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: Math.min(i, 8) * 0.04 }}
-                    className="shrink-0 snap-start group cursor-pointer w-[140px] md:w-[160px]"
-                    onClick={() => onPlay(track, tracks)}
-                  >
-                    <div className="relative w-full rounded-xl overflow-hidden mb-2.5 shadow-md border border-white/5 aspect-square bg-[#0a0a0f]">
-                      <TrackImage
-                        videoId={track.videoId}
-                        title={track.title}
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg scale-90 group-hover:scale-100 transition-transform">
-                          <Play fill="black" size={20} className="ml-1 text-black" />
-                        </div>
-                      </div>
-                      {lovedIds.includes(track.videoId) && (
-                        <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-500/90 flex items-center justify-center">
-                          <Heart size={12} fill="white" className="text-white" />
-                        </div>
-                      )}
-                    </div>
-                    <h3 className={`text-sm font-bold leading-tight line-clamp-1 ${highlight ? 'text-brand-primary' : 'text-white'}`}>
-                      {track.title}
-                    </h3>
-                    <p className="text-xs text-white/50 line-clamp-1 mt-0.5">
-                      {track.artist}
-                    </p>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            )}
-
-          {!isLoading && hasMore && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="shrink-0 snap-start flex flex-col items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/5 cursor-pointer hover:bg-white/10 transition-all w-[140px] md:w-[160px] aspect-square"
-              onClick={() => setPage(p => p + 1)}
-            >
-              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">+</span>
-              </div>
-              <span className="text-sm text-white/50 font-semibold">More</span>
-            </motion.div>
-          )}
-        </div>
-      </div>
-    </section>
+      <p className="text-xs font-semibold text-white line-clamp-1">{track.title}</p>
+      <p className="text-[11px] text-white/40 line-clamp-1 mt-0.5">{track.artist}</p>
+    </div>
   );
-}
-
-function ArtistCarousel({ artists }: { artists: Artist[] }) {
-  const openArtist = useUIStore((s) => s.openArtist);
-
-  if (!artists || artists.length === 0) return null;
-
-  return (
-    <section className="w-full flex flex-col my-4">
-      <div className="px-4 md:px-8 mb-4 flex items-center gap-2">
-        <Users size={20} className="text-white/80" />
-        <h2 className="text-xl md:text-2xl font-display font-bold text-white tracking-tight">Top Artists</h2>
-      </div>
-
-      <div className="w-full">
-        <div className="flex overflow-x-auto gap-5 md:gap-6 pb-4 snap-x snap-mandatory scroll-container px-4 md:px-8">
-          {artists.map((artist, i) => {
-            const thumbUrl = artist.thumbnails?.[0]?.url;
-            return (
-            <motion.div
-              key={artist.artistId}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.05 }}
-              className="shrink-0 snap-start flex flex-col items-center cursor-pointer group w-28 md:w-32"
-              onClick={() => openArtist(artist.artistId)}
-            >
-              <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden mb-3 border-2 border-transparent group-hover:border-brand-primary transition-colors shadow-lg relative bg-[#0a0a0f]">
-                {thumbUrl ? (
-                  <img src={thumbUrl} alt={artist.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-primary to-brand-accent text-white font-display font-bold text-4xl shadow-inner group-hover:scale-110 transition-transform duration-500">
-                    {artist.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <span className="text-sm md:text-base font-bold text-white line-clamp-1 text-center group-hover:text-brand-primary transition-colors">{artist.name}</span>
-            </motion.div>
-          )})}
-        </div>
-      </div>
-    </section>
-  );
-}
+});
