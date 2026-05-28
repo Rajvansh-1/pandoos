@@ -6,6 +6,8 @@ import { useTasteStore } from '@/stores/useTasteStore';
 import { PROGRESS_INTERVAL_MS } from '@/utils/constants';
 import audioClock from '@/services/audioClock';
 import { getTrackBlob } from '@/services/offlineDB';
+import { App } from '@capacitor/app';
+import { getApiUrl } from '@/utils/api';
 
 /**
  * useAudioEngine — Dual Engine Architecture (YouTube IFrame + HTML5 Audio)
@@ -346,7 +348,7 @@ export function useAudioEngine() {
         activeEngineRef.current = 'local';
         const a = audioRef.current;
         if (a) {
-          a.src = `/api/download?videoId=${current.videoId}`;
+          a.src = getApiUrl(`/api/download?videoId=${current.videoId}`);
           a.load();
           if (state.isPlaying) a.play().catch(console.error);
         }
@@ -365,7 +367,31 @@ export function useAudioEngine() {
        _activeDelegate.onReady({ target: _ytPlayer } as YT.PlayerEvent);
     }
 
+    let appStateListener: any = null;
+    if (typeof window !== 'undefined' && (window as any).Capacitor?.isNative) {
+      App.addListener('appStateChange', ({ isActive }) => {
+        const state = usePlayerStore.getState();
+        if (!isActive && activeEngineRef.current === 'youtube' && state.isPlaying) {
+          const current = state.currentTrack;
+          if (current) {
+             console.log('[AudioEngine] App backgrounded, switching to local audio proxy');
+             activeEngineRef.current = 'local';
+             if (_ytReady && _ytPlayer) _ytPlayer.pauseVideo();
+             if (audio) {
+                const targetTime = _ytPlayer ? _ytPlayer.getCurrentTime() : 0;
+                audio.src = getApiUrl(`/api/download?videoId=${current.videoId}`);
+                audio.currentTime = targetTime;
+                audio.play().catch(console.error);
+             }
+          }
+        }
+      }).then((listener) => {
+        appStateListener = listener;
+      });
+    }
+
     return () => {
+      if (appStateListener) appStateListener.remove();
       _activeDelegate = null;
       fnsRef.current.stopProgressTracker();
       fnsRef.current.stopTimeSync();

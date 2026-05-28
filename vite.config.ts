@@ -86,6 +86,13 @@ const copyPreloadPlugin = () => ({
 // https://vitejs.dev/config/
 // Path aliases are critical for Capacitor: avoids "../../../" hell in deep components
 // and ensures the same import paths work when the app is bundled for native.
+
+// When VITE_IS_NATIVE=true, we're building for Android/iOS.
+// The PWA service worker MUST be disabled on native — it intercepts all network
+// requests inside the Capacitor WebView (including /api/*), returning cached HTML
+// instead of making real HTTP requests to the backend.
+const IS_NATIVE = process.env.VITE_IS_NATIVE === 'true';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -113,7 +120,11 @@ export default defineConfig({
     ]),
     copyPreloadPlugin(),
     renderer(),
-    VitePWA({
+    // CRITICAL: DO NOT register Service Worker for native Capacitor builds.
+    // The SW runs inside the Capacitor WebView at https://localhost and intercepts
+    // ALL fetch requests (including /api/*), returning cached HTML instead of real data.
+    // This is the #1 cause of the "stuck on loading screen" bug on physical devices.
+    ...(!IS_NATIVE ? [VitePWA({
       registerType: 'autoUpdate',
       // workbox pre-caches the app shell so first load is instant offline
       workbox: {
@@ -145,15 +156,6 @@ export default defineConfig({
               cacheableResponse: { statuses: [0, 200] }
             }
           },
-          {
-            urlPattern: /\/api\/(search|trending).*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'pandoos-api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 }, // 1 day
-              networkTimeoutSeconds: 3, // fallback to cache quickly if network is slow
-            }
-          }
         ],
       },
       manifest: {
@@ -171,7 +173,7 @@ export default defineConfig({
           { src: '/logo.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-    }),
+    })] : []),
   ],
   resolve: {
     alias: {

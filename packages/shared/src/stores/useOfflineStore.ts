@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import type { Track } from '@/types/track';
 import { saveTrackBlob, deleteTrackBlob, getAllOfflineTracks, isTrackDownloaded } from '@/services/offlineDB';
+import { getApiUrl } from '@/utils/api';
 
 interface OfflineState {
   downloadedTracks: Track[];
@@ -40,7 +41,7 @@ export const useOfflineStore = create<OfflineState & OfflineActions>()(
       });
 
       try {
-        const res = await fetch(`/api/download?videoId=${track.videoId}`);
+        const res = await fetch(getApiUrl(`/api/download?videoId=${track.videoId}`));
         if (!res.ok) throw new Error('Download failed');
 
         const blob = await res.blob();

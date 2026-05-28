@@ -7,16 +7,26 @@ import { supabase } from '@/services/supabase';
 import type { Track } from '@/types/track';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-function getDeviceName(): string {
-  const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-  if (isElectron) return 'Desktop App';
-  const ua = navigator.userAgent.toLowerCase();
-  if (/android/.test(ua)) return 'Android';
-  if (/ipad|iphone|ipod/.test(ua)) return 'iPhone/iPad';
-  return 'Web';
-}
+import { Device } from '@capacitor/device';
 
-const DEVICE_NAME = getDeviceName();
+let DEVICE_NAME = 'Web';
+
+async function initDeviceName() {
+  if (typeof window !== 'undefined' && (window as any).Capacitor?.isNative) {
+    const info = await Device.getInfo();
+    DEVICE_NAME = `${info.operatingSystem === 'ios' ? 'iPhone/iPad' : 'Android'} (App)`;
+  } else {
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
+    if (isElectron) {
+      DEVICE_NAME = 'Desktop App';
+    } else {
+      const ua = navigator.userAgent.toLowerCase();
+      if (/android/.test(ua)) DEVICE_NAME = 'Android';
+      else if (/ipad|iphone|ipod/.test(ua)) DEVICE_NAME = 'iPhone/iPad';
+    }
+  }
+}
+initDeviceName();
 let writeInterval: ReturnType<typeof setInterval> | null = null;
 let realtimeChannel: RealtimeChannel | null = null;
 

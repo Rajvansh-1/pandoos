@@ -10,6 +10,7 @@ import { useRecommendEngine } from '@/hooks/useRecommendEngine';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { BadgeRevealModal } from '@/features/profile/BadgeRevealModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useCapacitorNative } from '@/hooks/useCapacitorNative';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 import { useOfflineStore } from '@/stores/useOfflineStore';
@@ -60,6 +61,7 @@ export function App() {
   const initOfflineStore = useOfflineStore((state) => state.initOfflineStore);
   const activeTheme = useThemeStore((state) => state.activeTheme);
   const queryClient = useQueryClient();
+  useCapacitorNative();
 
   // Player state for nowPlaying sync
   const currentTrack = usePlayerStore((state) => state.currentTrack);

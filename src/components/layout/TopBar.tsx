@@ -60,11 +60,11 @@ export function TopBar() {
             <Settings size={20} className="text-white/80 group-hover:text-white transition-colors" />
           </motion.button>
 
-          {/* Show "Sign In" button if not logged in */}
+          {/* Show "Sign In" button if not logged in (Hidden on mobile since BottomNav has it) */}
           {!user && (
             <button
               onClick={() => navigate('/login')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-primary/20 border border-brand-primary/30 text-brand-primary text-xs font-bold hover:bg-brand-primary/30 transition-colors"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand-primary/20 border border-brand-primary/30 text-brand-primary text-xs font-bold hover:bg-brand-primary/30 transition-colors"
             >
               <User size={12} />
               Sign In

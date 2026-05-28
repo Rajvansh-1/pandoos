@@ -24,6 +24,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Pandoos caught an error:', error, errorInfo);
+    // Ensure the preloader doesn't cover the error UI
+    const loader = document.getElementById('global-preloader');
+    if (loader) loader.remove();
   }
 
   private handleReset = () => {

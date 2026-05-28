@@ -25,22 +25,18 @@ if (loader) {
   loader.remove();
 }
 
+// Ensure Capacitor apps never use a cached Service Worker which breaks updates
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator && (window as any).Capacitor?.isNative) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (let registration of registrations) {
+      registration.unregister();
+    }
+  }).catch(err => console.error('Service Worker unregistration failed:', err));
+}
+
 // Electron desktop uses file:// protocol, which breaks BrowserRouter.
 // We must use HashRouter for the desktop app, and BrowserRouter for the web app.
 const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
-
-// If running in Electron, intercept all /api/* fetch requests and route them to the local API server
-if (window.location.protocol === 'file:' && (window as any).electronAPI?.getApiUrl) {
-  const originalFetch = window.fetch;
-  const apiUrl = (window as any).electronAPI.getApiUrl();
-  window.fetch = async (input, init) => {
-    let url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input instanceof Request ? input.url : '';
-    if (url.startsWith('/api/')) {
-      input = `${apiUrl}${url}`;
-    }
-    return originalFetch(input, init);
-  };
-}
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

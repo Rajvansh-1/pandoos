@@ -1,5 +1,9 @@
 import type { Track, YouTubeSearchItem, SearchResult, Artist } from '@/types/track';
+import { LRUCache } from 'lru-cache';
+import { getApiUrl } from '@/utils/api';
 import { YT_THUMB } from '@/utils/constants';
+
+const searchCache = new LRUCache<string, SearchResult>({ max: 50, ttl: 1000 * 60 * 60 });
 
 // Our new APIs return mapped `YouTubeSearchItem` structure
 function mapSearchItemToTrack(item: YouTubeSearchItem): Track {
@@ -32,7 +36,7 @@ export async function searchTracks(query: string): Promise<SearchResult> {
   const normalizedQuery = query.toLowerCase().trim();
   
   try {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(normalizedQuery)}`);
+    const res = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(normalizedQuery)}`));
     if (!res.ok) throw new Error('Search API failed');
     
     const data = (await res.json()) as { items: YouTubeSearchItem[], artists: Artist[] };
@@ -50,7 +54,7 @@ export async function searchTracks(query: string): Promise<SearchResult> {
 
 export async function getTrendingTracks(): Promise<Track[]> {
   try {
-    const res = await fetch('/api/trending');
+    const res = await fetch(getApiUrl('/api/trending'));
     if (!res.ok) throw new Error('Trending API failed');
     
     const data = (await res.json()) as { items: YouTubeSearchItem[] };
@@ -65,7 +69,7 @@ export async function getTrendingTracks(): Promise<Track[]> {
 
 export async function getRadioTracks(videoId: string): Promise<Track[]> {
   try {
-    const res = await fetch(`/api/radio?videoId=${videoId}`);
+    const res = await fetch(getApiUrl(`/api/radio?videoId=${videoId}`));
     if (!res.ok) {
       const errorData = await res.json().catch(() => null);
       throw new Error(`Radio API failed: ${errorData?.error || res.statusText}`);

@@ -1,3 +1,4 @@
+import { getApiUrl } from '@/utils/api';
 /**
  * lyrics.ts — Production-grade lyrics fetching service.
  *
@@ -186,7 +187,7 @@ export async function fetchLyrics(
       if (exactArtist) qs.set('artist_name', exactArtist);
       qs.set('videoId', videoId);
       
-      const res = await fetch(`/api/lyrics?${qs.toString()}`);
+      const res = await fetch(getApiUrl(`/api/lyrics?${qs.toString()}`));
       if (res.ok) {
         const data = await res.json();
         if (data.plainLyrics || data.syncedLyrics) {

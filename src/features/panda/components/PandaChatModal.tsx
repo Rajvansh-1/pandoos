@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { getApiUrl } from '@/utils/api';
 import { Sparkles, Send, X, Play, Trash2, User as UserIcon } from 'lucide-react';
 import { PandaMascot } from './PandaMascot';
 import { searchTracks } from '@/services/youtube';
@@ -47,7 +48,7 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
     setIsTyping(true);
 
     try {
-      const chatRes = await fetch('/api/chat', {
+      const chatRes = await fetch(getApiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),

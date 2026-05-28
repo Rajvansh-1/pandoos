@@ -1,3 +1,4 @@
+import { getApiUrl } from '@/utils/api';
 interface ExtractedColors {
   primary: string;    // HSL without hsl() wrapper, e.g. "270 80% 68%"
   secondary: string;
@@ -159,7 +160,7 @@ export async function extractColors(imageUrl: string, videoId: string): Promise<
   try {
     // Proxy the image request through our backend to bypass strict YouTube CORS
     // headers that prevent <canvas> from reading the pixel data.
-    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+    const proxyUrl = getApiUrl(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
     const pixels = await sampleImageColors(proxyUrl);
     
     if (pixels.length < 5) return getFallbackColor(videoId);

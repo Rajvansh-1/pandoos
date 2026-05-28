@@ -75,6 +75,11 @@
     -webkit-tap-highlight-color: transparent;
     /* Smooth scrolling for all scrollable elements */
     scroll-behavior: smooth;
+    /* Native feel resets */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    overscroll-behavior-y: none;
   }
 
   body {

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pandoos</string>
+    <string name="title_activity_main">Pandoos</string>
+    <string name="package_name">com.pandoos.music</string>
+    <string name="custom_url_scheme">com.pandoos.music</string>
+</resources>
