@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import ytmusicApi from 'ytmusic-api';
+import { setCors } from './_cors';
 
 // Handle potential ESM interop issues where CJS default export is nested under .default
 const YTMusic = (ytmusicApi as any).default || ytmusicApi;
@@ -7,6 +8,8 @@ const ytmusic = new YTMusic();
 let initialized = false;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (setCors(req, res)) return;
+
   const videoId = (req.query.videoId || req.query.id) as string;
 
   if (!videoId) {

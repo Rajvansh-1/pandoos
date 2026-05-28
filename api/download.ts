@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import ytdlCore from '@distube/ytdl-core';
+import { setCors } from './_cors';
 
 // Handle potential ESM interop issues where CJS default export is nested under .default
 const ytdl = (ytdlCore as any).default || ytdlCore;
@@ -11,6 +12,8 @@ export const config = {
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (setCors(req, res)) return;
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
