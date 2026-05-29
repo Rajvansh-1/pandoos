@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Search, Library } from 'lucide-react';
+import { Home, Search, Library, Download } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useGamificationStore, computeXP, getRankForXP } from '@/stores/useGamificationStore';
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/search', icon: Search, label: 'Search' },
   { path: '/library', icon: Library, label: 'Library' },
+  { path: '/downloads', icon: Download, label: 'App' },
 ];
 
 export function BottomNav() {

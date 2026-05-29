@@ -27,6 +27,7 @@ import { VolumeIndicator } from '@/components/ui/VolumeIndicator';
 import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow';
 import { ArtistOverlay } from '@/features/artist/components/ArtistOverlay';
 import { AlbumOverlay } from '@/features/album/components/AlbumOverlay';
+import { DownloadPage } from '@/pages/DownloadPage';
 import { PWAInstallPrompt } from '@/components/pwa/PWAInstallPrompt';
 import { DeviceTransferBanner } from '@/features/player/components/DeviceTransferBanner';
 
@@ -146,6 +147,7 @@ export function App() {
             <Route path="/playlist/:id" element={<PlaylistPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/legal" element={<LegalPage />} />
+            <Route path="/downloads" element={<DownloadPage />} />
             <Route path="*" element={<ErrorPage />} />
           </Route>
         </Routes>

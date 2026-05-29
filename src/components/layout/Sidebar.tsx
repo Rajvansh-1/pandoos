@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Search, Library, LogIn, LogOut, Flame } from 'lucide-react';
+import { Home, Search, Library, LogIn, LogOut, Flame, Download } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useGamificationStore, computeXP, getRankForXP, getXPProgress } from '@/stores/useGamificationStore';
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/', icon: <Home size={20} />, label: 'Home' },
   { to: '/search', icon: <Search size={20} />, label: 'Explore' },
   { to: '/library', icon: <Library size={20} />, label: 'Library' },
+  { to: '/downloads', icon: <Download size={20} />, label: 'Get App' },
 ];
 
 export function Sidebar() {
