@@ -6,8 +6,11 @@ import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { AddToPlaylistModal } from '@/features/library/components/AddToPlaylistModal';
-import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
+import { useLikeTrack, useUnlikeTrack, useIsTrackLiked } from '@/features/library/hooks/useLibrary';
 import { useOfflineStore } from '@/stores/useOfflineStore';
+import { PlaybackSpeedControl } from './PlaybackSpeedControl';
+import { EqualizerModal } from './EqualizerModal';
+import { SlidersHorizontal } from 'lucide-react';
 
 interface PlayerOptionsModalProps {
   isOpen: boolean;
@@ -31,6 +34,7 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
 
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [isEqualizerModalOpen, setIsEqualizerModalOpen] = useState(false);
 
   if (!currentTrack) return null;
 
@@ -151,6 +155,19 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
                         </span>
                       </button>
                     )}
+                    
+                    {/* Equalizer */}
+                    <button 
+                      onClick={() => setIsEqualizerModalOpen(true)}
+                      className="w-full flex items-center justify-between px-4 py-3.5 rounded-2xl hover:bg-white/[0.04] active:scale-[0.98] transition-all"
+                    >
+                      <div className="flex items-center gap-4">
+                        <SlidersHorizontal size={24} className="text-white/60" />
+                        <span className="text-base font-medium text-white/80">
+                          Equalizer (Offline Only)
+                        </span>
+                      </div>
+                    </button>
 
                     {/* Download Button */}
                     <button 
@@ -191,6 +208,11 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
                         </span>
                       )}
                     </button>
+
+                    {/* Playback Speed Control */}
+                    <div className="px-4 py-2 mt-2 bg-white/[0.02] rounded-2xl border border-white/5">
+                      <PlaybackSpeedControl />
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -235,6 +257,11 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
           onClose(); // close options modal too
         }}
         track={currentTrack}
+      />
+      
+      <EqualizerModal
+        isOpen={isEqualizerModalOpen}
+        onClose={() => setIsEqualizerModalOpen(false)}
       />
     </>
   );

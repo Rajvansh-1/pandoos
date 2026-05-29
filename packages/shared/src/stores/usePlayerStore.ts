@@ -23,6 +23,8 @@ interface PlayerState {
   /** Volume 0–1. Persisted so user doesn't re-set on every launch. */
   volume: number;
   isMuted: boolean;
+  /** Playback speed multiplier (e.g. 1.0, 1.25, 2.0) */
+  playbackSpeed: number;
   /** Loop current track */
   isLooping: boolean;
   isShuffling: boolean;
@@ -62,6 +64,7 @@ interface PlayerActions {
   seekTo: (progress: number) => void;
   setVolume: (volume: number) => void;
   toggleMute: () => void;
+  setPlaybackSpeed: (speed: number) => void;
   toggleLoop: () => void;
   toggleShuffle: () => void;
   /** Add a track to the end of the current queue */
@@ -147,6 +150,7 @@ export const usePlayerStore = create<PlayerStore>()(
       isPlaying: false,
       volume: 0.8,
       isMuted: false,
+      playbackSpeed: 1,
       isLooping: false,
       isShuffling: false,
       progress: 0,
@@ -280,6 +284,10 @@ export const usePlayerStore = create<PlayerStore>()(
 
       toggleMute: () => {
         set((state) => { state.isMuted = !state.isMuted; });
+      },
+
+      setPlaybackSpeed: (speed) => {
+        set((state) => { state.playbackSpeed = speed; });
       },
 
       toggleLoop: () => {
@@ -417,6 +425,7 @@ export const usePlayerStore = create<PlayerStore>()(
       partialize: (state) => ({
         volume: state.volume,
         isMuted: state.isMuted,
+        playbackSpeed: state.playbackSpeed,
         isLooping: state.isLooping,
         isShuffling: state.isShuffling,
         history: state.history,

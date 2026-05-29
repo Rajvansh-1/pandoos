@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 import { PROGRESS_INTERVAL_MS } from '@/utils/constants';
 import audioClock from '@/services/audioClock';
 import { getTrackBlob } from '@/services/offlineDB';
@@ -85,6 +86,8 @@ function getOrCreateYTPlayer(
 
 export function useAudioEngine() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const filtersRef = useRef<BiquadFilterNode[]>([]);
   const activeEngineRef = useRef<'youtube' | 'local'>('youtube');
 
   const progressIntervalRef = useRef<number | null>(null);
@@ -97,9 +100,10 @@ export function useAudioEngine() {
 
   const seekVersion = usePlayerStore((state) => state.seekVersion);
   const currentTrack = usePlayerStore((state) => state.currentTrack);
-  const isPlaying = usePlayerStore((state) => state.isPlaying);
   const volume = usePlayerStore((state) => state.volume);
   const isMuted = usePlayerStore((state) => state.isMuted);
+  const playbackSpeed = usePlayerStore((state) => state.playbackSpeed);
+  const equalizer = useSettingsStore((state) => state.equalizer);
 
   // ── Helper functions in a ref so YT closures are never stale ─────────────
   const fnsRef = useRef<{
@@ -147,6 +151,11 @@ export function useAudioEngine() {
         if (_ytPlayer && _ytPlayer.getPlayerState) {
           try {
             const ps = _ytPlayer.getPlayerState();
+            if (ps === 1) {
+              if (usePlayerStore.getState().playbackSpeed !== _ytPlayer.getPlaybackRate()) {
+                 _ytPlayer.setPlaybackRate(usePlayerStore.getState().playbackSpeed);
+              }
+            }
             // Accept PLAYING (1) OR BUFFERING (3) — keep UI alive during buffer stalls
             if (ps === 1 || ps === 3) {
               const d = _ytPlayer.getDuration();
@@ -241,10 +250,52 @@ export function useAudioEngine() {
       usePlayerStore.getState().setIsLoading(false);
       const d = audio.duration;
       if (d > 0 && Number.isFinite(d)) usePlayerStore.getState().setDuration(d);
-      if (usePlayerStore.getState().isPlaying) audio.play().catch(console.error);
+      
+      // Initialize AudioContext on first play if needed
+      if (!audioContextRef.current) {
+        try {
+          const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const source = ctx.createMediaElementSource(audio);
+          
+          // 60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz
+          const freqs = [60, 230, 910, 3600, 14000];
+          const filters = freqs.map(freq => {
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'peaking';
+            filter.frequency.value = freq;
+            filter.Q.value = 1;
+            filter.gain.value = 0;
+            return filter;
+          });
+          
+          source.connect(filters[0]);
+          for (let i = 0; i < filters.length - 1; i++) {
+            filters[i].connect(filters[i + 1]);
+          }
+          filters[filters.length - 1].connect(ctx.destination);
+          
+          audioContextRef.current = ctx;
+          filtersRef.current = filters;
+          
+          // Apply initial EQ
+          filters.forEach((f, i) => {
+             f.gain.value = useSettingsStore.getState().equalizer.bands[i] || 0;
+          });
+        } catch (e) {
+          console.error("Failed to initialize AudioContext", e);
+        }
+      } else if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume();
+      }
+
+      if (usePlayerStore.getState().isPlaying) {
+         audio.playbackRate = usePlayerStore.getState().playbackSpeed;
+         audio.play().catch(console.error);
+      }
     };
     audio.onplay = () => {
       if (activeEngineRef.current !== 'local') return;
+      audio.playbackRate = usePlayerStore.getState().playbackSpeed;
       usePlayerStore.getState().setIsLoading(false);
       usePlayerStore.getState().setIsPlaying(true);
       fnsRef.current.startProgressTracker();
@@ -479,7 +530,25 @@ export function useAudioEngine() {
     }
   }, [volume, isMuted]);
 
-  // ── 4. PLAY / PAUSE ───────────────────────────────────────────────────────
+  // ── 4. REACT TO PLAYBACK SPEED CHANGES ───────────────────────────────────
+  useEffect(() => {
+    if (activeEngineRef.current === 'local' && audioRef.current) {
+      audioRef.current.playbackRate = playbackSpeed;
+    } else if (activeEngineRef.current === 'youtube' && _ytPlayer?.setPlaybackRate) {
+      _ytPlayer.setPlaybackRate(playbackSpeed);
+    }
+  }, [playbackSpeed]);
+
+  // ── 5. REACT TO EQUALIZER CHANGES ─────────────────────────────────────────
+  useEffect(() => {
+    if (filtersRef.current.length === 5) {
+      equalizer.bands.forEach((gain, i) => {
+        filtersRef.current[i].gain.value = gain;
+      });
+    }
+  }, [equalizer.bands]);
+
+  // ── 6. PLAY / PAUSE ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!currentTrack) return;
 
