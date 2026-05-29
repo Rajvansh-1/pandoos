@@ -1,10 +1,9 @@
 /**
  * getApiUrl — Cross-platform API URL resolver.
  *
- * The key insight: we cannot rely on window.Capacitor.isNative at runtime
- * because the Capacitor bridge may not be initialized when this code runs.
- * Instead, we use a build-time environment variable (VITE_IS_NATIVE=true)
- * that is baked into the bundle at compile time by Vite.
+ * The key insight: VITE_IS_NATIVE is a build-time flag.
+ * Capacitor is currently disabled (PWA is the mobile strategy),
+ * but this code path is preserved in case it's needed in the future.
  *
  * Build targets:
  *   - Native (Android/iOS): VITE_IS_NATIVE=true → routes to https://pandoos.vercel.app
@@ -24,7 +23,7 @@ export function getApiUrl(path: string): string {
     return `${EXPLICIT_API_URL}${path}`;
   }
 
-  // 2. Native Capacitor build (Android/iOS) — BAKED IN AT BUILD TIME, not runtime
+  // 2. Native build (currently disabled — Capacitor is not active)
   if (IS_NATIVE_BUILD) {
     return `https://pandoos.vercel.app${path}`;
   }

@@ -10,7 +10,8 @@ import { useRecommendEngine } from '@/hooks/useRecommendEngine';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { BadgeRevealModal } from '@/features/profile/BadgeRevealModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useCapacitorNative } from '@/hooks/useCapacitorNative';
+// Capacitor native hook disabled — PWA is the mobile strategy
+// import { useCapacitorNative } from '@/hooks/useCapacitorNative';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { OfflineIndicator } from '@/components/ui/OfflineIndicator';
 import { useOfflineStore } from '@/stores/useOfflineStore';
@@ -26,6 +27,7 @@ import { VolumeIndicator } from '@/components/ui/VolumeIndicator';
 import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow';
 import { ArtistOverlay } from '@/features/artist/components/ArtistOverlay';
 import { AlbumOverlay } from '@/features/album/components/AlbumOverlay';
+import { PWAInstallPrompt } from '@/components/pwa/PWAInstallPrompt';
 
 const HomePage = React.lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })));
 const SearchPage = React.lazy(() => import('@/pages/SearchPage').then(m => ({ default: m.SearchPage })));
@@ -61,7 +63,7 @@ export function App() {
   const initOfflineStore = useOfflineStore((state) => state.initOfflineStore);
   const activeTheme = useThemeStore((state) => state.activeTheme);
   const queryClient = useQueryClient();
-  useCapacitorNative();
+  // useCapacitorNative(); // Disabled — Capacitor is no longer active
 
   // Player state for nowPlaying sync
   const currentTrack = usePlayerStore((state) => state.currentTrack);
@@ -151,6 +153,7 @@ export function App() {
 
       <BadgeRevealModal />
       <OnboardingFlow />
+      <PWAInstallPrompt />
     </>
   );
 }

@@ -25,14 +25,8 @@ if (loader) {
   loader.remove();
 }
 
-// Ensure Capacitor apps never use a cached Service Worker which breaks updates
-if (typeof window !== 'undefined' && 'serviceWorker' in navigator && (window as any).Capacitor?.isNative) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    for (let registration of registrations) {
-      registration.unregister();
-    }
-  }).catch(err => console.error('Service Worker unregistration failed:', err));
-}
+// Service Worker is managed by vite-plugin-pwa (autoUpdate).
+// No manual registration needed — the plugin handles it automatically.
 
 // Electron desktop uses file:// protocol, which breaks BrowserRouter.
 // We must use HashRouter for the desktop app, and BrowserRouter for the web app.

@@ -4,10 +4,13 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/logo.png" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#0a0a0f" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Pandoos" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="application-name" content="Pandoos" />
 
   <!-- SEO -->
   <title>Pandoos — The Panda Music Experience</title>
@@ -97,8 +100,8 @@
 
   <div id="root"></div>
   <!-- Hidden YouTube player container: positioned offscreen.
-         Capacitor's WebView will play audio from this even when the visual
-         player UI is hidden behind other sheets. -->
+         The browser will play audio from this even when the visual
+         player UI is hidden. -->
   <div id="yt-player-root"
     style="position:fixed;bottom:-9999px;left:-9999px;width:200px;height:200px;opacity:0;pointer-events:none;"
     aria-hidden="true"></div>

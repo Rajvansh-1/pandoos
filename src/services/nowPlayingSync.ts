@@ -7,23 +7,32 @@ import { supabase } from '@/services/supabase';
 import type { Track } from '@/types/track';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-import { Device } from '@capacitor/device';
-
+/**
+ * Device name detection — pure browser-based (no Capacitor dependency).
+ * Detects: Desktop App (Electron), PWA, Android, iPhone/iPad, Web
+ */
 let DEVICE_NAME = 'Web';
 
-async function initDeviceName() {
-  if (typeof window !== 'undefined' && (window as any).Capacitor?.isNative) {
-    const info = await Device.getInfo();
-    DEVICE_NAME = `${info.operatingSystem === 'ios' ? 'iPhone/iPad' : 'Android'} (App)`;
-  } else {
-    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
-    if (isElectron) {
-      DEVICE_NAME = 'Desktop App';
-    } else {
-      const ua = navigator.userAgent.toLowerCase();
-      if (/android/.test(ua)) DEVICE_NAME = 'Android';
-      else if (/ipad|iphone|ipod/.test(ua)) DEVICE_NAME = 'iPhone/iPad';
-    }
+function initDeviceName() {
+  if (typeof window === 'undefined') return;
+
+  const isElectron = !!(window as any).electronAPI;
+  if (isElectron) {
+    DEVICE_NAME = 'Desktop App';
+    return;
+  }
+
+  // Check if running as installed PWA (standalone mode)
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as any).standalone === true;
+
+  const ua = navigator.userAgent.toLowerCase();
+  if (/android/.test(ua)) {
+    DEVICE_NAME = isPWA ? 'Android (PWA)' : 'Android';
+  } else if (/ipad|iphone|ipod/.test(ua)) {
+    DEVICE_NAME = isPWA ? 'iPhone/iPad (PWA)' : 'iPhone/iPad';
+  } else if (isPWA) {
+    DEVICE_NAME = 'Desktop (PWA)';
   }
 }
 initDeviceName();

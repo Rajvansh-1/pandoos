@@ -32,3 +32,4 @@ release/
 
 # Test scripts
 scripts/test-ytdl.ts
+.vercel

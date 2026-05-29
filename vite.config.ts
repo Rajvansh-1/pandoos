@@ -84,14 +84,6 @@ const copyPreloadPlugin = () => ({
 });
 
 // https://vitejs.dev/config/
-// Path aliases are critical for Capacitor: avoids "../../../" hell in deep components
-// and ensures the same import paths work when the app is bundled for native.
-
-// When VITE_IS_NATIVE=true, we're building for Android/iOS.
-// The PWA service worker MUST be disabled on native — it intercepts all network
-// requests inside the Capacitor WebView (including /api/*), returning cached HTML
-// instead of making real HTTP requests to the backend.
-const IS_NATIVE = process.env.VITE_IS_NATIVE === 'true';
 
 export default defineConfig({
   plugins: [
@@ -120,26 +112,39 @@ export default defineConfig({
     ]),
     copyPreloadPlugin(),
     renderer(),
-    // CRITICAL: DO NOT register Service Worker for native Capacitor builds.
-    // The SW runs inside the Capacitor WebView at https://localhost and intercepts
-    // ALL fetch requests (including /api/*), returning cached HTML instead of real data.
-    // This is the #1 cause of the "stuck on loading screen" bug on physical devices.
-    ...(!IS_NATIVE ? [VitePWA({
+    // PWA — always enabled. Production-grade service worker with aggressive caching.
+    VitePWA({
       registerType: 'autoUpdate',
-      // workbox pre-caches the app shell so first load is instant offline
+      includeAssets: ['logo.png', 'favicon.ico'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,webp}'],
-        // Cache music-related API responses and fonts for offline fallback
+        // Skip waiting + claim clients = instant activation of new SW
+        skipWaiting: true,
+        clientsClaim: true,
+        // Navigation preload for instant page loads
+        navigationPreload: true,
         runtimeCaching: [
+          // YouTube thumbnails — cache-first, huge capacity
           {
             urlPattern: /^https:\/\/i\.ytimg\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'youtube-thumbnails',
-              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 }, // 30 days
+              expiration: { maxEntries: 1000, maxAgeSeconds: 60 * 60 * 24 * 30 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },
+          // LRCLIB lyrics — cache-first (lyrics rarely change)
+          {
+            urlPattern: /^https:\/\/lrclib\.net\/api\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'lyrics-cache',
+              expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // Google Fonts stylesheets — stale-while-revalidate
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'StaleWhileRevalidate',
@@ -147,33 +152,61 @@ export default defineConfig({
               cacheName: 'google-fonts-stylesheets',
             }
           },
+          // Google Fonts webfonts — cache-first, very long TTL
           {
             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 }, // 1 year
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
               cacheableResponse: { statuses: [0, 200] }
+            }
+          },
+          // API search/trending — network-first with cache fallback for offline
+          {
+            urlPattern: /\/api\/(search|trending|oracle)/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-responses',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+              networkTimeoutSeconds: 5,
             }
           },
         ],
       },
       manifest: {
-        name: 'Pandoos Music',
+        name: 'Pandoos',
         short_name: 'Pandoos',
-        description: 'The Panda-powered music experience',
+        description: 'Feel the music — a premium music streaming experience powered by Pandas 🐼',
         theme_color: '#0a0a0f',
         background_color: '#0a0a0f',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
+        scope: '/',
+        categories: ['music', 'entertainment'],
         icons: [
           { src: '/logo.png', sizes: '192x192', type: 'image/png' },
           { src: '/logo.png', sizes: '512x512', type: 'image/png' },
           { src: '/logo.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        shortcuts: [
+          {
+            name: 'Search Music',
+            short_name: 'Search',
+            url: '/search',
+            icons: [{ src: '/logo.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Your Library',
+            short_name: 'Library',
+            url: '/library',
+            icons: [{ src: '/logo.png', sizes: '192x192' }]
+          },
+        ],
       },
-    })] : []),
+    }),
   ],
   resolve: {
     alias: {
@@ -191,11 +224,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: true, // needed for Capacitor live reload on physical devices
-    strictPort: true, // fail if 5173 is busy instead of silently switching to 5174
+    host: true,
+    strictPort: true,
   },
   build: {
-    target: 'es2020', // Capacitor WebView supports ES2020
+    target: 'es2020',
     rollupOptions: {
       output: {
         // Rollup output options

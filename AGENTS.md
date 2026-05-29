@@ -1,4 +1,4 @@
-# PANDOOS — IDE CONTEXT FILE
+# PANDOOS — IDE CONTEXT FILE (Dont read this , I have dropped this idea as this is not feasible)
 # Read this first before doing ANYTHING in this codebase.
 # This file is the single source of truth for the entire Pandoos ecosystem.
 
