@@ -45,8 +45,23 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 //  1. App opens system browser → Google login → Supabase redirects to pandoos://login-callback#access_token=...
 //  2. OS hands the URL back to this app via 'open-url' (macOS) or 'second-instance' (Windows/Linux)
 //  3. We extract the tokens and send them to the renderer via IPC
-if (!app.isDefaultProtocolClient('pandoos')) {
-  app.setAsDefaultProtocolClient('pandoos');
+//
+// CRITICAL for dev mode on Windows:
+//   Without passing execPath + [mainScript], Windows registers ONLY the electron binary.
+//   When the URL returns, Electron gets:  electron.exe "pandoos://login-callback#token..."
+//   and tries to LOAD the URL as the app entry point → "Unable to find Electron app" error.
+//   Passing the main script ensures Windows registers:
+//     electron.exe "path/to/main.js" "pandoos://..."
+//   so the URL is correctly passed as argv[2] to the second-instance handler.
+if (app.isPackaged) {
+  // Production: just register the .exe — no extra args needed
+  if (!app.isDefaultProtocolClient('pandoos')) {
+    app.setAsDefaultProtocolClient('pandoos');
+  }
+} else {
+  // Dev: must pass execPath + [main script] so Windows knows where the app is
+  const mainScript = path.resolve(process.argv[1]);
+  app.setAsDefaultProtocolClient('pandoos', process.execPath, [mainScript]);
 }
 
 /** Parse and forward a deep-link URL to the renderer */
