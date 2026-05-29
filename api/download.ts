@@ -6,7 +6,7 @@ const ytdl = (ytdlCore as any).default || ytdlCore;
 
 export const config = {
   api: {
-    responseLimit: '15mb', // Audio files shouldn't exceed 15mb for a 5min song
+    responseLimit: '15mb',
   },
 };
 
@@ -24,25 +24,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
   try {
-    const agent = ytdl.createAgent();
-    const info = await ytdl.getInfo(url, { agent });
-    const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' });
+    // Do NOT use createAgent() — it requires valid YouTube cookies and fails without them,
+    // causing 500 errors. A plain unauthenticated request works fine for most content.
+    const info = await ytdl.getInfo(url, {
+      requestOptions: {
+        headers: {
+          // Pretend to be a real browser to avoid bot detection
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      },
+    });
+
+    // Prefer opus (webm) for lowest latency, fall back to m4a
+    const audioFormat = ytdl.chooseFormat(info.formats, {
+      quality: 'highestaudio',
+      filter: 'audioonly',
+    });
 
     if (!audioFormat) {
       return res.status(404).json({ error: 'No audio format found' });
     }
 
-    res.setHeader('Content-Type', 'audio/mpeg'); // Most are webm/m4a but we stream as raw audio
-    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.mp3"`);
-    // Remove the content-length so it uses chunked transfer encoding, preventing Vercel from blocking large files
-    
-    // Pipe the stream directly to the response
+    // Set correct MIME type based on actual format container
+    const mimeType = audioFormat.mimeType?.split(';')[0] || 'audio/webm';
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `inline; filename="${videoId}.webm"`);
+    // Allow range requests for seeking
+    res.setHeader('Accept-Ranges', 'bytes');
+    // Cache for 1 hour to avoid repeated YT requests
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+
     const stream = ytdl.downloadFromInfo(info, { format: audioFormat });
-    
-    stream.on('error', (err) => {
-      console.error('YTDL Stream Error:', err);
+
+    stream.on('error', (err: any) => {
+      console.error('[Download API] YTDL Stream Error:', err.message);
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to stream audio' });
+        res.status(500).json({ error: 'Failed to stream audio: ' + err.message });
       } else {
         res.end();
       }
@@ -51,10 +69,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     stream.pipe(res);
 
   } catch (error: any) {
-    console.error('Download API Error:', error);
+    console.error('[Download API] Error for videoId', videoId, ':', error.message);
     if (!res.headersSent) {
-      res.status(500).json({ error: error.stack || error.message || 'Internal Server Error' });
+      res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
   }
 }
-

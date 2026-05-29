@@ -411,18 +411,58 @@ export function useAudioEngine() {
       },
       onError: async (event) => {
         if (activeEngineRef.current !== 'youtube') return;
-        console.error('YouTube Player Error:', event.data);
+        const errorCode = event.data;
+        console.error('[AudioEngine] YouTube Player Error:', errorCode);
+        // YT error codes:
+        //   2   = invalid videoId
+        //   5   = HTML5 player error (try retry)
+        //   100 = video removed / private
+        //   101 = embedding disabled (owner setting)
+        //   150 = embedding disabled (same as 101, different check)
+
         const state = usePlayerStore.getState();
         const current = state.currentTrack;
         if (!current) { state.setIsLoading(false); setTimeout(state.nextTrack, 1000); return; }
-        console.log('Falling back to proxy stream for', current.videoId);
-        activeEngineRef.current = 'local';
-        const a = audioRef.current;
-        if (a) {
-          a.src = getApiUrl(`/api/download?videoId=${current.videoId}`);
-          a.load();
-          if (state.isPlaying) a.play().catch(console.error);
+
+        // For errors 101/150 (embedding disabled) — fall straight to proxy, no retry
+        if (errorCode === 101 || errorCode === 150) {
+          console.log('[AudioEngine] Embedding disabled — falling back to proxy stream for', current.videoId);
+          activeEngineRef.current = 'local';
+          const a = audioRef.current;
+          if (a) {
+            const proxyUrl = getApiUrl(`/api/download?videoId=${current.videoId}`);
+            a.src = proxyUrl;
+            a.load();
+            if (state.isPlaying) {
+              a.play().catch((err) => {
+                console.error('[AudioEngine] Proxy play failed:', err);
+                // Proxy also failed — skip to next track after a short delay
+                setTimeout(() => {
+                  state.setIsLoading(false);
+                  state.nextTrack();
+                }, 1500);
+              });
+            }
+          }
+          return;
         }
+
+        // For error 5 (HTML5 error) — try one cueVideoById retry
+        if (errorCode === 5 && _ytReady && _ytPlayer) {
+          console.log('[AudioEngine] HTML5 error — retrying with cueVideoById for', current.videoId);
+          _ytPlayer.cueVideoById(current.videoId);
+          setTimeout(() => {
+            if (_ytReady && _ytPlayer && activeEngineRef.current === 'youtube') {
+              _ytPlayer.playVideo();
+            }
+          }, 800);
+          return;
+        }
+
+        // For any other error — skip to next track
+        console.warn('[AudioEngine] Unhandled YT error', errorCode, '— skipping track');
+        state.setIsLoading(false);
+        setTimeout(state.nextTrack, 1000);
       }
     };
 
