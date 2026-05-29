@@ -269,7 +269,9 @@ export function LyricsView() {
           className="bg-transparent text-xs font-semibold text-white/90 outline-none cursor-pointer"
         >
           {Object.keys(providers).map(p => (
-            <option key={p} value={p} className="bg-[#13111C]">{p === 'lrclib' ? 'LRCLIB' : 'YouTube Music'}</option>
+            <option key={p} value={p} className="bg-[#13111C]">
+              {p === 'lrclib' ? 'LRCLIB' : p === 'youtube' ? 'YouTube Music' : 'BetterLyrics'}
+            </option>
           ))}
         </select>
       </div>

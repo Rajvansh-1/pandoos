@@ -194,6 +194,29 @@ async function fetchYouTubeLyrics(rawTitle: string, rawArtist: string, videoId: 
 }
 
 /**
+ * Helper to fetch from BetterLyrics (lyrics.ovh public API)
+ */
+async function fetchBetterLyrics(rawTitle: string, rawArtist: string): Promise<LyricsResult | null> {
+  try {
+    const artist = encodeURIComponent(cleanArtist(rawArtist));
+    const title = encodeURIComponent(cleanTitle(rawTitle));
+    const res = await fetch(`https://api.lyrics.ovh/v1/${artist}/${title}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.lyrics) {
+      return {
+        synced: null,
+        plain: data.lyrics,
+        matchType: 'fuzzy',
+      };
+    }
+  } catch {
+    // Ignore errors
+  }
+  return null;
+}
+
+/**
  * Primary export — fetches lyrics using parallel providers and IDB caching.
  * Resolves with a Map/Record of provider results.
  */
@@ -223,6 +246,15 @@ export async function fetchLyrics(
     promises.push(
       fetchYouTubeLyrics(rawTitle, rawArtist, videoId).then(res => {
         if (res && (res.plain || res.synced)) providers['youtube'] = res;
+      })
+    );
+  }
+
+  // 3. BetterLyrics Provider (lyrics.ovh)
+  if (rawTitle && rawArtist) {
+    promises.push(
+      fetchBetterLyrics(rawTitle, rawArtist).then(res => {
+        if (res && (res.plain || res.synced)) providers['betterlyrics'] = res;
       })
     );
   }
