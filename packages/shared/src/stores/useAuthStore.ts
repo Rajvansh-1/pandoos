@@ -25,8 +25,12 @@ interface AuthStoreActions {
   signInWithEmail: (email: string) => Promise<void>;
   /** Google OAuth */
   signInWithGoogle: () => Promise<void>;
+  /** Desktop deep-link OAuth: returns the Google auth URL to open in the system browser */
+  signInWithGoogleDesktop: () => Promise<string>;
   /** Google One Tap ID Token */
   signInWithGoogleIdToken: (token: string) => Promise<void>;
+  /** Set session manually from raw tokens (used after deep-link OAuth callback on Desktop) */
+  setSessionFromTokens: (accessToken: string, refreshToken: string) => Promise<void>;
   signOut: () => Promise<void>;
   /** Internal: called by Supabase auth state listener */
   _setSession: (session: Session | null) => void;
@@ -137,6 +141,39 @@ export const useAuthStore = create<AuthStore>()(
         options: { redirectTo: loginRedirectUrl },
       });
       // isLoading will be reset by onAuthStateChange callback
+    },
+
+    signInWithGoogleDesktop: async () => {
+      set((state) => { state.isLoading = true; });
+      // Use pandoos:// as the redirect so Google sends the token back to the desktop app
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: 'pandoos://login-callback',
+          skipBrowserRedirect: true, // CRITICAL: do NOT redirect the Electron window itself
+        },
+      });
+      set((state) => { state.isLoading = false; });
+      if (error || !data?.url) throw new Error(error?.message || 'Failed to get OAuth URL');
+      return data.url;
+    },
+
+    setSessionFromTokens: async (accessToken, refreshToken) => {
+      set((state) => { state.isLoading = true; });
+      const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      set((state) => { state.isLoading = false; });
+      if (error) {
+        console.error('[Auth] setSessionFromTokens failed:', error);
+        throw error;
+      }
+      if (data.session) {
+        set((state) => {
+          state.session = data.session;
+          state.user = sessionToUser(data.session!);
+        });
+        onUserLogin(data.session.user.id).catch(console.warn);
+        initNowPlayingSync(data.session.user.id);
+      }
     },
 
     signInWithGoogleIdToken: async (token) => {

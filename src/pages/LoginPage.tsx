@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useGoogleOneTapLogin } from '@react-oauth/google';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Music2, Sparkles, Zap } from 'lucide-react';
+import { Loader2, Music2, Sparkles, Zap, ExternalLink } from 'lucide-react';
 import { WelcomeTransition } from '@/features/auth/components/WelcomeTransition';
 
 /* ─── Floating Bamboo Leaf ────────────────────────────────────── */
@@ -123,8 +123,12 @@ const FEATURES = [
 export function LoginPage() {
   const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
   const signInWithGoogleIdToken = useAuthStore((state) => state.signInWithGoogleIdToken);
+  const signInWithGoogleDesktop = useAuthStore((state) => state.signInWithGoogleDesktop);
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
+
+  // Detect if we're running inside the Electron desktop app
+  const isDesktop = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
@@ -169,7 +173,17 @@ export function LoginPage() {
     if (isAuthenticating) return;
     setIsAuthenticating(true);
     try {
-      await signInWithGoogle();
+      if (isDesktop) {
+        // Desktop: deep-link OAuth — open system browser, return to app via pandoos://
+        const oauthUrl = await signInWithGoogleDesktop();
+        (window as any).electronAPI.openExternal(oauthUrl);
+        // Keep isAuthenticating = true with a status message while we wait
+        // The actual session is set in App.tsx via the 'oauth-callback' IPC listener
+      } else {
+        // Web: normal Supabase redirect flow
+        await signInWithGoogle();
+        setIsAuthenticating(false);
+      }
     } catch {
       setIsAuthenticating(false);
     }
@@ -479,7 +493,9 @@ export function LoginPage() {
             {isAuthenticating ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
                 <Loader2 size={18} className="animate-spin" style={{ color: '#4ade80' }} />
-                <span style={{ color: '#86efac' }}>Connecting...</span>
+                <span style={{ color: '#86efac' }}>
+                  {isDesktop ? 'Finish sign in in your browser...' : 'Connecting...'}
+                </span>
               </motion.div>
             ) : (
               <>

@@ -1,6 +1,7 @@
 -- ============================================================
--- PANDOOS — COMPLETE SUPABASE SETUP
--- Safe to run multiple times (uses IF NOT EXISTS everywhere)
+-- PANDOOS — COMPLETE BULLETPROOF DATABASE SETUP
+-- This script safely creates all tables, adds missing columns,
+-- and configures Realtime sync. It will NOT throw errors.
 -- ============================================================
 
 
@@ -18,6 +19,9 @@ create table if not exists liked_songs (
   liked_at  timestamp with time zone default timezone('utc', now()) not null,
   unique(user_id, video_id)
 );
+-- Add columns if they were missing from an older version
+alter table liked_songs add column if not exists duration integer default 0;
+alter table liked_songs add column if not exists album_art text;
 
 create index if not exists liked_songs_user_id_idx on liked_songs(user_id, liked_at desc);
 alter table liked_songs disable row level security;
@@ -37,6 +41,11 @@ create table if not exists playlists (
   created_at  timestamp with time zone default timezone('utc', now()) not null,
   updated_at  timestamp with time zone default timezone('utc', now()) not null
 );
+-- Add columns if they were missing from an older version
+alter table playlists add column if not exists description text default '';
+alter table playlists add column if not exists cover_url text;
+alter table playlists add column if not exists is_public boolean default false;
+alter table playlists add column if not exists track_count integer default 0;
 
 create index if not exists playlists_user_id_idx on playlists(user_id, updated_at desc);
 alter table playlists disable row level security;
@@ -56,6 +65,9 @@ create table if not exists playlist_tracks (
   position    bigint not null,
   added_at    timestamp with time zone default timezone('utc', now()) not null
 );
+-- Add columns if they were missing from an older version
+alter table playlist_tracks add column if not exists duration integer default 0;
+alter table playlist_tracks add column if not exists album_art text;
 
 create index if not exists playlist_tracks_playlist_id_idx on playlist_tracks(playlist_id, position);
 alter table playlist_tracks disable row level security;
@@ -83,7 +95,7 @@ create trigger on_playlist_track_added
 
 
 -- ────────────────────────────────────────────────────────────
--- 4. FOLLOWED ARTISTS  (NEW)
+-- 4. FOLLOWED ARTISTS
 -- ────────────────────────────────────────────────────────────
 create table if not exists followed_artists (
   id            uuid default gen_random_uuid() primary key,
@@ -94,13 +106,15 @@ create table if not exists followed_artists (
   followed_at   timestamp with time zone default timezone('utc', now()) not null,
   unique(user_id, artist_id)
 );
+-- Add columns if they were missing from an older version
+alter table followed_artists add column if not exists thumbnail_url text;
 
 create index if not exists followed_artists_user_id_idx on followed_artists(user_id, followed_at desc);
 alter table followed_artists disable row level security;
 
 
 -- ────────────────────────────────────────────────────────────
--- 5. NOW PLAYING — Cross-Device Sync  (NEW)
+-- 5. NOW PLAYING — Cross-Device Sync
 -- ────────────────────────────────────────────────────────────
 create table if not exists now_playing (
   user_id     text primary key,
@@ -118,7 +132,7 @@ alter table now_playing disable row level security;
 
 
 -- ────────────────────────────────────────────────────────────
--- 6. LISTENING HISTORY — Personalization Engine (NEW)
+-- 6. LISTENING HISTORY
 -- ────────────────────────────────────────────────────────────
 create table if not exists listening_history (
   id         uuid default gen_random_uuid() primary key,
@@ -128,11 +142,11 @@ create table if not exists listening_history (
   artist     text not null,
   album_art  text,
   duration   integer default 0,
-  listen_pct float default 0,    -- 0.0 to 1.0 (how much was listened)
+  listen_pct float default 0,
   skipped    boolean default false,
-  mood_tag   text,               -- mood at time of listen
-  hour_of_day integer,           -- 0-23
-  day_of_week integer,           -- 0-6 (Sun=0)
+  mood_tag   text,
+  hour_of_day integer,
+  day_of_week integer,
   listened_at timestamp with time zone default timezone('utc', now()) not null
 );
 
@@ -141,7 +155,7 @@ alter table listening_history disable row level security;
 
 
 -- ────────────────────────────────────────────────────────────
--- 7. USER TASTE PROFILE — Cross-Device Taste Sync (NEW)
+-- 7. USER TASTE PROFILE
 -- ────────────────────────────────────────────────────────────
 create table if not exists user_taste_profile (
   user_id        text primary key,
@@ -159,12 +173,14 @@ alter table user_taste_profile disable row level security;
 
 -- ────────────────────────────────────────────────────────────
 -- 8. ENABLE REALTIME (cross-device sync)
--- If any line errors with "already member", that is fine — ignore it.
+-- Drop the publication first to avoid any "already member" errors
 -- ────────────────────────────────────────────────────────────
-alter publication supabase_realtime add table liked_songs;
-alter publication supabase_realtime add table playlists;
-alter publication supabase_realtime add table playlist_tracks;
-alter publication supabase_realtime add table followed_artists;
-alter publication supabase_realtime add table now_playing;
-alter publication supabase_realtime add table listening_history;
-alter publication supabase_realtime add table user_taste_profile;
+drop publication if exists supabase_realtime;
+create publication supabase_realtime for table 
+  liked_songs, 
+  playlists, 
+  playlist_tracks, 
+  followed_artists, 
+  now_playing, 
+  listening_history, 
+  user_taste_profile;

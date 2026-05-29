@@ -55,6 +55,7 @@ export function App() {
   const initializeAuth = useAuthStore((state) => state.initialize);
   const isInitialized = useAuthStore((state) => state.isInitialized);
   const user = useAuthStore((state) => state.user);
+  const setSessionFromTokens = useAuthStore((state) => state.setSessionFromTokens);
   const awardBadge = useGamificationStore((state) => state.awardBadge);
   const earnedBadges = useGamificationStore((state) => state.earnedBadges);
 
@@ -90,6 +91,42 @@ export function App() {
       initNowPlayingSync(user.id);
     }
   }, [user?.id, queryClient]);
+
+  // ── Desktop Deep-Link OAuth Callback ───────────────────────────────────────
+  // When the user completes Google sign-in in their system browser, the OS
+  // hands the pandoos:// URL back to Electron, which sends it here via IPC.
+  // We extract the access_token and refresh_token from the URL hash and
+  // restore the Supabase session so the user is instantly logged in.
+  useEffect(() => {
+    const electronAPI = (window as any).electronAPI;
+    if (!electronAPI?.onOAuthCallback) return; // Web — skip
+
+    electronAPI.onOAuthCallback(async (callbackUrl: string) => {
+      console.log('[App] OAuth deep-link callback received:', callbackUrl);
+      try {
+        // Supabase puts tokens in the URL hash: pandoos://login-callback#access_token=...&refresh_token=...
+        // Use a dummy base URL so URL() can parse the fragment
+        const hash = callbackUrl.includes('#') ? callbackUrl.split('#')[1] : '';
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          await setSessionFromTokens(accessToken, refreshToken);
+          console.log('[App] Desktop login successful via deep link!');
+        } else {
+          console.error('[App] OAuth callback missing tokens in URL:', callbackUrl);
+        }
+      } catch (err) {
+        console.error('[App] Failed to set session from deep-link tokens:', err);
+      }
+    });
+
+    // Cleanup on unmount
+    return () => {
+      electronAPI.removeOAuthCallback?.();
+    };
+  }, [setSessionFromTokens]);
 
   // Continuously update nowPlayingSync with latest player state
   useEffect(() => {

@@ -1,5 +1,5 @@
 import './require-polyfill';
-import { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, dialog, Notification } from 'electron';
+import { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, dialog, Notification, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { startLocalApiServer } from './api-server';
@@ -38,6 +38,28 @@ if (app.isPackaged) {
 
 
 // app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
+// ── Deep Linking: Register pandoos:// as the custom protocol ────────────────
+// This enables the "Spotify-style" OAuth flow:
+//  1. App opens system browser → Google login → Supabase redirects to pandoos://login-callback#access_token=...
+//  2. OS hands the URL back to this app via 'open-url' (macOS) or 'second-instance' (Windows/Linux)
+//  3. We extract the tokens and send them to the renderer via IPC
+if (!app.isDefaultProtocolClient('pandoos')) {
+  app.setAsDefaultProtocolClient('pandoos');
+}
+
+/** Parse and forward a deep-link URL to the renderer */
+function handleDeepLink(url: string) {
+  if (!mainWindow) return;
+  console.log('[DeepLink] Received URL:', url);
+  // Bring the window to the front
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  // Forward the full URL to the React app — it will parse tokens itself
+  mainWindow.webContents.send('oauth-callback', url);
+}
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
@@ -167,13 +189,16 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     // Someone tried to run a second instance — focus our existing window instead
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
       mainWindow.focus();
     }
+    // On Windows/Linux: deep link URL is passed as the last argv argument
+    const deepLinkUrl = argv.find(arg => arg.startsWith('pandoos://'));
+    if (deepLinkUrl) handleDeepLink(deepLinkUrl);
   });
 }
 
@@ -186,6 +211,16 @@ app.whenReady().then(async () => {
   // Expose it to the frontend synchronous IPC
   ipcMain.on('get-api-url', (event) => {
     event.returnValue = apiUrl;
+  });
+
+  // Open a URL in the system's default browser (for deep-link OAuth)
+  ipcMain.on('open-external', (_event, url: string) => {
+    shell.openExternal(url).catch(err => console.error('[IPC] open-external error:', err));
+  });
+
+  // macOS: deep link URL arrives via 'open-url' event
+  app.on('open-url', (_event, url) => {
+    handleDeepLink(url);
   });
 
   createWindow();

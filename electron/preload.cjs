@@ -32,4 +32,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // API Backend URL
   getApiUrl: () => ipcRenderer.sendSync('get-api-url'),
+
+  // ── Deep Linking / OAuth ────────────────────────────────────────────
+  // Open a URL in the user's default browser (Chrome, Edge, etc.)
+  // Used for the Spotify-style Google OAuth flow on Desktop
+  openExternal: (url) => ipcRenderer.send('open-external', url),
+
+  // Listen for the pandoos:// deep link callback from the OS after login
+  // The callback receives the full URL string (e.g. pandoos://login-callback#access_token=...)
+  onOAuthCallback: (callback) => {
+    ipcRenderer.on('oauth-callback', (_event, url) => callback(url));
+  },
+
+  // Remove the oauth-callback listener when no longer needed
+  removeOAuthCallback: () => {
+    ipcRenderer.removeAllListeners('oauth-callback');
+  },
 });
+

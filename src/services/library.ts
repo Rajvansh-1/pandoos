@@ -71,7 +71,8 @@ export async function getLikedSongs(userId: string): Promise<Track[]> {
       setCache(CACHE.liked(userId), tracks);
       return tracks;
     }
-  } catch { /* offline */ }
+    if (error) console.error('[Library] getLikedSongs error:', error);
+  } catch (err) { console.error('[Library] getLikedSongs catch:', err); }
 
   return getCache<Track[]>(CACHE.liked(userId), []);
 }
@@ -84,9 +85,10 @@ export async function likeTrack(userId: string, track: Track): Promise<void> {
   }
 
   try {
-    await supabase.from('liked_songs')
+    const { error } = await supabase.from('liked_songs')
       .upsert(trackToLikedRow(userId, track), { onConflict: 'user_id,video_id' });
-  } catch { /* will sync when online */ }
+    if (error) console.error('[Library] likeTrack error:', error);
+  } catch (err) { console.error('[Library] likeTrack catch:', err); }
 }
 
 export async function unlikeTrack(userId: string, videoId: string): Promise<void> {
@@ -95,11 +97,12 @@ export async function unlikeTrack(userId: string, videoId: string): Promise<void
   setCache(CACHE.liked(userId), cached.filter(t => t.videoId !== videoId));
 
   try {
-    await supabase.from('liked_songs')
+    const { error } = await supabase.from('liked_songs')
       .delete()
       .eq('user_id', userId)
       .eq('video_id', videoId);
-  } catch { /* will sync */ }
+    if (error) console.error('[Library] unlikeTrack error:', error);
+  } catch (err) { console.error('[Library] unlikeTrack catch:', err); }
 }
 
 export async function isTrackLiked(userId: string, videoId: string): Promise<boolean> {
@@ -149,7 +152,8 @@ export async function getUserPlaylists(userId: string): Promise<Playlist[]> {
       setCache(CACHE.playlists(userId), playlists);
       return playlists;
     }
-  } catch { /* offline */ }
+    if (error) console.error('[Library] getUserPlaylists error:', error);
+  } catch (err) { console.error('[Library] getUserPlaylists catch:', err); }
 
   return getCache<Playlist[]>(CACHE.playlists(userId), []);
 }
@@ -168,6 +172,7 @@ export async function createPlaylist(userId: string, name: string, description =
   if (!error && data) {
     playlist = rowToPlaylist(data);
   } else {
+    if (error) console.error('[Library] createPlaylist error:', error);
     // Offline / Desktop fallback
     playlist = {
       id: localId,
@@ -207,8 +212,9 @@ export async function deletePlaylist(playlistId: string): Promise<void> {
   } catch { /* ignore */ }
 
   try {
-    await supabase.from('playlists').delete().eq('id', playlistId);
-  } catch { /* will sync */ }
+    const { error } = await supabase.from('playlists').delete().eq('id', playlistId);
+    if (error) console.error('[Library] deletePlaylist error:', error);
+  } catch (err) { console.error('[Library] deletePlaylist catch:', err); }
 }
 
 // ════════════════════════════════════════════════════════════
@@ -257,7 +263,7 @@ export async function addTrackToPlaylist(
   }
 
   try {
-    await supabase.from('playlist_tracks').insert({
+    const { error } = await supabase.from('playlist_tracks').insert({
       playlist_id: playlistId,
       video_id: track.videoId,
       title: track.title,
@@ -266,8 +272,9 @@ export async function addTrackToPlaylist(
       duration: track.duration ?? 0,
       position,
     });
+    if (error) console.error('[Library] addTrackToPlaylist error:', error);
     // track_count auto-updated by Supabase trigger
-  } catch { /* will sync */ }
+  } catch (err) { console.error('[Library] addTrackToPlaylist catch:', err); }
 }
 
 export async function removeTrackFromPlaylist(
