@@ -19,12 +19,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onMediaPlayPause: (callback) => ipcRenderer.on('media-play-pause', () => callback()),
   onMediaNext:      (callback) => ipcRenderer.on('media-next', () => callback()),
   onMediaPrev:      (callback) => ipcRenderer.on('media-prev', () => callback()),
+  onRawArrowKey:    (callback) => ipcRenderer.on('raw-arrow-key', (_e, key) => callback(key)),
 
   // Clean up listeners
   removeMediaListeners: () => {
     ipcRenderer.removeAllListeners('media-play-pause');
     ipcRenderer.removeAllListeners('media-next');
     ipcRenderer.removeAllListeners('media-prev');
+    ipcRenderer.removeAllListeners('raw-arrow-key');
   },
 
   // Notifications
@@ -48,5 +50,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeOAuthCallback: () => {
     ipcRenderer.removeAllListeners('oauth-callback');
   },
+
+  // ── Stream URL Resolution (Error 150 bypass) ────────────────────────
+  // Resolves a direct CDN audio URL for videos where YouTube IFrame errors.
+  // Uses InnerTube ANDROID_MUSIC client via isolated session in main process.
+  // Returns null if not in Electron or if resolution fails.
+  resolveStreamUrl: (videoId) => ipcRenderer.invoke('resolve-stream-url', videoId),
 });
 

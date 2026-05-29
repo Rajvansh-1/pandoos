@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, d
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { startLocalApiServer } from './api-server';
+import { initExtractor, resolveStreamUrl } from './youtube-extractor';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -175,6 +176,20 @@ function registerShortcuts() {
   globalShortcut.register('MediaPreviousTrack', () => {
     mainWindow?.webContents.send('media-prev');
   });
+
+  // Intercept Arrow keys at the OS level (bypassing IFrame focus-stealing)
+  // and send them to the renderer. The renderer will decide whether to apply
+  // them based on if an input field is currently focused.
+  mainWindow?.webContents.on('before-input-event', (_event, input) => {
+    if (input.type !== 'keyDown') return;
+    if (input.control || input.alt || input.meta) return;
+    
+    if (input.key === 'ArrowRight') {
+      mainWindow?.webContents.send('raw-arrow-key', 'Right');
+    } else if (input.key === 'ArrowLeft') {
+      mainWindow?.webContents.send('raw-arrow-key', 'Left');
+    }
+  });
 }
 
 // Ensure app.isQuitting flag is available
@@ -206,6 +221,18 @@ if (!gotTheLock) {
 }
 
 app.whenReady().then(async () => {
+  // ── IPC: Resolve a restricted video's direct stream URL via BrowserView extractor ──
+  // Called by useAudioEngine when YouTube IFrame fires Error 101/150
+  ipcMain.handle('resolve-stream-url', async (_event, videoId: string) => {
+    try {
+      const url = await resolveStreamUrl(videoId);
+      return { success: true, url };
+    } catch (err: any) {
+      console.error(`[IPC] resolve-stream-url failed for ${videoId}:`, err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
   // Start the embedded local API server
   const apiPort = await startLocalApiServer();
   const apiUrl = `http://127.0.0.1:${apiPort}`;
@@ -227,6 +254,9 @@ app.whenReady().then(async () => {
   });
 
   createWindow();
+  // ── Initialize the persistent hidden BrowserView for Error 150 bypass ──────
+  // Must be called AFTER createWindow() so mainWindow is available
+  if (mainWindow) initExtractor(mainWindow);
   createTray();
   registerShortcuts();
 

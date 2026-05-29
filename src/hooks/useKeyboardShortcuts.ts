@@ -111,6 +111,27 @@ export function useKeyboardShortcuts() {
       window.electronAPI.onMediaPrev(() => {
         usePlayerStore.getState().prevTrack();
       });
+      if (window.electronAPI.onRawArrowKey) {
+        window.electronAPI.onRawArrowKey((key: string) => {
+          // Check if user is typing in an input field
+          const target = document.activeElement as HTMLElement;
+          if (
+            target &&
+            (target.tagName === 'INPUT' ||
+             target.tagName === 'TEXTAREA' ||
+             target.tagName === 'SELECT' ||
+             target.isContentEditable)
+          ) {
+            return;
+          }
+          
+          if (key === 'Right') {
+            usePlayerStore.getState().nextTrack();
+          } else if (key === 'Left') {
+            usePlayerStore.getState().prevTrack();
+          }
+        });
+      }
     }
 
     return () => {

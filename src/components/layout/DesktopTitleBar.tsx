@@ -58,6 +58,7 @@ declare global {
       onMediaPlayPause: (cb: () => void) => void;
       onMediaNext: (cb: () => void) => void;
       onMediaPrev: (cb: () => void) => void;
+      onRawArrowKey?: (cb: (key: string) => void) => void;
       removeMediaListeners: () => void;
     };
   }

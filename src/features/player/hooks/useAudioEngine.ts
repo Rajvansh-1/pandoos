@@ -411,18 +411,43 @@ export function useAudioEngine() {
       },
       onError: async (event) => {
         if (activeEngineRef.current !== 'youtube') return;
-        console.error('YouTube Player Error:', event.data);
+        console.error('[🐼 AudioEngine] YouTube IFrame Error code:', event.data);
+
         const state = usePlayerStore.getState();
         const current = state.currentTrack;
-        if (!current) { state.setIsLoading(false); setTimeout(state.nextTrack, 1000); return; }
-        console.log('Falling back to proxy stream for', current.videoId);
-        activeEngineRef.current = 'local';
-        const a = audioRef.current;
-        if (a) {
-          a.src = getApiUrl(`/api/download?videoId=${current.videoId}`);
-          a.load();
-          if (state.isPlaying) a.play().catch(console.error);
+        if (!current) {
+          state.setIsLoading(false);
+          setTimeout(state.nextTrack, 1000);
+          return;
         }
+
+        // ── Electron: resolve via InnerTube (isolated session, ~200ms) ──────
+        const electronAPI = (window as any).electronAPI;
+        if (electronAPI?.resolveStreamUrl) {
+          console.log(`[🐼 AudioEngine] Error ${event.data} — resolving via InnerTube for ${current.videoId}`);
+          try {
+            const result = await electronAPI.resolveStreamUrl(current.videoId);
+            if (result?.success && result.url) {
+              console.log(`[🐼 AudioEngine] InnerTube resolved ✅ — switching to HTML5 audio`);
+              activeEngineRef.current = 'local';
+              const a = audioRef.current;
+              if (a) {
+                a.src = result.url;
+                a.load();
+                if (state.isPlaying) a.play().catch(console.error);
+              }
+              return;
+            }
+            console.warn('[🐼 AudioEngine] InnerTube failed:', result?.error);
+          } catch (err) {
+            console.error('[🐼 AudioEngine] resolveStreamUrl IPC error:', err);
+          }
+        }
+
+        // ── Web fallback: skip the unavailable track ─────────────────────────
+        console.warn('[🐼 AudioEngine] No fallback available — skipping track');
+        state.setIsLoading(false);
+        setTimeout(state.nextTrack, 1000);
       }
     };
 
