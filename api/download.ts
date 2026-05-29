@@ -13,27 +13,41 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // This runs in Electron's Node.js process — full native binary access.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Dynamic import to avoid bundling issues in Vercel edge (this runs in Electron only)
-let youtubeDlFn: any = null;
+import { execFile } from 'child_process';
+import util from 'util';
+import path from 'path';
+import fs from 'fs';
+const execFileAsync = util.promisify(execFile);
 
-async function getYoutubeDl() {
-  if (youtubeDlFn) return youtubeDlFn;
+async function getYoutubeStreamUrlNative(videoUrl: string): Promise<string | null> {
   try {
-    const { create } = await import('youtube-dl-exec') as any;
+    const isPackaged = !!(process as any).resourcesPath;
+    const binaryName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
     
-    // In packaged Electron, the binary is in process.resourcesPath/bin/
-    // In dev mode, youtube-dl-exec uses its own bundled binary automatically
-    const binaryPath = (process as any).resourcesPath
-      ? require('path').join((process as any).resourcesPath, 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp')
-      : undefined; // Let youtube-dl-exec auto-detect in dev
+    // In packaged app: resourcesPath/bin/yt-dlp
+    // In dev: node_modules/youtube-dl-exec/bin/yt-dlp
+    const binaryPath = isPackaged
+      ? path.join((process as any).resourcesPath, 'bin', binaryName)
+      : path.join(process.cwd(), 'node_modules', 'youtube-dl-exec', 'bin', binaryName);
 
-    youtubeDlFn = binaryPath && require('fs').existsSync(binaryPath)
-      ? create(binaryPath)
-      : (await import('youtube-dl-exec') as any).default;
+    if (!fs.existsSync(binaryPath)) {
+      console.warn(`[Download API] yt-dlp binary not found at ${binaryPath}`);
+      return null;
+    }
 
-    return youtubeDlFn;
+    const { stdout } = await execFileAsync(binaryPath, [
+      '--format', 'bestaudio',
+      '--get-url',
+      '--no-warnings',
+      '--no-check-certificates',
+      videoUrl
+    ]);
+
+    const url = stdout.trim();
+    if (url.startsWith('http')) return url;
+    return null;
   } catch (e) {
-    console.error('[Download API] Failed to load youtube-dl-exec:', e);
+    console.error('[Download API] yt-dlp execFile failed:', e);
     return null;
   }
 }
@@ -58,84 +72,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
   try {
-    const ydl = await getYoutubeDl();
-
-    if (!ydl) {
-      console.log('[Download API] yt-dlp not available, falling back to ytdl-core...');
-      const ytdl = require('@distube/ytdl-core');
-      const info = await ytdl.getInfo(videoUrl, {
-        requestOptions: {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          },
-        },
-      });
-
-      const formats = info.formats.filter((f: any) => f.hasAudio && !f.hasVideo && f.url);
-      if (formats.length === 0) {
-        return res.status(451).json({ error: 'No playable audio format found.' });
-      }
-
-      formats.sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
-      const preferOpus = formats.find((f: any) => f.mimeType?.includes('opus')) || formats[0];
-
-      const streamUrl = preferOpus.url;
-      const mimeType = preferOpus.mimeType?.split(';')[0] || 'audio/webm';
-      
-      console.log(`[Download API] Streaming ${videoId} via ytdl-core | format: ${mimeType}`);
-      
-      const rangeHeader = req.headers['range'] as string;
-      const streamRes = await fetch(streamUrl, {
-        headers: { ...(rangeHeader ? { 'Range': rangeHeader } : {}) },
-      });
-
-      if (!streamRes.ok && streamRes.status !== 206) {
-        return res.status(streamRes.status).json({ error: `Stream error: ${streamRes.status}` });
-      }
-
-      res.writeHead(streamRes.status, {
-        'Content-Type': mimeType,
-        'Content-Length': streamRes.headers.get('content-length') || '',
-        'Content-Range': streamRes.headers.get('content-range') || '',
-        'Accept-Ranges': 'bytes',
-        'Cache-Control': 'public, max-age=3600',
-      });
-
-      const reader = streamRes.body?.getReader();
-      if (!reader) { res.end(); return; }
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) { res.end(); break; }
-        const canContinue = res.write(Buffer.from(value));
-        if (!canContinue) {
-          await new Promise(resolve => (res as any).once('drain', resolve));
-        }
-      }
-      return;
-    }
-
     console.log(`[Download API] Extracting audio URL for ${videoId} via yt-dlp...`);
-
-    // Step 1: Get the direct audio stream URL (no download — just the URL)
+    
     // yt-dlp handles all cipher decryption, bot detection, and format selection
-    const result = await ydl(videoUrl, {
-      format: 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
-      getUrl: true,           // Print URL, don't download
-      noWarnings: true,
-      noCheckCertificates: true,
-      preferFreeFormats: true,
-      addHeader: [
-        'referer:https://www.youtube.com',
-        'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      ],
-    });
+    const streamUrl = await getYoutubeStreamUrlNative(videoUrl);
 
-    // yt-dlp returns the URL as a string (with --get-url flag)
-    const streamUrl = (typeof result === 'string' ? result : result?.url || '').trim();
-
-    if (!streamUrl || !streamUrl.startsWith('http')) {
-      console.error(`[Download API] yt-dlp returned invalid URL for ${videoId}:`, streamUrl?.substring(0, 100));
+    if (!streamUrl) {
+      console.error(`[Download API] yt-dlp returned invalid URL for ${videoId}`);
       return res.status(451).json({ error: 'Could not extract audio URL — video may be unavailable' });
     }
 

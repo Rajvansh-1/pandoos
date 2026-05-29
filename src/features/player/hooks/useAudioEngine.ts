@@ -257,6 +257,7 @@ export function useAudioEngine() {
       usePlayerStore.getState().setIsLoading(false);
       const d = audio.duration;
       if (d > 0 && Number.isFinite(d)) usePlayerStore.getState().setDuration(d);
+
       
       // Initialize AudioContext on first play if needed
       if (!audioContextRef.current) {
@@ -297,8 +298,18 @@ export function useAudioEngine() {
 
       if (usePlayerStore.getState().isPlaying) {
          audio.playbackRate = usePlayerStore.getState().playbackSpeed;
-         audio.play().catch(console.error);
+         audio.play().catch((err) => {
+           if (err.name !== 'AbortError') {
+             console.error('[AudioEngine] HTML5 Audio play error:', err);
+           }
+         });
       }
+    };
+    audio.onerror = () => {
+      if (activeEngineRef.current !== 'local') return;
+      console.error('[AudioEngine] HTML5 Audio network/decode error:', audio.error);
+      usePlayerStore.getState().setIsLoading(false);
+      setTimeout(usePlayerStore.getState().nextTrack, 1000);
     };
     audio.onplay = () => {
       if (activeEngineRef.current !== 'local') return;
@@ -441,11 +452,9 @@ export function useAudioEngine() {
             a.load();
             if (state.isPlaying) {
               a.play().catch((err) => {
-                console.error('[AudioEngine] Proxy play failed:', err);
-                setTimeout(() => {
-                  state.setIsLoading(false);
-                  state.nextTrack();
-                }, 1500);
+                if (err.name !== 'AbortError') {
+                  console.error('[AudioEngine] Proxy play failed:', err);
+                }
               });
             }
           }
