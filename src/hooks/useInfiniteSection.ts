@@ -26,12 +26,12 @@ export function useInfiniteSection({ query, enabled = true }: UseInfiniteSection
       
       const modifiedQuery = `${query} ${variation}${noise}`.trim();
       
-      const { songs } = await searchTracks(modifiedQuery);
-      return songs as Track[];
+      const { songs, artists } = await searchTracks(modifiedQuery);
+      return { songs: songs as Track[], artists };
     },
     getNextPageParam: (lastPage, allPages) => {
       // Always allow loading more unless an API error returned 0 results
-      return lastPage.length === 0 ? undefined : allPages.length;
+      return lastPage.songs.length === 0 ? undefined : allPages.length;
     },
     initialPageParam: 0,
     enabled: enabled && !!query,

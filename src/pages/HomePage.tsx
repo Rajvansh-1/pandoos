@@ -166,10 +166,10 @@ export function HomePage() {
       });
     };
     
-    addArtists(forYouData?.pages?.[0]);
-    addArtists(moodData?.pages?.[0]);
-    addArtists(nowVibeData?.pages?.[0]);
-    addArtists(artistData?.pages?.[0]);
+    addArtists(forYouData?.pages?.[0]?.artists);
+    addArtists(moodData?.pages?.[0]?.artists);
+    addArtists(nowVibeData?.pages?.[0]?.artists);
+    addArtists(artistData?.pages?.[0]?.artists);
     
     // Extract artists from tracks (since Search API often only returns 1-2 artists)
     // We intentionally do NOT use the track's albumArt as the thumbnail anymore, 
@@ -189,10 +189,10 @@ export function HomePage() {
     };
 
     extractFromTracks(trendingTracks);
-    extractFromTracks(forYouData?.pages?.flat());
-    extractFromTracks(moodData?.pages?.flat());
-    extractFromTracks(bollyData?.pages?.flat());
-    extractFromTracks(nowVibeData?.pages?.flat());
+    extractFromTracks(forYouData?.pages?.map(p => p.songs).flat());
+    extractFromTracks(moodData?.pages?.map(p => p.songs).flat());
+    extractFromTracks(bollyData?.pages?.map(p => p.songs).flat());
+    extractFromTracks(nowVibeData?.pages?.map(p => p.songs).flat());
     
     return artists.slice(0, 15);
   }, [forYouData, moodData, nowVibeData, artistData, trendingTracks, bollyData]);
@@ -202,9 +202,9 @@ export function HomePage() {
     const seen = new Set<string>();
     quickPicks.forEach(t => seen.add(t.videoId));
 
-    const dedupe = (data?: Track[] | { pages: Track[][] } | { songs: Track[] }) => {
+    const dedupe = (data?: Track[] | { pages: { songs: Track[] }[] } | { songs: Track[] }) => {
       if (!data) return undefined;
-      const tracks = 'pages' in data ? data.pages.flat() : (Array.isArray(data) ? data : (data.songs || []));
+      const tracks = 'pages' in data ? data.pages.map(p => p.songs).flat() : (Array.isArray(data) ? data : (data.songs || []));
       if (!tracks || tracks.length === 0) return undefined;
       
       const unique = tracks.filter(t => !seen.has(t.videoId));
