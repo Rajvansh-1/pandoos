@@ -125,7 +125,7 @@ export function FullscreenPlayer() {
   const [historyTracks, setHistoryTracks] = useState<Track[]>([]);
 
   // Desktop Tab State
-  const [desktopTab, setDesktopTab] = useState<'player' | 'lyrics'>('player');
+  const [desktopRightTab, setDesktopRightTab] = useState<'upnext' | 'lyrics'>('upnext');
 
   // Mobile Tab State
   const [mobileTab, setMobileTab] = useState<'upnext' | 'related'>('upnext');
@@ -357,23 +357,10 @@ export function FullscreenPlayer() {
 
             <div className="flex w-full h-full p-8 pt-24 gap-8">
 
-              {/* Left Column: Player & Controls & Lyrics */}
+              {/* Left Column: Player & Controls */}
               <div className="flex-1 overflow-y-auto scroll-container flex flex-col items-center h-full pb-12">
                 
-                {/* Desktop Tabs */}
-                <div className="w-full max-w-[500px] flex items-center justify-center gap-8 border-b border-white/10 pb-4 mb-4 mt-2">
-                  <button 
-                    onClick={() => setDesktopTab('player')}
-                    className={cn("text-xs font-bold uppercase tracking-widest transition-all px-2 border-b-2", desktopTab === 'player' ? "text-white border-white" : "text-white/40 border-transparent")}
-                  >Player</button>
-                  <button 
-                    onClick={() => setDesktopTab('lyrics')}
-                    className={cn("text-xs font-bold uppercase tracking-widest transition-all px-2 border-b-2", desktopTab === 'lyrics' ? "text-white border-white" : "text-white/40 border-transparent")}
-                  >Lyrics</button>
-                </div>
-
-                {desktopTab === 'player' ? (
-                  <div className="flex-1 w-full flex flex-col items-center justify-center pt-4">
+                <div className="flex-1 w-full flex flex-col items-center justify-center pt-4">
                     {/* Visualizer Area */}
                     <div className="w-full flex-1 min-h-0 flex items-center justify-center relative max-w-[280px] max-h-[280px]">
                       <div className="relative w-full h-full aspect-square flex items-center justify-center">
@@ -420,25 +407,30 @@ export function FullscreenPlayer() {
 
                   <div className="w-full"><SeekBar /></div>
                   <div className="w-full mt-4"><PlayerControls className="w-full scale-110" /></div>
+                  </div>
                 </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 w-full max-w-[600px] flex flex-col items-center pt-4 h-full">
-                    <div className="w-full h-full min-h-[500px] rounded-3xl overflow-hidden bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
-                      <LyricsView />
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* Right Column: Queue */}
+              {/* Right Column: Queue & Lyrics */}
               <div className="w-[400px] flex flex-col h-full bg-white/5 rounded-3xl border border-white/5 p-6 backdrop-blur-xl shadow-inner shrink-0">
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-white tracking-tight">Up Next</h3>
-                  <button className="text-xs font-semibold text-white/40 hover:text-white uppercase tracking-wider transition-colors">Clear</button>
+                  <div className="flex gap-4">
+                    <button 
+                      onClick={() => setDesktopRightTab('upnext')}
+                      className={cn("text-lg font-bold tracking-tight transition-colors", desktopRightTab === 'upnext' ? "text-white" : "text-white/40 hover:text-white/70")}
+                    >Up Next</button>
+                    <button 
+                      onClick={() => setDesktopRightTab('lyrics')}
+                      className={cn("text-lg font-bold tracking-tight transition-colors", desktopRightTab === 'lyrics' ? "text-white" : "text-white/40 hover:text-white/70")}
+                    >Lyrics</button>
+                  </div>
+                  {desktopRightTab === 'upnext' && (
+                    <button className="text-xs font-semibold text-white/40 hover:text-white uppercase tracking-wider transition-colors">Clear</button>
+                  )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto scroll-container -mx-2 px-2 flex flex-col">
+                {desktopRightTab === 'upnext' ? (
+                  <div className="flex-1 overflow-y-auto scroll-container -mx-2 px-2 flex flex-col">
 
                   {/* History List */}
                   {historyTracks.length > 0 && (
@@ -474,7 +466,12 @@ export function FullscreenPlayer() {
                       />
                     ))}
                   </Reorder.Group>
-                </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-hidden flex flex-col -mx-4 -mb-4">
+                    <LyricsView />
+                  </div>
+                )}
               </div>
 
             </div>

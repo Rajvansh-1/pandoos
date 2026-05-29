@@ -259,7 +259,7 @@ export function LyricsView() {
   }
 
   const renderProviderSelector = () => {
-    if (!providers || Object.keys(providers).length <= 1) return null;
+    if (!providers || Object.keys(providers).length === 0) return null;
     return (
       <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
         <span className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Source:</span>
