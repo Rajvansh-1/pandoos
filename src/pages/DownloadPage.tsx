@@ -7,12 +7,21 @@ export function DownloadPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [deviceType, setDeviceType] = useState<'ios' | 'android' | 'desktop' | 'unknown'>('unknown');
 
   useEffect(() => {
-    // Detect iOS for specific PWA instructions
+    // Detect OS for specific recommendations
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIOSDevice);
+
+    if (isIOSDevice) {
+      setDeviceType('ios');
+    } else if (/android/.test(userAgent)) {
+      setDeviceType('android');
+    } else {
+      setDeviceType('desktop');
+    }
 
     const handleBeforeInstallPrompt = (e: any) => {
       // Prevent the mini-infobar from appearing on mobile
@@ -83,8 +92,13 @@ export function DownloadPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white/5 border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center hover:bg-white/10 transition-colors"
+            className={`bg-white/5 border ${deviceType === 'ios' ? 'border-brand-primary shadow-[0_0_20px_rgba(156,106,222,0.2)]' : 'border-white/10'} rounded-3xl p-8 flex flex-col items-center text-center hover:bg-white/10 transition-colors relative overflow-hidden`}
           >
+            {deviceType === 'ios' && (
+              <div className="absolute top-0 right-0 bg-brand-primary text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-10 shadow-lg">
+                Recommended
+              </div>
+            )}
             <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-6 text-blue-400">
               <Globe size={32} />
             </div>
@@ -122,11 +136,13 @@ export function DownloadPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white/5 border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center hover:bg-white/10 transition-colors relative overflow-hidden"
+            className={`bg-white/5 border ${deviceType === 'desktop' ? 'border-brand-primary shadow-[0_0_20px_rgba(156,106,222,0.2)]' : 'border-white/10'} rounded-3xl p-8 flex flex-col items-center text-center hover:bg-white/10 transition-colors relative overflow-hidden`}
           >
-            <div className="absolute top-0 right-0 bg-brand-primary text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
-              Recommended
-            </div>
+            {deviceType === 'desktop' && (
+              <div className="absolute top-0 right-0 bg-brand-primary text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-10 shadow-lg">
+                Recommended
+              </div>
+            )}
             <div className="w-16 h-16 bg-brand-primary/20 rounded-2xl flex items-center justify-center mb-6 text-brand-primary">
               <Laptop2 size={32} />
             </div>
@@ -150,8 +166,13 @@ export function DownloadPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white/5 border border-white/10 rounded-3xl p-8 flex flex-col items-center text-center hover:bg-white/10 transition-colors"
+            className={`bg-white/5 border ${deviceType === 'android' ? 'border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'border-white/10'} rounded-3xl p-8 flex flex-col items-center text-center hover:bg-white/10 transition-colors relative overflow-hidden`}
           >
+            {deviceType === 'android' && (
+              <div className="absolute top-0 right-0 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg z-10 shadow-lg">
+                Recommended
+              </div>
+            )}
             <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-6 text-emerald-400">
               <Smartphone size={32} />
             </div>
