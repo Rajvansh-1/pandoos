@@ -100,6 +100,7 @@ export function useAudioEngine() {
 
   const seekVersion = usePlayerStore((state) => state.seekVersion);
   const currentTrack = usePlayerStore((state) => state.currentTrack);
+  const isPlaying = usePlayerStore((state) => state.isPlaying);
   const volume = usePlayerStore((state) => state.volume);
   const isMuted = usePlayerStore((state) => state.isMuted);
   const playbackSpeed = usePlayerStore((state) => state.playbackSpeed);
