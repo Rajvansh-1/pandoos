@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion } from 'framer-motion';
-import { Monitor, Smartphone, Download, Check, Apple, Globe, Laptop2, Terminal } from 'lucide-react';
+import { Monitor, Smartphone, Download, Check, Apple, Globe, Laptop2, MessageSquare } from 'lucide-react';
 
 export function DownloadPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -41,13 +41,17 @@ export function DownloadPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0f0d] text-white pt-24 pb-32 px-6">
+    <div className="min-h-screen bg-[#0a0f0d] text-white pt-24 pb-32 px-6 relative overflow-hidden">
+      {/* Mesmerizing Background Effects */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-brand-primary/30 blur-[120px] pointer-events-none animate-pulse-slow" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] rounded-full bg-fuchsia-600/20 blur-[150px] pointer-events-none" />
+
       <Helmet>
         <title>Download Pandoos | The Music Ecosystem</title>
         <meta name="description" content="Download Pandoos for Desktop, Android, or install the Web App. Experience seamless cross-device music sync." />
       </Helmet>
 
-      <div className="max-w-5xl mx-auto space-y-16">
+      <div className="max-w-5xl mx-auto space-y-16 relative z-10">
         
         {/* Header */}
         <motion.div 
@@ -55,14 +59,19 @@ export function DownloadPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-6"
         >
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-brand-primary/20 rounded-full mb-4">
-            <span className="text-6xl">🐼</span>
+          <div className="relative inline-block mb-4 group">
+            <div className="absolute inset-0 bg-brand-primary/40 blur-2xl rounded-full scale-110 group-hover:bg-fuchsia-500/40 transition-colors duration-700" />
+            <img 
+              src="/logo.png" 
+              alt="Pandoos Logo" 
+              className="w-28 h-28 object-contain relative z-10 drop-shadow-2xl animate-float"
+            />
           </div>
-          <h1 className="text-4xl md:text-6xl font-black bg-gradient-to-br from-white via-white/90 to-brand-primary bg-clip-text text-transparent">
+          <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-br from-white via-brand-primary to-fuchsia-400 bg-clip-text text-transparent drop-shadow-lg tracking-tight">
             Get Pandoos Everywhere
           </h1>
           <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto">
-            Experience Spotify-level sync across all your devices. Install the native app, desktop client, or lightweight web app.
+            Experience seamless sync across the entire Pandoos ecosystem. Install the desktop client or lightweight web app.
           </p>
         </motion.div>
 
@@ -154,37 +163,38 @@ export function DownloadPage() {
               Native Kotlin app powered by ExoPlayer. Perfect background playback, Android Auto support, and ultra-low battery usage. 
             </p>
             <div className="w-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold py-4 rounded-xl flex flex-col items-center justify-center gap-1">
-              <span>Coming Soon 🐼</span>
+              <span className="flex items-center gap-2">Coming Soon <img src="/logo.png" alt="Pandoos" className="w-5 h-5 object-contain" /></span>
               <span className="text-xs font-normal opacity-70">The Panda is still coding this...</span>
             </div>
           </motion.div>
 
         </div>
         
-        {/* CLI / Advanced */}
+        {/* Bug Report / Feedback */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="mt-12 bg-[#13111c] border border-brand-primary/20 rounded-3xl p-8 flex flex-col md:flex-row items-center gap-8"
+          className="mt-12 relative overflow-hidden rounded-3xl p-8 flex flex-col md:flex-row items-center gap-8 group"
         >
-          <div className="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center text-purple-400 shrink-0">
-            <Terminal size={32} />
+          <div className="absolute inset-0 bg-gradient-to-r from-red-900/40 via-brand-primary/10 to-orange-900/30 opacity-50 group-hover:opacity-80 transition-opacity duration-700" />
+          <div className="absolute inset-0 border border-white/10 rounded-3xl" />
+          
+          <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center text-red-400 shrink-0 relative z-10 shadow-[0_0_30px_rgba(248,113,113,0.3)]">
+            <MessageSquare size={32} />
           </div>
-          <div className="flex-1 text-center md:text-left">
-            <h2 className="text-2xl font-bold mb-2">Build from Source</h2>
+          <div className="flex-1 text-center md:text-left relative z-10">
+            <h2 className="text-2xl font-bold mb-2">Help Us Improve</h2>
             <p className="text-white/60">
-              Pandoos is fully open-source. Want to contribute or build the ecosystem yourself? Check out our repositories on GitHub.
+              Found a bug or have a suggestion to make the Pandoos experience even better? Let our developer pandas know!
             </p>
           </div>
-          <div className="flex flex-col gap-3 w-full md:w-auto">
+          <div className="flex flex-col gap-3 w-full md:w-auto relative z-10">
             <a 
-              href="https://github.com/Rajvansh-1/pandoos" 
-              target="_blank" 
-              rel="noreferrer"
-              className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-bold text-sm text-center border border-white/10 transition-colors"
+              href="mailto:support@pandoos.app"
+              className="px-6 py-3 bg-red-500/20 hover:bg-red-500/40 text-red-100 rounded-xl font-bold text-sm text-center border border-red-500/30 transition-all flex items-center justify-center gap-2"
             >
-              GitHub Repository
+              Report an Issue
             </a>
           </div>
         </motion.div>
