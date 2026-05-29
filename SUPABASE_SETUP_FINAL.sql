@@ -118,7 +118,47 @@ alter table now_playing disable row level security;
 
 
 -- ────────────────────────────────────────────────────────────
--- 6. ENABLE REALTIME (cross-device sync)
+-- 6. LISTENING HISTORY — Personalization Engine (NEW)
+-- ────────────────────────────────────────────────────────────
+create table if not exists listening_history (
+  id         uuid default gen_random_uuid() primary key,
+  user_id    text not null,
+  video_id   text not null,
+  title      text not null,
+  artist     text not null,
+  album_art  text,
+  duration   integer default 0,
+  listen_pct float default 0,    -- 0.0 to 1.0 (how much was listened)
+  skipped    boolean default false,
+  mood_tag   text,               -- mood at time of listen
+  hour_of_day integer,           -- 0-23
+  day_of_week integer,           -- 0-6 (Sun=0)
+  listened_at timestamp with time zone default timezone('utc', now()) not null
+);
+
+create index if not exists listening_history_user_id_idx on listening_history(user_id, listened_at desc);
+alter table listening_history disable row level security;
+
+
+-- ────────────────────────────────────────────────────────────
+-- 7. USER TASTE PROFILE — Cross-Device Taste Sync (NEW)
+-- ────────────────────────────────────────────────────────────
+create table if not exists user_taste_profile (
+  user_id        text primary key,
+  top_genres     text[] default '{}',
+  top_artists    text[] default '{}',
+  top_moods      text[] default '{}',
+  avg_energy     float default 0.5,
+  preferred_lang text default 'mixed',
+  listen_count   integer default 0,
+  updated_at     timestamp with time zone default timezone('utc', now()) not null
+);
+
+alter table user_taste_profile disable row level security;
+
+
+-- ────────────────────────────────────────────────────────────
+-- 8. ENABLE REALTIME (cross-device sync)
 -- If any line errors with "already member", that is fine — ignore it.
 -- ────────────────────────────────────────────────────────────
 alter publication supabase_realtime add table liked_songs;
@@ -126,3 +166,5 @@ alter publication supabase_realtime add table playlists;
 alter publication supabase_realtime add table playlist_tracks;
 alter publication supabase_realtime add table followed_artists;
 alter publication supabase_realtime add table now_playing;
+alter publication supabase_realtime add table listening_history;
+alter publication supabase_realtime add table user_taste_profile;

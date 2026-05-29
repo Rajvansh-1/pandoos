@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Sparkles, TrendingUp, Music, Clock, Zap, Brain, Dumbbell, Moon, Compass, Heart, Radio, Flame, Mic2, Users } from 'lucide-react';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { useSearch, useTrending } from '@/features/search/hooks/useSearch';
+import { useInfiniteSection } from '@/hooks/useInfiniteSection';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
@@ -85,8 +86,15 @@ export function HomePage() {
 
   const isPersonalized = topGenres.length > 0 || recentArtists.length > 0;
 
-  // Quick picks from history - ensure tracks are valid and playable
-  const quickPicks = useMemo(() => history.filter(t => t && t.videoId).slice(0, 12), [history]);
+  // Quick picks from history - ensure tracks are valid, playable, and uniquely deduplicated
+  const quickPicks = useMemo(() => {
+    const seen = new Set<string>();
+    return history.filter(t => {
+      if (!t || !t.videoId || seen.has(t.videoId)) return false;
+      seen.add(t.videoId);
+      return true;
+    }).slice(0, 12);
+  }, [history]);
 
   // "For You" — seeded from top genre
   const forYouQuery = useMemo(() => {
@@ -112,23 +120,22 @@ export function HomePage() {
 
   const { ref: loadMoreRef, isInView: shouldLoadMore } = useInView({ rootMargin: '600px' });
 
-  // Immediate Searches
-  const { data: nowVibeTracks, isLoading: isNowVibeLoading } = useSearch(nowVibeQuery ?? '');
-  const { data: forYouTracks, isLoading: isForYouLoading } = useSearch(isPersonalized ? forYouQuery : '');
-  const { data: moodTracks, isLoading: isMoodLoading } = useSearch(customQuery);
-  const { data: artistTracks, isLoading: isArtistLoading } = useSearch(recentArtist ? `${recentArtist} top songs` : '');
+  // Immediate Searches (using infinite sections for endless scrolling)
+  const { data: nowVibeData, isLoading: isNowVibeLoading, fetchNextPage: fetchNowVibe, hasNextPage: hasNowVibeMore, isFetchingNextPage: isNowVibeFetching } = useInfiniteSection({ query: nowVibeQuery ?? '' });
+  const { data: forYouData, isLoading: isForYouLoading, fetchNextPage: fetchForYou, hasNextPage: hasForYouMore, isFetchingNextPage: isForYouFetching } = useInfiniteSection({ query: isPersonalized ? forYouQuery : '' });
+  const { data: moodData, isLoading: isMoodLoading, fetchNextPage: fetchMood, hasNextPage: hasMoodMore, isFetchingNextPage: isMoodFetching } = useInfiniteSection({ query: customQuery });
+  const { data: artistData, isLoading: isArtistLoading, fetchNextPage: fetchArtist, hasNextPage: hasArtistMore, isFetchingNextPage: isArtistFetching } = useInfiniteSection({ query: recentArtist ? `${recentArtist} top songs` : '' });
   
   // Podcasts & Artists
-  const { data: podcasts, isLoading: isPodcastsLoading } = useSearch('top trending hindi english podcasts', shouldLoadMore);
+  const { data: podcastsData, isLoading: isPodcastsLoading, fetchNextPage: fetchPodcasts, hasNextPage: hasPodcastsMore, isFetchingNextPage: isPodcastsFetching } = useInfiniteSection({ query: 'top trending hindi english podcasts', enabled: shouldLoadMore });
 
   // Lazy Searches
-  const { data: tseriesTracks, isLoading: isTseriesLoading } = useSearch('TSERIES_LATEST', shouldLoadMore);
-  const { data: bollywoodTracks, isLoading: isBollyLoading } = useSearch('bollywood pop romantic hits', shouldLoadMore);
-  const { data: desiTracks, isLoading: isDesiLoading } = useSearch('desi hip hop punjabi swag', shouldLoadMore);
-  const { data: sufiTracks, isLoading: isSufiLoading } = useSearch('sufi ghazal peaceful lo-fi', shouldLoadMore);
-  const { data: chillTracks, isLoading: isChillLoading } = useSearch('lofi chill relax aesthetic', shouldLoadMore);
+  const { data: tseriesData, isLoading: isTseriesLoading, fetchNextPage: fetchTseries, hasNextPage: hasTseriesMore, isFetchingNextPage: isTseriesFetching } = useInfiniteSection({ query: 'TSERIES_LATEST', enabled: shouldLoadMore });
+  const { data: bollyData, isLoading: isBollyLoading, fetchNextPage: fetchBolly, hasNextPage: hasBollyMore, isFetchingNextPage: isBollyFetching } = useInfiniteSection({ query: 'bollywood pop romantic hits', enabled: shouldLoadMore });
+  const { data: desiData, isLoading: isDesiLoading, fetchNextPage: fetchDesi, hasNextPage: hasDesiMore, isFetchingNextPage: isDesiFetching } = useInfiniteSection({ query: 'desi hip hop punjabi swag', enabled: shouldLoadMore });
+  const { data: sufiData, isLoading: isSufiLoading, fetchNextPage: fetchSufi, hasNextPage: hasSufiMore, isFetchingNextPage: isSufiFetching } = useInfiniteSection({ query: 'sufi ghazal peaceful lo-fi', enabled: shouldLoadMore });
+  const { data: chillData, isLoading: isChillLoading, fetchNextPage: fetchChill, hasNextPage: hasChillMore, isFetchingNextPage: isChillFetching } = useInfiniteSection({ query: 'lofi chill relax aesthetic', enabled: shouldLoadMore });
   const { data: trendingTracks, isLoading: isTrendingLoading } = useTrending(shouldLoadMore);
-  const { data: topArtistsSearch, isLoading: isTopArtistsLoading } = useSearch('top trending hit artists singers', shouldLoadMore);
 
   const { data: oracleData, isLoading: isOracleLoading } = useBeastOracle();
   const moodSessionCounts = useGamificationStore(s => s.moodSessionCounts);
@@ -159,10 +166,10 @@ export function HomePage() {
       });
     };
     
-    addArtists(forYouTracks?.artists);
-    addArtists(moodTracks?.artists);
-    addArtists(nowVibeTracks?.artists);
-    addArtists(artistTracks?.artists);
+    addArtists(forYouData?.pages?.[0]);
+    addArtists(moodData?.pages?.[0]);
+    addArtists(nowVibeData?.pages?.[0]);
+    addArtists(artistData?.pages?.[0]);
     
     // Extract artists from tracks (since Search API often only returns 1-2 artists)
     // We intentionally do NOT use the track's albumArt as the thumbnail anymore, 
@@ -182,22 +189,22 @@ export function HomePage() {
     };
 
     extractFromTracks(trendingTracks);
-    extractFromTracks(forYouTracks);
-    extractFromTracks(moodTracks);
-    extractFromTracks(bollywoodTracks);
-    extractFromTracks(nowVibeTracks);
+    extractFromTracks(forYouData?.pages?.flat());
+    extractFromTracks(moodData?.pages?.flat());
+    extractFromTracks(bollyData?.pages?.flat());
+    extractFromTracks(nowVibeData?.pages?.flat());
     
     return artists.slice(0, 15);
-  }, [forYouTracks, moodTracks, nowVibeTracks, artistTracks, trendingTracks, bollywoodTracks]);
+  }, [forYouData, moodData, nowVibeData, artistData, trendingTracks, bollyData]);
 
   // Deduplicate tracks
   const deduplicatedLanes = useMemo(() => {
     const seen = new Set<string>();
     quickPicks.forEach(t => seen.add(t.videoId));
 
-    const dedupe = (data?: Track[] | { songs: Track[] }) => {
+    const dedupe = (data?: Track[] | { pages: Track[][] } | { songs: Track[] }) => {
       if (!data) return undefined;
-      const tracks = Array.isArray(data) ? data : (data.songs || []);
+      const tracks = 'pages' in data ? data.pages.flat() : (Array.isArray(data) ? data : (data.songs || []));
       if (!tracks || tracks.length === 0) return undefined;
       
       const unique = tracks.filter(t => !seen.has(t.videoId));
@@ -206,21 +213,21 @@ export function HomePage() {
     };
 
     return {
-      nowVibe: dedupe(nowVibeTracks),
-      forYou: dedupe(forYouTracks),
-      oracle: dedupe(moodTracks),
-      artist: dedupe(artistTracks),
-      podcasts: dedupe(podcasts),
-      tseries: dedupe(tseriesTracks),
-      bollywood: dedupe(bollywoodTracks),
-      desi: dedupe(desiTracks),
-      sufi: dedupe(sufiTracks),
-      chill: dedupe(chillTracks),
+      nowVibe: dedupe(nowVibeData),
+      forYou: dedupe(forYouData),
+      oracle: dedupe(moodData),
+      artist: dedupe(artistData),
+      podcasts: dedupe(podcastsData),
+      tseries: dedupe(tseriesData),
+      bollywood: dedupe(bollyData),
+      desi: dedupe(desiData),
+      sufi: dedupe(sufiData),
+      chill: dedupe(chillData),
       trending: dedupe(trendingTracks),
     };
   }, [
-    quickPicks, nowVibeTracks, forYouTracks, moodTracks, artistTracks,
-    podcasts, tseriesTracks, bollywoodTracks, desiTracks, sufiTracks, chillTracks, trendingTracks
+    quickPicks, nowVibeData, forYouData, moodData, artistData,
+    podcastsData, tseriesData, bollyData, desiData, sufiData, chillData, trendingTracks
   ]);
 
   const handleMoodClick = (mood: typeof MOODS[0]) => {
@@ -344,6 +351,9 @@ export function HomePage() {
           icon={Sparkles}
           tracks={deduplicatedLanes.oracle}
           isLoading={isMoodLoading}
+          fetchNextPage={fetchMood}
+          hasNextPage={hasMoodMore}
+          isFetchingNextPage={isMoodFetching}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
           expandMoodId={selectedMood.id}
@@ -371,6 +381,9 @@ export function HomePage() {
             icon={Radio}
             tracks={deduplicatedLanes.nowVibe}
             isLoading={isNowVibeLoading}
+            fetchNextPage={fetchNowVibe}
+            hasNextPage={hasNowVibeMore}
+            isFetchingNextPage={isNowVibeFetching}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
             highlight
@@ -387,6 +400,9 @@ export function HomePage() {
             icon={Heart}
             tracks={deduplicatedLanes.forYou}
             isLoading={isForYouLoading}
+            fetchNextPage={fetchForYou}
+            hasNextPage={hasForYouMore}
+            isFetchingNextPage={isForYouFetching}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
           />
@@ -407,6 +423,9 @@ export function HomePage() {
             icon={Compass}
             tracks={deduplicatedLanes.artist}
             isLoading={isArtistLoading}
+            fetchNextPage={fetchArtist}
+            hasNextPage={hasArtistMore}
+            isFetchingNextPage={isArtistFetching}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
           />
@@ -439,6 +458,9 @@ export function HomePage() {
           icon={Flame}
           tracks={deduplicatedLanes.tseries}
           isLoading={isTseriesLoading}
+          fetchNextPage={fetchTseries}
+          hasNextPage={hasTseriesMore}
+          isFetchingNextPage={isTseriesFetching}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
         />
@@ -451,6 +473,9 @@ export function HomePage() {
           icon={Mic2}
           tracks={deduplicatedLanes.podcasts}
           isLoading={isPodcastsLoading}
+          fetchNextPage={fetchPodcasts}
+          hasNextPage={hasPodcastsMore}
+          isFetchingNextPage={isPodcastsFetching}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
         />
@@ -463,6 +488,9 @@ export function HomePage() {
           icon={Sparkles}
           tracks={deduplicatedLanes.bollywood}
           isLoading={isBollyLoading}
+          fetchNextPage={fetchBolly}
+          hasNextPage={hasBollyMore}
+          isFetchingNextPage={isBollyFetching}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
           expandMoodId="bollywood"
@@ -488,6 +516,9 @@ export function HomePage() {
           icon={Zap}
           tracks={deduplicatedLanes.desi}
           isLoading={isDesiLoading}
+          fetchNextPage={fetchDesi}
+          hasNextPage={hasDesiMore}
+          isFetchingNextPage={isDesiFetching}
           onPlay={handlePlayTrack}
           lovedIds={lovedIds}
           expandMoodId="desi"
@@ -556,15 +587,23 @@ function PandaFooter() {
 }
 
 
-function ContentRow({ title, subtitle, gradient, emotion, icon: Icon, tracks, isLoading, onPlay, lovedIds = [], highlight, expandMoodId }: any) {
+function ContentRow({ title, subtitle, gradient, emotion, icon: Icon, tracks, isLoading, onPlay, lovedIds = [], highlight, expandMoodId, fetchNextPage, hasNextPage, isFetchingNextPage }: any) {
   if (!isLoading && (!tracks || tracks.length === 0)) return null;
 
   const PAGE_SIZE = 12;
   const [page, setPage] = React.useState(1);
   const visible = (tracks || []).slice(0, page * PAGE_SIZE);
-  const hasMore = visible.length < (tracks || []).length;
+  // We have more local tracks OR the API can load more
+  const hasMore = visible.length < (tracks || []).length || hasNextPage;
 
-  React.useEffect(() => { setPage(1); }, [expandMoodId, tracks]);
+  React.useEffect(() => { setPage(1); }, [expandMoodId]);
+
+  const handleLoadMore = () => {
+    if (visible.length >= (tracks || []).length && fetchNextPage) {
+      fetchNextPage();
+    }
+    setPage(p => p + 1);
+  };
 
   return (
     <section className="relative w-full flex flex-col py-4 overflow-hidden">
@@ -643,12 +682,24 @@ function ContentRow({ title, subtitle, gradient, emotion, icon: Icon, tracks, is
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               className="shrink-0 snap-start flex flex-col items-center justify-center gap-2 rounded-xl border border-white/5 bg-white/5 cursor-pointer hover:bg-white/10 transition-all w-[140px] md:w-[160px] aspect-square"
-              onClick={() => setPage(p => p + 1)}
+              onClick={handleLoadMore}
             >
-              <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">+</span>
-              </div>
-              <span className="text-sm text-white/50 font-semibold">More</span>
+              {isFetchingNextPage ? (
+                <div className="w-12 h-12 rounded-full flex items-center justify-center">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    className="w-8 h-8 border-2 border-white/20 border-t-white/80 rounded-full"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center">
+                    <span className="text-white font-bold text-2xl">+</span>
+                  </div>
+                  <span className="text-sm text-white/50 font-semibold">More</span>
+                </>
+              )}
             </motion.div>
           )}
         </div>

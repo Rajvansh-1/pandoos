@@ -7,6 +7,7 @@ import { PROGRESS_INTERVAL_MS } from '@/utils/constants';
 import audioClock from '@/services/audioClock';
 import { getTrackBlob } from '@/services/offlineDB';
 import { getApiUrl } from '@/utils/api';
+import { PandoosBrain } from '@/services/pandoosBrain';
 
 /**
  * useAudioEngine — Dual Engine Architecture (YouTube IFrame + HTML5 Audio)
@@ -209,8 +210,14 @@ export function useAudioEngine() {
       if (listenedSec > 5) useGamificationStore.getState().recordListenSession(listenedSec);
       const curTrack = usePlayerStore.getState().currentTrack;
       if (curTrack) {
-        if (listenedSec < 30) useTasteStore.getState().recordSkip(curTrack);
+        const skipped = listenedSec < 30;
+        if (skipped) useTasteStore.getState().recordSkip(curTrack);
         else useTasteStore.getState().recordPlay(curTrack);
+        
+        // Log to Supabase listening history
+        PandoosBrain.recordListenEvent(curTrack, listenedSec, skipped);
+        // Sync updated taste profile to Supabase
+        if (!skipped) PandoosBrain.syncTasteProfileToCloud();
       }
       sessionStartRef.current = null;
     }
@@ -252,6 +259,13 @@ export function useAudioEngine() {
       if (sessionStartRef.current) {
         const secs = (Date.now() - sessionStartRef.current) / 1000;
         if (secs > 5) useGamificationStore.getState().recordListenSession(secs);
+        
+        // Also log partial listens to history
+        const curTrack = usePlayerStore.getState().currentTrack;
+        if (curTrack && secs > 10) {
+          PandoosBrain.recordListenEvent(curTrack, secs, false);
+        }
+        
         sessionStartRef.current = null;
       }
     };
@@ -318,6 +332,12 @@ export function useAudioEngine() {
             if (sessionStartRef.current) {
               const secs = (Date.now() - sessionStartRef.current) / 1000;
               if (secs > 5) useGamificationStore.getState().recordListenSession(secs);
+              
+              const curTrack = usePlayerStore.getState().currentTrack;
+              if (curTrack && secs > 10) {
+                PandoosBrain.recordListenEvent(curTrack, secs, false);
+              }
+
               sessionStartRef.current = null;
             }
             break;
