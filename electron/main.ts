@@ -45,7 +45,10 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 //  1. App opens system browser → Google login → Supabase redirects to pandoos://login-callback#access_token=...
 //  2. OS hands the URL back to this app via 'open-url' (macOS) or 'second-instance' (Windows/Linux)
 //  3. We extract the tokens and send them to the renderer via IPC
-if (!app.isDefaultProtocolClient('pandoos')) {
+// Handle Windows dev mode where electron.exe requires the app path as an argument
+if (process.defaultApp && process.argv.length >= 2) {
+  app.setAsDefaultProtocolClient('pandoos', process.execPath, [path.resolve(process.argv[1])]);
+} else {
   app.setAsDefaultProtocolClient('pandoos');
 }
 
