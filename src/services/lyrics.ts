@@ -1,4 +1,5 @@
 import { getApiUrl } from '@/utils/api';
+import { getCachedLyrics, setCachedLyrics, type LyricsProviderMap } from './lyricsCache';
 /**
  * lyrics.ts — Production-grade lyrics fetching service.
  *
@@ -140,69 +141,97 @@ function itemToResult(item: LRCLIBItem, matchType: 'exact' | 'fuzzy'): LyricsRes
 }
 
 /**
- * Primary export — fetches lyrics using a multi-strategy waterfall.
- * Never throws; always resolves with a LyricsResult.
+ * Helper to fetch from LRCLIB using the best available strategy.
  */
-export async function fetchLyrics(
-  rawTitle: string,
-  rawArtist: string,
-  videoId?: string
-): Promise<LyricsResult> {
-  const empty: LyricsResult = { synced: null, plain: '', matchType: 'none' };
-
+async function fetchBestLRCLIB(rawTitle: string, rawArtist: string): Promise<LyricsResult | null> {
   const exactTitle = rawTitle.trim();
   const exactArtist = cleanArtist(rawArtist);
   const fuzzyTitle = cleanTitle(rawTitle);
   const fuzzyArtist = cleanArtist(rawArtist);
 
-  // Strategy 1: Exact title + cleaned artist
-  const s1 = await fetchFromLRCLIB({
-    track_name: exactTitle,
-    artist_name: exactArtist,
-  });
+  const s1 = await fetchFromLRCLIB({ track_name: exactTitle, artist_name: exactArtist });
   if (s1) return itemToResult(s1, 'exact');
 
-  // Strategy 2: Cleaned title + cleaned artist (handles "(feat. xyz)" etc.)
   if (fuzzyTitle !== exactTitle) {
-    const s2 = await fetchFromLRCLIB({
-      track_name: fuzzyTitle,
-      artist_name: fuzzyArtist,
-    });
+    const s2 = await fetchFromLRCLIB({ track_name: fuzzyTitle, artist_name: fuzzyArtist });
     if (s2) return itemToResult(s2, 'fuzzy');
   }
 
-  // Strategy 3: Full-text search — catches Romanized/transliterated titles
   const s3 = await searchLRCLIB(`${fuzzyTitle} ${fuzzyArtist}`);
   if (s3) return itemToResult(s3, 'fuzzy');
 
-  // Strategy 4: Title-only search (for instrumental/compilation names)
   const s4 = await searchLRCLIB(fuzzyTitle);
   if (s4) return itemToResult(s4, 'fuzzy');
 
-  // Strategy 5: Fallback to YouTube Music via backend proxy
-  if (videoId) {
-    try {
-      const qs = new URLSearchParams();
-      if (exactTitle) qs.set('track_name', exactTitle);
-      if (exactArtist) qs.set('artist_name', exactArtist);
-      qs.set('videoId', videoId);
-      
-      const res = await fetch(getApiUrl(`/api/lyrics?${qs.toString()}`));
-      if (res.ok) {
-        const data = await res.json();
-        if (data.plainLyrics || data.syncedLyrics) {
-          const synced = data.syncedLyrics ? parseLRC(data.syncedLyrics) : null;
-          return {
-            synced: synced && synced.length > 0 ? synced : null,
-            plain: data.plainLyrics ?? '',
-            matchType: 'fuzzy', // YTM plain lyrics are considered a fuzzy fallback
-          };
-        }
-      }
-    } catch {
-      // Ignore proxy errors, return empty
+  return null;
+}
+
+/**
+ * Helper to fetch from YouTube Music via our backend proxy.
+ */
+async function fetchYouTubeLyrics(rawTitle: string, rawArtist: string, videoId: string): Promise<LyricsResult | null> {
+  try {
+    const qs = new URLSearchParams();
+    if (rawTitle) qs.set('track_name', rawTitle.trim());
+    if (rawArtist) qs.set('artist_name', cleanArtist(rawArtist));
+    qs.set('videoId', videoId);
+    
+    const res = await fetch(getApiUrl(`/api/lyrics?${qs.toString()}`));
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.plainLyrics || data.syncedLyrics) {
+      const synced = data.syncedLyrics ? parseLRC(data.syncedLyrics) : null;
+      return {
+        synced: synced && synced.length > 0 ? synced : null,
+        plain: data.plainLyrics ?? '',
+        matchType: 'fuzzy',
+      };
     }
+  } catch {
+    // Ignore proxy errors
+  }
+  return null;
+}
+
+/**
+ * Primary export — fetches lyrics using parallel providers and IDB caching.
+ * Resolves with a Map/Record of provider results.
+ */
+export async function fetchLyrics(
+  rawTitle: string,
+  rawArtist: string,
+  videoId?: string
+): Promise<LyricsProviderMap> {
+  const providers: LyricsProviderMap = {};
+
+  if (videoId) {
+    const cached = await getCachedLyrics(videoId);
+    if (cached) return cached;
   }
 
-  return empty;
+  const promises: Promise<void>[] = [];
+
+  // 1. LRCLIB Provider
+  promises.push(
+    fetchBestLRCLIB(rawTitle, rawArtist).then(res => {
+      if (res && (res.plain || res.synced)) providers['lrclib'] = res;
+    })
+  );
+
+  // 2. YouTube Music Provider
+  if (videoId) {
+    promises.push(
+      fetchYouTubeLyrics(rawTitle, rawArtist, videoId).then(res => {
+        if (res && (res.plain || res.synced)) providers['youtube'] = res;
+      })
+    );
+  }
+
+  await Promise.allSettled(promises);
+
+  if (videoId && Object.keys(providers).length > 0) {
+    await setCachedLyrics(videoId, providers);
+  }
+
+  return providers;
 }

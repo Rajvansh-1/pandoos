@@ -15,6 +15,7 @@ import { SeekBar } from './SeekBar';
 import { PlayerControls } from './PlayerControls';
 import { PlayerOptionsModal } from './PlayerOptionsModal';
 import { LyricsView } from './LyricsView';
+import { MobileLyricsScreen } from './MobileLyricsScreen';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { cn } from '@/utils/cn';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -123,8 +124,12 @@ export function FullscreenPlayer() {
   const [localUpcoming, setLocalUpcoming] = useState<Track[]>([]);
   const [historyTracks, setHistoryTracks] = useState<Track[]>([]);
 
+  // Desktop Tab State
+  const [desktopTab, setDesktopTab] = useState<'player' | 'lyrics'>('player');
+
   // Mobile Tab State
-  const [mobileTab, setMobileTab] = useState<'upnext' | 'lyrics' | 'related'>('upnext');
+  const [mobileTab, setMobileTab] = useState<'upnext' | 'related'>('upnext');
+  const [isMobileLyricsOpen, setIsMobileLyricsOpen] = useState(false);
   const [relatedTracks, setRelatedTracks] = useState<Track[]>([]);
   const [isLoadingRelated, setIsLoadingRelated] = useState(false);
 
@@ -224,8 +229,8 @@ export function FullscreenPlayer() {
             Up Next
           </button>
           <button
-            onClick={() => setMobileTab('lyrics')}
-            className={cn("text-xs font-bold uppercase tracking-widest transition-all px-2 py-2", mobileTab === 'lyrics' ? "text-white border-b-2 border-white" : "text-white/40")}
+            onClick={() => setIsMobileLyricsOpen(true)}
+            className="text-xs font-bold uppercase tracking-widest text-white/40 transition-all px-2 py-2"
           >
             Lyrics
           </button>
@@ -248,13 +253,7 @@ export function FullscreenPlayer() {
           transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
           className="w-full flex flex-col transform-gpu will-change-transform will-change-opacity"
         >
-          {mobileTab === 'lyrics' && (
-            <div className="min-h-[60vh] w-full flex flex-col items-center pt-8 px-4 pb-24 shrink-0">
-              <div className="w-full flex-1 max-w-lg rounded-3xl overflow-hidden bg-white/5 border border-white/10 shadow-lg">
-                <LyricsView />
-              </div>
-            </div>
-          )}
+          {/* Removed embedded lyrics view, replaced by fullscreen overlay */}
 
           {mobileTab === 'upnext' && (
             <div className="min-h-[60vh] w-full flex flex-col items-center pt-8 px-4 pb-32 shrink-0">
@@ -360,22 +359,36 @@ export function FullscreenPlayer() {
 
               {/* Left Column: Player & Controls & Lyrics */}
               <div className="flex-1 overflow-y-auto scroll-container flex flex-col items-center h-full pb-12">
-                <div className="flex-1 w-full min-h-[500px] flex flex-col items-center justify-center pt-4">
-                  {/* Visualizer Area */}
-                  <div className="w-full flex-1 min-h-0 flex items-center justify-center relative max-w-[280px] max-h-[280px]">
-                  <div className="relative w-full h-full aspect-square flex items-center justify-center">
-                    {visualMode === 'vinyl' ? (
-                      <><VinylRecord track={currentTrack} isPlaying={isPlaying} className="z-10 shadow-2xl" /><Tonearm isPlaying={isPlaying} className="top-[-8%] right-[-8%]" /></>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[hsl(var(--color-primary)/0.3)] to-purple-900/30 rounded-[3rem] backdrop-blur-3xl shadow-[0_0_80px_rgba(var(--color-primary),0.2)] border border-white/5 transition-colors duration-1000">
-                        <PandaMascot size={260} emotion={trackEmotion} className="drop-shadow-2xl" />
-                      </div>
-                    )}
-                  </div>
+                
+                {/* Desktop Tabs */}
+                <div className="w-full max-w-[500px] flex items-center justify-center gap-8 border-b border-white/10 pb-4 mb-4 mt-2">
+                  <button 
+                    onClick={() => setDesktopTab('player')}
+                    className={cn("text-xs font-bold uppercase tracking-widest transition-all px-2 border-b-2", desktopTab === 'player' ? "text-white border-white" : "text-white/40 border-transparent")}
+                  >Player</button>
+                  <button 
+                    onClick={() => setDesktopTab('lyrics')}
+                    className={cn("text-xs font-bold uppercase tracking-widest transition-all px-2 border-b-2", desktopTab === 'lyrics' ? "text-white border-white" : "text-white/40 border-transparent")}
+                  >Lyrics</button>
                 </div>
 
-                {/* Track Info & Controls */}
-                <div className="w-full max-w-[500px] mt-6 flex flex-col items-center shrink-0">
+                {desktopTab === 'player' ? (
+                  <div className="flex-1 w-full flex flex-col items-center justify-center pt-4">
+                    {/* Visualizer Area */}
+                    <div className="w-full flex-1 min-h-0 flex items-center justify-center relative max-w-[280px] max-h-[280px]">
+                      <div className="relative w-full h-full aspect-square flex items-center justify-center">
+                        {visualMode === 'vinyl' ? (
+                          <><VinylRecord track={currentTrack} isPlaying={isPlaying} className="z-10 shadow-2xl" /><Tonearm isPlaying={isPlaying} className="top-[-8%] right-[-8%]" /></>
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[hsl(var(--color-primary)/0.3)] to-purple-900/30 rounded-[3rem] backdrop-blur-3xl shadow-[0_0_80px_rgba(var(--color-primary),0.2)] border border-white/5 transition-colors duration-1000">
+                            <PandaMascot size={260} emotion={trackEmotion} className="drop-shadow-2xl" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Track Info & Controls */}
+                    <div className="w-full max-w-[500px] mt-6 flex flex-col items-center shrink-0">
                   <div className="flex items-center justify-between w-full mb-4">
                     <div className="flex flex-col min-w-0">
                       <h2 className="text-3xl font-display font-extrabold text-white truncate drop-shadow-md">{currentTrack?.title ?? 'Not Playing'}</h2>
@@ -408,22 +421,14 @@ export function FullscreenPlayer() {
                   <div className="w-full"><SeekBar /></div>
                   <div className="w-full mt-4"><PlayerControls className="w-full scale-110" /></div>
                 </div>
-                </div>
-
-                {/* Scroll Indicator */}
-                <div className="w-full flex justify-center mt-12 mb-8 animate-bounce opacity-50">
-                  <ChevronDown size={24} className="text-white" />
-                </div>
-
-                {/* Lyrics Section */}
-                <div className="w-full max-w-[600px] flex flex-col items-center shrink-0">
-                  <h3 className="text-white/40 text-sm font-bold tracking-[0.3em] uppercase mb-6 flex items-center gap-2">
-                    <ListMusic size={16} /> Lyrics
-                  </h3>
-                  <div className="w-full h-[60vh] min-h-[400px] rounded-3xl overflow-hidden bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
-                    <LyricsView />
                   </div>
-                </div>
+                ) : (
+                  <div className="flex-1 w-full max-w-[600px] flex flex-col items-center pt-4 h-full">
+                    <div className="w-full h-full min-h-[500px] rounded-3xl overflow-hidden bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
+                      <LyricsView />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Right Column: Queue */}
@@ -486,6 +491,7 @@ export function FullscreenPlayer() {
           {MobilePlayerContent}
         </BottomSheet>
       )}
+      <MobileLyricsScreen isOpen={isMobileLyricsOpen} onClose={() => setIsMobileLyricsOpen(false)} />
       <PlayerOptionsModal isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} />
     </>
   );

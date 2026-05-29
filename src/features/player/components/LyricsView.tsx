@@ -19,6 +19,7 @@ import { motion } from 'framer-motion';
 import { Loader2, Music2 } from 'lucide-react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { fetchLyrics, type LyricsLine, type LyricsResult } from '@/services/lyrics';
+import type { LyricsProviderMap } from '@/services/lyricsCache';
 import audioClock from '@/services/audioClock';
 
 // ─────────────────────────────────────────────
@@ -112,9 +113,12 @@ export function LyricsView() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const duration = usePlayerStore((s) => s.duration);
 
-  const [result, setResult] = useState<LyricsResult | null>(null);
+  const [providers, setProviders] = useState<LyricsProviderMap | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const result = providers && selectedProvider ? providers[selectedProvider] : null;
 
   // We track activeIndex in a ref for the rAF loop, and only push to state
   // at ~30fps to limit React re-renders.
@@ -131,7 +135,7 @@ export function LyricsView() {
 
     setIsLoading(true);
     setError('');
-    setResult(null);
+    setProviders(null);
     setActiveIndex(-1);
     activeIndexRef.current = -1;
     lineRefsMap.current.clear();
@@ -143,10 +147,14 @@ export function LyricsView() {
     fetchLyrics(rawTitle, rawArtist, videoId)
       .then((res) => {
         if (cancelled) return;
-        if (res.matchType === 'none' && !res.plain && (!res.synced || res.synced.length === 0)) {
+        const keys = Object.keys(res);
+        if (keys.length === 0) {
           setError('No lyrics found for this track.');
         } else {
-          setResult(res);
+          setProviders(res);
+          // Auto-select preferred (lrclib often has synced, fallback to whatever is first)
+          const best = res['lrclib']?.synced ? 'lrclib' : (res['youtube']?.synced ? 'youtube' : keys[0]);
+          setSelectedProvider(best);
         }
       })
       .catch(() => {
@@ -250,11 +258,30 @@ export function LyricsView() {
     );
   }
 
+  const renderProviderSelector = () => {
+    if (!providers || Object.keys(providers).length <= 1) return null;
+    return (
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+        <span className="text-[10px] uppercase tracking-wider text-white/50 font-bold">Source:</span>
+        <select 
+          value={selectedProvider}
+          onChange={(e) => setSelectedProvider(e.target.value)}
+          className="bg-transparent text-xs font-semibold text-white/90 outline-none cursor-pointer"
+        >
+          {Object.keys(providers).map(p => (
+            <option key={p} value={p} className="bg-[#13111C]">{p === 'lrclib' ? 'LRCLIB' : 'YouTube Music'}</option>
+          ))}
+        </select>
+      </div>
+    );
+  };
+
   if (result?.synced && result.synced.length > 0) {
     const lines = result.synced;
 
     return (
       <div className="relative w-full h-full overflow-hidden">
+        {renderProviderSelector()}
         {/* Top fade gradient */}
         <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/30 to-transparent z-10 pointer-events-none" />
         {/* Bottom fade gradient */}
@@ -293,6 +320,7 @@ export function LyricsView() {
   if (result?.plain) {
     return (
       <div className="relative w-full h-full overflow-hidden">
+        {renderProviderSelector()}
         {/* Bottom fade */}
         <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/40 to-transparent z-10 pointer-events-none" />
         <div className="w-full h-full overflow-y-auto scroll-container px-6 py-10">
