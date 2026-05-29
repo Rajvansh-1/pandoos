@@ -431,18 +431,32 @@ export function useAudioEngine() {
           const a = audioRef.current;
           if (a) {
             const proxyUrl = getApiUrl(`/api/download?videoId=${current.videoId}`);
-            a.src = proxyUrl;
-            a.load();
-            if (state.isPlaying) {
-              a.play().catch((err) => {
-                console.error('[AudioEngine] Proxy play failed:', err);
-                // Proxy also failed — skip to next track after a short delay
-                setTimeout(() => {
-                  state.setIsLoading(false);
-                  state.nextTrack();
-                }, 1500);
-              });
-            }
+            // Pre-check if the proxy can serve this video before setting src
+            fetch(proxyUrl, { method: 'HEAD' }).then(headRes => {
+              // 451 = permanently unavailable (ytdl broken / embedding blocked on all fronts)
+              // Skip cleanly rather than showing a broken audio element
+              if (headRes.status === 451 || headRes.status === 403) {
+                console.warn('[AudioEngine] Proxy also unavailable (status', headRes.status, ') — skipping track');
+                state.setIsLoading(false);
+                setTimeout(state.nextTrack, 800);
+                return;
+              }
+              a.src = proxyUrl;
+              a.load();
+              if (state.isPlaying) {
+                a.play().catch((err) => {
+                  console.error('[AudioEngine] Proxy play failed:', err);
+                  setTimeout(() => {
+                    state.setIsLoading(false);
+                    state.nextTrack();
+                  }, 1500);
+                });
+              }
+            }).catch(() => {
+              // Network error reaching proxy — skip
+              state.setIsLoading(false);
+              setTimeout(state.nextTrack, 1000);
+            });
           }
           return;
         }
@@ -503,15 +517,15 @@ export function useAudioEngine() {
 
     usePlayerStore.getState().setIsLoading(true);
 
-    // Safety net: force-clear isLoading after 8s if player events never fire
+    // Safety net: force-clear isLoading after 15s if player events never fire
     if (loadingTimeoutRef.current !== null) clearTimeout(loadingTimeoutRef.current);
     loadingTimeoutRef.current = window.setTimeout(() => {
       loadingTimeoutRef.current = null;
       if (usePlayerStore.getState().isLoading) {
-        console.warn('[AudioEngine] Loading timeout — force-clearing isLoading');
+        console.warn('[AudioEngine] Loading timeout (15s) — force-clearing isLoading');
         usePlayerStore.getState().setIsLoading(false);
       }
-    }, 8000);
+    }, 15000);
 
     // ── EAGER YOUTUBE LOAD (bypasses async user-gesture expiration) ──
     // We must call loadVideoById immediately so the browser's transient activation
