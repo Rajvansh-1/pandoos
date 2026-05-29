@@ -3,6 +3,8 @@ import {
   getUserPlaylists,
   createPlaylist,
   deletePlaylist,
+  updatePlaylistDetails,
+  reorderPlaylistTracks,
   getPlaylistTracks,
   addTrackToPlaylist,
   removeTrackFromPlaylist,
@@ -13,7 +15,8 @@ import {
   getFollowedArtists,
   followArtist,
   unfollowArtist,
-  isArtistFollowed
+  isArtistFollowed,
+  getListeningHistory
 } from '@/services/library';
 import { QUERY_KEYS } from '@/utils/constants';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -96,6 +99,34 @@ export function useDeletePlaylist() {
     mutationFn: (playlistId: string) => deletePlaylist(playlistId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlists(userId) });
+    },
+  });
+}
+
+export function useUpdatePlaylistDetails() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const userId = user?.id || 'guest';
+
+  return useMutation({
+    mutationFn: ({ playlistId, name, description }: { playlistId: string; name: string; description?: string }) => 
+      updatePlaylistDetails(playlistId, name, description),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlists(userId) });
+    },
+  });
+}
+
+export function useReorderPlaylistTracks() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const userId = user?.id || 'guest';
+
+  return useMutation({
+    mutationFn: ({ playlistId, trackIds }: { playlistId: string; trackIds: string[] }) =>
+      reorderPlaylistTracks(playlistId, trackIds),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlist(variables.playlistId) });
     },
   });
 }
@@ -265,5 +296,17 @@ export function useUnfollowArtist() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.followedArtists(userId) });
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.followedArtists(userId), 'check', artistId] });
     },
+  });
+}
+
+// ── Listening History ──────────────────────────────────────────────────
+
+export function useListeningHistory() {
+  const user = useAuthStore((state) => state.user);
+  const userId = user?.id || 'guest';
+  return useQuery({
+    queryKey: ['listeningHistory', userId],
+    queryFn: () => getListeningHistory(userId),
+    enabled: userId !== 'guest',
   });
 }

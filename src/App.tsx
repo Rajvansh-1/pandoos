@@ -18,7 +18,7 @@ import { useOfflineStore } from '@/stores/useOfflineStore';
 import { useThemeStore } from '@/stores/useThemeStore';
 import { LevelUpConfetti } from '@/components/ui/LevelUpConfetti';
 import { subscribeToLibraryChanges } from '@/services/syncService';
-import { updateNowPlayingState } from '@/services/nowPlayingSync';
+import { updateNowPlayingState, forceNowPlayingWrite, initNowPlayingSync } from '@/services/nowPlayingSync';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -28,6 +28,7 @@ import { OnboardingFlow } from '@/features/onboarding/OnboardingFlow';
 import { ArtistOverlay } from '@/features/artist/components/ArtistOverlay';
 import { AlbumOverlay } from '@/features/album/components/AlbumOverlay';
 import { PWAInstallPrompt } from '@/components/pwa/PWAInstallPrompt';
+import { DeviceTransferBanner } from '@/features/player/components/DeviceTransferBanner';
 
 const HomePage = React.lazy(() => import('@/pages/HomePage').then(m => ({ default: m.HomePage })));
 const SearchPage = React.lazy(() => import('@/pages/SearchPage').then(m => ({ default: m.SearchPage })));
@@ -85,6 +86,7 @@ export function App() {
   useEffect(() => {
     if (user?.id) {
       subscribeToLibraryChanges(user.id, queryClient);
+      initNowPlayingSync(user.id);
     }
   }, [user?.id, queryClient]);
 
@@ -92,6 +94,13 @@ export function App() {
   useEffect(() => {
     updateNowPlayingState(currentTrack, isPlaying, progress);
   }, [currentTrack, isPlaying, progress]);
+
+  // Instant sync write on play/pause or track skip
+  useEffect(() => {
+    if (user?.id && currentTrack) {
+      forceNowPlayingWrite();
+    }
+  }, [currentTrack?.videoId, isPlaying, user?.id]);
 
   // Apply Theme to HTML root
   useEffect(() => {
@@ -154,6 +163,7 @@ export function App() {
       <BadgeRevealModal />
       <OnboardingFlow />
       <PWAInstallPrompt />
+      <DeviceTransferBanner />
     </>
   );
 }

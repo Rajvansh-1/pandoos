@@ -58,7 +58,11 @@ export function updateNowPlayingState(track: Track | null, isPlaying: boolean, p
 function startWriteLoop(): void {
   if (writeInterval) clearInterval(writeInterval);
   writeNowPlaying();
-  writeInterval = setInterval(writeNowPlaying, 5000);
+  writeInterval = setInterval(writeNowPlaying, 2000); // 2 second interval
+}
+
+export function forceNowPlayingWrite(): void {
+  writeNowPlaying();
 }
 
 async function writeNowPlaying(): Promise<void> {
@@ -80,7 +84,7 @@ async function writeNowPlaying(): Promise<void> {
 
 export async function getOtherDeviceNowPlaying(
   userId: string
-): Promise<{ track: Track; deviceName: string; isPlaying: boolean } | null> {
+): Promise<{ track: Track; deviceName: string; isPlaying: boolean; progress?: number } | null> {
   try {
     const { data, error } = await supabase
       .from('now_playing')
@@ -104,13 +108,13 @@ export async function getOtherDeviceNowPlaying(
       source: 'youtube',
     };
 
-    return { track, deviceName: data.device_name, isPlaying: data.is_playing };
+    return { track, deviceName: data.device_name, isPlaying: data.is_playing, progress: data.progress };
   } catch { return null; }
 }
 
 export function subscribeToNowPlaying(
   userId: string,
-  onUpdate: (track: Track, deviceName: string, isPlaying: boolean) => void
+  onUpdate: (track: Track, deviceName: string, isPlaying: boolean, progress?: number) => void
 ): void {
   unsubscribeFromNowPlaying();
 
@@ -130,7 +134,7 @@ export function subscribeToNowPlaying(
           duration: 0,
           source: 'youtube',
         };
-        onUpdate(track, data.device_name, data.is_playing);
+        onUpdate(track, data.device_name, data.is_playing, data.progress);
       }
     )
     .subscribe();

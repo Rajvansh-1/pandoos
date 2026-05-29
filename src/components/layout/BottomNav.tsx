@@ -51,7 +51,7 @@ export function BottomNav() {
 
         {/* Profile Tab — Premium XP-aware button */}
         <NavLink
-          to="/profile"
+          to={user ? "/profile" : "/login"}
           className="flex flex-col items-center justify-center w-full h-full space-y-1 touch-highlight transition-all"
         >
           {({ isActive }) => (

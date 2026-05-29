@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Heart, Music2, LogIn, Library as LibraryIcon, Users } from 'lucide-react';
-import { usePlaylists, useLikedSongs, useCreatePlaylist, useFollowedArtists } from '@/features/library/hooks/useLibrary';
+import { Plus, Heart, Music2, LogIn, Library as LibraryIcon, Users, Play, Clock, ArrowDownAZ } from 'lucide-react';
+import { usePlaylists, useLikedSongs, useCreatePlaylist, useFollowedArtists, useListeningHistory } from '@/features/library/hooks/useLibrary';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useUIStore } from '@/stores/useUIStore';
+import { usePlayerStore } from '@/stores/usePlayerStore';
 import { CreatePlaylistModal } from '@/features/library/components/CreatePlaylistModal';
+import { TrackImage } from '@/components/shared/TrackImage';
 import { cn } from '@/utils/cn';
 
 export function LibraryPage() {
@@ -17,9 +19,15 @@ export function LibraryPage() {
   const { data: playlists, isLoading: loadingPlaylists } = usePlaylists();
   const { data: likedSongs, isLoading: loadingLiked } = useLikedSongs();
   const { data: followedArtists, isLoading: loadingArtists } = useFollowedArtists();
+  const { data: historyTracks, isLoading: loadingHistory } = useListeningHistory();
   
   const createPlaylist = useCreatePlaylist();
   const [isCreating, setIsCreating] = useState(false);
+
+  const [activeFilter, setActiveFilter] = useState<'all' | 'playlists' | 'artists'>('all');
+  const [sortOption, setSortOption] = useState<'recent' | 'az' | 'tracks'>('recent');
+
+  const playTrack = usePlayerStore((state) => state.playTrack);
 
   if (!user) {
     return (
@@ -77,6 +85,38 @@ export function LibraryPage() {
           </button>
         </div>
 
+        {/* Filter Chips */}
+        <div className="flex items-center gap-3 mb-8 overflow-x-auto pb-2 scroll-container">
+          <button onClick={() => setActiveFilter('all')} className={cn("px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap", activeFilter === 'all' ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20")}>All</button>
+          <button onClick={() => setActiveFilter('playlists')} className={cn("px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap", activeFilter === 'playlists' ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20")}>Playlists</button>
+          <button onClick={() => setActiveFilter('artists')} className={cn("px-5 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap", activeFilter === 'artists' ? "bg-white text-black" : "bg-white/10 text-white hover:bg-white/20")}>Artists</button>
+        </div>
+
+        {/* Recently Played */}
+        {activeFilter === 'all' && (!loadingHistory && historyTracks && historyTracks.length > 0) && (
+          <div className="mb-10">
+            <h2 className="text-xl font-display font-bold text-white mb-6">Recently Played</h2>
+            <div className="flex gap-4 overflow-x-auto pb-4 snap-x scroll-container">
+              {historyTracks.slice(0, 10).map((track) => (
+                <button
+                  key={`hist-${track.videoId}`}
+                  onClick={() => playTrack(track, historyTracks)}
+                  className="shrink-0 snap-start w-32 group text-left touch-highlight"
+                >
+                  <div className="w-32 h-32 rounded-2xl overflow-hidden mb-3 relative shadow-lg">
+                    <TrackImage videoId={track.videoId} title={track.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Play size={32} className="text-white fill-white shadow-lg" />
+                    </div>
+                  </div>
+                  <h3 className="text-sm font-bold text-white truncate group-hover:text-brand-primary transition-colors">{track.title}</h3>
+                  <p className="text-xs text-white/50 truncate mt-0.5">{track.artist}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Liked Songs Hero Card */}
         <button 
           onClick={() => navigate('/playlist/liked')}
@@ -111,7 +151,7 @@ export function LibraryPage() {
         </button>
 
         {/* Followed Artists */}
-        {loadingArtists || (followedArtists && followedArtists.length > 0) ? (
+        {(activeFilter === 'all' || activeFilter === 'artists') && (loadingArtists || (followedArtists && followedArtists.length > 0)) ? (
           <div className="mb-10">
             <h2 className="text-xl font-display font-bold text-white mb-6">Artists</h2>
             <div className="flex gap-4 overflow-x-auto pb-4 snap-x scroll-container">
@@ -144,7 +184,22 @@ export function LibraryPage() {
         ) : null}
 
         {/* Playlists Grid */}
-        <h2 className="text-xl font-display font-bold text-white mb-6">Playlists</h2>
+        {(activeFilter === 'all' || activeFilter === 'playlists') && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-display font-bold text-white">Playlists</h2>
+              <div className="flex items-center gap-2">
+                <select 
+                  value={sortOption}
+                  onChange={(e) => setSortOption(e.target.value as any)}
+                  className="bg-transparent text-sm font-medium text-white/60 hover:text-white outline-none cursor-pointer p-1"
+                >
+                  <option value="recent" className="bg-surface-base">Recently Added</option>
+                  <option value="az" className="bg-surface-base">Alphabetical</option>
+                  <option value="tracks" className="bg-surface-base">Most Tracks</option>
+                </select>
+              </div>
+            </div>
         
         {loadingPlaylists ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
@@ -154,7 +209,11 @@ export function LibraryPage() {
           </div>
         ) : playlists && playlists.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-8">
-            {playlists.map((playlist) => (
+            {[...playlists].sort((a, b) => {
+              if (sortOption === 'az') return a.name.localeCompare(b.name);
+              if (sortOption === 'tracks') return b.trackCount - a.trackCount;
+              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            }).map((playlist) => (
               <button 
                 key={playlist.id} 
                 onClick={() => navigate(`/playlist/${playlist.id}`)}
@@ -188,6 +247,8 @@ export function LibraryPage() {
               Create Playlist
             </button>
           </div>
+        )}
+        </>
         )}
       </div>
 

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, ListMusic, Music2 } from 'lucide-react';
+import { X, Plus, ListMusic, Music2, LogIn } from 'lucide-react';
 import { usePlaylists, useAddTrackToPlaylist, useCreatePlaylist } from '@/features/library/hooks/useLibrary';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Track } from '@/types/track';
 
@@ -16,6 +17,9 @@ export function AddToPlaylistModal({ isOpen, onClose, track }: Props) {
   const { data: playlists } = usePlaylists();
   const createPlaylist = useCreatePlaylist();
   const addTrackToPlaylist = useAddTrackToPlaylist();
+  
+  const user = useAuthStore((state) => state.user);
+  const signInWithGoogle = useAuthStore((state) => state.signInWithGoogle);
   
   const [isCreating, setIsCreating] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
@@ -76,65 +80,80 @@ export function AddToPlaylistModal({ isOpen, onClose, track }: Props) {
             </button>
           </div>
 
-          <div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto scroll-container pb-4">
-            {isCreating ? (
-              <div className="flex items-center gap-2 p-2 bg-white/5 rounded-xl border border-white/10">
-                <input 
-                  autoFocus
-                  type="text"
-                  placeholder="Playlist name..."
-                  value={newPlaylistName}
-                  onChange={(e) => setNewPlaylistName(e.target.value)}
-                  className="flex-1 bg-transparent text-white outline-none px-2"
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-                />
-                <button 
-                  onClick={handleCreate}
-                  disabled={createPlaylist.isPending}
-                  className="px-4 py-1.5 bg-brand-primary text-white rounded-lg font-bold text-sm hover:opacity-90 disabled:opacity-50"
-                >
-                  Create
-                </button>
+          {!user ? (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-brand-primary to-brand-accent rounded-full flex items-center justify-center mb-6 shadow-lg">
+                <Music2 size={32} className="text-white" />
               </div>
-            ) : (
+              <h3 className="text-2xl font-bold text-white mb-2">Login Required</h3>
+              <p className="text-white/60 mb-8 max-w-sm">Sign in to curate your personal playlists and explore advance features.</p>
               <button 
-                onClick={() => setIsCreating(true)}
-                className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-white/20 hover:border-brand-primary hover:bg-brand-primary/10 transition-colors text-left group"
+                onClick={() => signInWithGoogle()}
+                className="flex items-center gap-2 px-6 py-3 bg-white text-surface-base font-bold rounded-full hover:scale-105 active:scale-95 transition-all shadow-xl"
               >
-                <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-brand-primary/20">
-                  <Plus className="text-white/70 group-hover:text-brand-primary" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-white group-hover:text-brand-primary">New Playlist</h3>
-                  <p className="text-xs text-white/50">Create a custom playlist</p>
-                </div>
+                <LogIn size={18} />
+                Sign in with Google
               </button>
-            )}
-
-            {playlists?.map((playlist) => {
-              // Note: since we're using supabase remote data, we'd ideally have track IDs in the playlist object to check if it has the track.
-              // For now, we will allow adding anyway, or we could fetch the playlist tracks. Let's assume the user can add it again or we handle dedup on backend.
-              return (
-                <button
-                  key={playlist.id}
-                  onClick={() => handleAddToPlaylist(playlist.id)}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-white/5 text-left transition-colors hover:bg-white/10"
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3 max-h-[50vh] overflow-y-auto scroll-container pb-4">
+              {isCreating ? (
+                <div className="flex items-center gap-2 p-2 bg-white/5 rounded-xl border border-white/10">
+                  <input 
+                    autoFocus
+                    type="text"
+                    placeholder="Playlist name..."
+                    value={newPlaylistName}
+                    onChange={(e) => setNewPlaylistName(e.target.value)}
+                    className="flex-1 bg-transparent text-white outline-none px-2"
+                    onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                  />
+                  <button 
+                    onClick={handleCreate}
+                    disabled={createPlaylist.isPending}
+                    className="px-4 py-1.5 bg-brand-primary text-white rounded-lg font-bold text-sm hover:opacity-90 disabled:opacity-50"
+                  >
+                    Create
+                  </button>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => setIsCreating(true)}
+                  className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-white/20 hover:border-brand-primary hover:bg-brand-primary/10 transition-colors text-left group"
                 >
-                  <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center overflow-hidden shrink-0">
-                    {playlist.coverUrl ? (
-                       <img src={playlist.coverUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <Music2 className="text-white/30" />
-                    )}
+                  <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-brand-primary/20">
+                    <Plus className="text-white/70 group-hover:text-brand-primary" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-white truncate">{playlist.name}</h3>
-                    <p className="text-xs text-white/50">{playlist.trackCount} tracks</p>
+                  <div>
+                    <h3 className="font-bold text-white group-hover:text-brand-primary">New Playlist</h3>
+                    <p className="text-xs text-white/50">Create a custom playlist</p>
                   </div>
                 </button>
-              );
-            })}
-          </div>
+              )}
+
+              {playlists?.map((playlist) => {
+                return (
+                  <button
+                    key={playlist.id}
+                    onClick={() => handleAddToPlaylist(playlist.id)}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-white/5 text-left transition-colors hover:bg-white/10"
+                  >
+                    <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center overflow-hidden shrink-0">
+                      {playlist.coverUrl ? (
+                         <img src={playlist.coverUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <Music2 className="text-white/30" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-white truncate">{playlist.name}</h3>
+                      <p className="text-xs text-white/50">{playlist.trackCount} tracks</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </motion.div>
       </div>
     </AnimatePresence>,

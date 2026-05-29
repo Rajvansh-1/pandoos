@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, Clock, Zap, Music, TrendingUp, ChevronRight, Heart, X, Share2, Check } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -234,24 +234,7 @@ export function ProfilePage() {
   const dash = (xpProgress.percent / 100) * circumference;
 
   if (!user) {
-    return (
-      <div className="w-full min-h-full flex flex-col items-center justify-center px-6 pb-24 gap-8">
-        <Helmet>
-          <title>Profile | Pandoos</title>
-        </Helmet>
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-20 h-20 rounded-3xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-4xl">🐾</div>
-          <div>
-            <h1 className="text-2xl font-display font-bold text-white mb-2">Your Panda Profile</h1>
-            <p className="text-sm text-white/40 leading-relaxed max-w-xs">Sign in to track your listening journey, earn badges, and build your Panda legacy.</p>
-          </div>
-        </div>
-        <button onClick={() => signInWithGoogle()} className="flex items-center gap-3 px-8 py-4 bg-white text-gray-900 font-bold rounded-2xl text-sm hover:opacity-90 active:scale-95 transition-all w-full max-w-xs justify-center">
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" className="w-4 h-4" />
-          Continue with Google
-        </button>
-      </div>
-    );
+    return <Navigate to="/login" replace />;
   }
 
   return (

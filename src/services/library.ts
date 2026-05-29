@@ -341,16 +341,86 @@ export async function unfollowArtist(userId: string, artistId: string): Promise<
 }
 
 export async function isArtistFollowed(userId: string, artistId: string): Promise<boolean> {
-  const cached = getCache<any[]>(CACHE.followedArtists(userId), []);
-  if (cached.length > 0) return cached.some(a => a.artistId === artistId);
+  if (userId === 'guest') return false;
 
-  try {
-    const { data } = await supabase
-      .from('followed_artists')
-      .select('artist_id')
-      .eq('user_id', userId)
-      .eq('artist_id', artistId)
-      .maybeSingle();
-    return !!data;
-  } catch { return false; }
+  const { data, error } = await supabase
+    .from('followed_artists')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('artist_id', artistId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error checking artist follow status:', error);
+    return false;
+  }
+
+  return !!data;
+}
+
+export async function updatePlaylistDetails(playlistId: string, name: string, description?: string): Promise<void> {
+  const { error } = await supabase
+    .from('playlists')
+    .update({ name, description: description || '', updated_at: new Date().toISOString() })
+    .eq('id', playlistId);
+    
+  if (error) {
+    console.error('Error updating playlist details:', error);
+    throw error;
+  }
+}
+
+export async function reorderPlaylistTracks(playlistId: string, trackIds: string[]): Promise<void> {
+  // Update each track's position in parallel
+  // Note: For a very large playlist, this might need batching, but for < 100 it's fine.
+  const updates = trackIds.map((videoId, index) => 
+    supabase
+      .from('playlist_tracks')
+      .update({ position: index })
+      .eq('playlist_id', playlistId)
+      .eq('video_id', videoId)
+  );
+
+  await Promise.all(updates);
+}
+
+// ── Playlist Tracks ───────────────────────────────────────────────────
+
+export async function getListeningHistory(userId: string): Promise<Track[]> {
+  if (userId === 'guest') return [];
+
+  const { data, error } = await supabase
+    .from('listening_history')
+    .select('*')
+    .eq('user_id', userId)
+    .order('listened_at', { ascending: false })
+    .limit(30);
+
+  if (error) {
+    console.error('Error fetching listening history:', error);
+    return [];
+  }
+
+  // Deduplicate by video_id
+  const seen = new Set<string>();
+  const tracks: Track[] = [];
+
+  for (const row of data || []) {
+    if (seen.has(row.video_id)) continue;
+    seen.add(row.video_id);
+    
+    tracks.push({
+      id: row.video_id,
+      videoId: row.video_id,
+      title: row.title,
+      artist: row.artist,
+      albumArt: row.album_art || `https://i.ytimg.com/vi/${row.video_id}/hqdefault.jpg`,
+      duration: row.duration || 0,
+      source: 'youtube'
+    });
+
+    if (tracks.length >= 20) break;
+  }
+
+  return tracks;
 }
