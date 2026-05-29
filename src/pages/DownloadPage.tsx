@@ -146,19 +146,17 @@ export function DownloadPage() {
             <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-6 text-emerald-400">
               <Smartphone size={32} />
             </div>
-            <h2 className="text-2xl font-bold mb-3">Android App</h2>
+            <h2 className="text-2xl font-bold mb-3 flex items-center gap-2">
+              Android App
+              <span className="bg-emerald-500/20 text-emerald-400 text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-bold">Soon</span>
+            </h2>
             <p className="text-white/60 mb-8 flex-1">
-              Native Kotlin app powered by ExoPlayer. Perfect background playback, Android Auto support, and ultra-low battery usage.
+              Native Kotlin app powered by ExoPlayer. Perfect background playback, Android Auto support, and ultra-low battery usage. 
             </p>
-            <a 
-              href="https://github.com/Rajvansh-1/pandoos-android/releases/latest" 
-              target="_blank" 
-              rel="noreferrer"
-              className="w-full bg-emerald-500 text-white font-bold py-4 rounded-xl hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
-            >
-              <Download size={20} />
-              Download APK
-            </a>
+            <div className="w-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold py-4 rounded-xl flex flex-col items-center justify-center gap-1">
+              <span>Coming Soon 🐼</span>
+              <span className="text-xs font-normal opacity-70">The Panda is still coding this...</span>
+            </div>
           </motion.div>
 
         </div>
@@ -186,15 +184,7 @@ export function DownloadPage() {
               rel="noreferrer"
               className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-bold text-sm text-center border border-white/10 transition-colors"
             >
-              Web / Desktop Repo
-            </a>
-            <a 
-              href="https://github.com/Rajvansh-1/pandoos-android" 
-              target="_blank" 
-              rel="noreferrer"
-              className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-bold text-sm text-center border border-white/10 transition-colors"
-            >
-              Android Repo
+              GitHub Repository
             </a>
           </div>
         </motion.div>

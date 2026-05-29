@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Headphones, Wifi, Database, LogOut, Info, Settings2, Trash2, Heart } from 'lucide-react';
+import { X, Headphones, Wifi, Database, LogOut, Info, Settings2, Trash2, Heart, ExternalLink } from 'lucide-react';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -196,11 +196,41 @@ export function SettingsModal({ isOpen, onClose }: Props) {
               )}
             </section>
 
+            {/* Ecosystem */}
+            <section className="space-y-4">
+              <div className="flex items-center gap-2 text-fuchsia-400 mb-2">
+                <Heart size={18} />
+                <h3 className="text-sm font-bold uppercase tracking-widest">More from Pandoos</h3>
+              </div>
+              <button 
+                onClick={() => {
+                  onClose();
+                  navigate('/downloads');
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 bg-gradient-to-r from-brand-primary/10 to-fuchsia-500/10 hover:from-brand-primary/20 hover:to-fuchsia-500/20 border border-brand-primary/20 rounded-xl transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-brand-primary/20 rounded-lg flex items-center justify-center text-brand-primary">
+                    <span className="text-lg">🐼</span>
+                  </div>
+                  <div className="text-left">
+                    <span className="block text-sm font-bold text-white group-hover:text-brand-primary transition-colors">
+                      Get Pandoos Ecosystem
+                    </span>
+                    <span className="block text-xs text-white/50">
+                      Download Desktop & App
+                    </span>
+                  </div>
+                </div>
+                <ExternalLink size={16} className="text-white/30 group-hover:text-brand-primary transition-colors" />
+              </button>
+            </section>
+
             {/* About */}
             <section className="pt-4 border-t border-white/5 text-center pb-8">
               <img src="/logo.png" alt="Pandoos Logo" className="w-12 h-12 mx-auto mb-3 opacity-80" />
               <h3 className="text-white font-display font-bold">Pandoos Music</h3>
-              <p className="text-xs text-white/40 mt-1 mb-4">Version 2.1.0 • Built with Panda Love 🐼</p>
+              <p className="text-xs text-white/40 mt-1 mb-4">Version 2.0.1 • Built with Panda Love 🐼</p>
               
               <div className="flex items-center justify-center gap-4 text-xs text-brand-primary mt-2">
                 <button 
