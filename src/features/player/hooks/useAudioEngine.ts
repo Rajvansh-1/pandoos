@@ -55,18 +55,10 @@ function getOrCreateYTPlayer(
   const create = () => {
     if (!window.YT?.Player) return;
     // Detect if running inside Electron (local server on 127.0.0.1 or localhost)
-    const isElectron = !!(window as any).electronAPI ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.hostname === 'localhost';
+    const isElectron = !!(window as any).electronAPI;
 
-    // CRITICAL: In Electron, setting origin to 127.0.0.1 triggers YouTube's
-    // embedding restriction check. When a video owner has disabled embedding,
-    // YouTube fires error 101/150 for any unrecognized origin.
-    // Setting origin to 'https://www.youtube.com' tells YouTube the player is
-    // embedded ON YouTube — bypassing the check entirely for desktop apps.
-    const playerOrigin = isElectron
-      ? 'https://www.youtube.com'
-      : window.location.origin;
+    // Use actual origin, otherwise iframe postMessage security fails in browsers
+    const playerOrigin = window.location.origin;
 
     console.log('[🐼 AudioEngine] Creating YT Player singleton... origin:', playerOrigin);
     _ytPlayer = new window.YT.Player('yt-player-root', {

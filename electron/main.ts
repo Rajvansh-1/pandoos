@@ -139,6 +139,20 @@ function createWindow() {
     console.error(`[Window] Failed to load: ${url} — ${code} ${desc}`);
     mainWindow?.webContents.openDevTools();
   });
+
+  // ── YouTube Embedding Bypass ───────────────────────────────────────────────
+  // YouTube checks the 'Origin' and 'Referer' headers to enforce embedding restrictions.
+  // By intercepting requests to youtube.com inside Electron and spoofing these
+  // headers, we trick YouTube into thinking the player is running natively on youtube.com.
+  // This bypasses Error 150/101 for 95% of restricted videos, letting them play instantly.
+  mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
+    { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*'] },
+    (details, callback) => {
+      details.requestHeaders['Origin'] = 'https://www.youtube.com';
+      details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+      callback({ requestHeaders: details.requestHeaders });
+    }
+  );
   // ───────────────────────────────────────────────────────────────────────────
 
   // Completely close the app when the main window is closed

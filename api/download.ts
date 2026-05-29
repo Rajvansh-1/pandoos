@@ -61,7 +61,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const ydl = await getYoutubeDl();
 
     if (!ydl) {
-      return res.status(503).json({ error: 'yt-dlp not available in this environment' });
+      console.log('[Download API] yt-dlp not available, falling back to ytdl-core...');
+      const ytdl = require('@distube/ytdl-core');
+      const info = await ytdl.getInfo(videoUrl, {
+        requestOptions: {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+        },
+      });
+
+      const formats = info.formats.filter((f: any) => f.hasAudio && !f.hasVideo && f.url);
+      if (formats.length === 0) {
+        return res.status(451).json({ error: 'No playable audio format found.' });
+      }
+
+      formats.sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
+      const preferOpus = formats.find((f: any) => f.mimeType?.includes('opus')) || formats[0];
+
+      const streamUrl = preferOpus.url;
+      const mimeType = preferOpus.mimeType?.split(';')[0] || 'audio/webm';
+      
+      console.log(`[Download API] Streaming ${videoId} via ytdl-core | format: ${mimeType}`);
+      
+      const rangeHeader = req.headers['range'] as string;
+      const streamRes = await fetch(streamUrl, {
+        headers: { ...(rangeHeader ? { 'Range': rangeHeader } : {}) },
+      });
+
+      if (!streamRes.ok && streamRes.status !== 206) {
+        return res.status(streamRes.status).json({ error: `Stream error: ${streamRes.status}` });
+      }
+
+      res.writeHead(streamRes.status, {
+        'Content-Type': mimeType,
+        'Content-Length': streamRes.headers.get('content-length') || '',
+        'Content-Range': streamRes.headers.get('content-range') || '',
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=3600',
+      });
+
+      const reader = streamRes.body?.getReader();
+      if (!reader) { res.end(); return; }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) { res.end(); break; }
+        const canContinue = res.write(Buffer.from(value));
+        if (!canContinue) {
+          await new Promise(resolve => (res as any).once('drain', resolve));
+        }
+      }
+      return;
     }
 
     console.log(`[Download API] Extracting audio URL for ${videoId} via yt-dlp...`);
