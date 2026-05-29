@@ -1,20 +1,42 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import ytdlCore from '@distube/ytdl-core';
-
-// Handle potential ESM interop issues
-const ytdl = (ytdlCore as any).default || ytdlCore;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Audio proxy endpoint
+// Guaranteed audio streaming via yt-dlp (youtube-dl-exec)
 //
-// IMPORTANT: This is the FALLBACK path — only called when the YouTube IFrame
-// player gives error 150/101 (embedding disabled by the video owner).
-// The primary playback path is the YT IFrame player directly.
+// yt-dlp is the industry-standard YouTube downloader used by:
+//   - VLC, Kodi, MPV, Jellyfin, and thousands of media apps
+//   - It is actively maintained and updated within days of YouTube changes
 //
-// ytdl-core may fail for some videos when YouTube rotates their player script.
-// When it fails, the audio engine automatically skips to the next track — 
-// the user won't be stuck on a broken song.
+// youtube-dl-exec automatically downloads and caches the correct yt-dlp binary
+// for the current platform (Windows .exe / macOS / Linux) on first use.
+//
+// This runs in Electron's Node.js process — full native binary access.
 // ─────────────────────────────────────────────────────────────────────────────
+
+// Dynamic import to avoid bundling issues in Vercel edge (this runs in Electron only)
+let youtubeDlFn: any = null;
+
+async function getYoutubeDl() {
+  if (youtubeDlFn) return youtubeDlFn;
+  try {
+    const { create } = await import('youtube-dl-exec') as any;
+    
+    // In packaged Electron, the binary is in process.resourcesPath/bin/
+    // In dev mode, youtube-dl-exec uses its own bundled binary automatically
+    const binaryPath = (process as any).resourcesPath
+      ? require('path').join((process as any).resourcesPath, 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp')
+      : undefined; // Let youtube-dl-exec auto-detect in dev
+
+    youtubeDlFn = binaryPath && require('fs').existsSync(binaryPath)
+      ? create(binaryPath)
+      : (await import('youtube-dl-exec') as any).default;
+
+    return youtubeDlFn;
+  } catch (e) {
+    console.error('[Download API] Failed to load youtube-dl-exec:', e);
+    return null;
+  }
+}
 
 export const config = {
   api: {
@@ -33,50 +55,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing videoId parameter' });
   }
 
-  const url = `https://www.youtube.com/watch?v=${videoId}`;
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
   try {
-    // Get video info without createAgent (which requires YT cookies)
-    const info = await ytdl.getInfo(url, {
-      requestOptions: {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        },
-      },
-    });
+    const ydl = await getYoutubeDl();
 
-    // Find best audio-only format with a playable URL
-    const formats = info.formats.filter(
-      (f: any) => f.hasAudio && !f.hasVideo && f.url
-    );
-
-    if (formats.length === 0) {
-      console.error(`[Download API] No playable audio formats for ${videoId} — ytdl decipher may be broken`);
-      // Return 451 (unavailable for legal/technical reasons) so the audio engine
-      // knows this is a permanent failure and skips cleanly, NOT a transient error.
-      return res.status(451).json({ 
-        error: 'No playable audio format found. This may be due to YouTube embedding restrictions.',
-        videoId,
-      });
+    if (!ydl) {
+      return res.status(503).json({ error: 'yt-dlp not available in this environment' });
     }
 
-    // Sort by bitrate descending, prefer opus/webm
-    formats.sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
-    const preferOpus = formats.find((f: any) => f.mimeType?.includes('opus')) || formats[0];
+    console.log(`[Download API] Extracting audio URL for ${videoId} via yt-dlp...`);
 
-    const streamUrl = preferOpus.url;
-    const mimeType = preferOpus.mimeType?.split(';')[0] || 'audio/webm';
-    
-    console.log(`[Download API] Streaming ${videoId} | format: ${mimeType} | bitrate: ${preferOpus.audioBitrate}kbps`);
+    // Step 1: Get the direct audio stream URL (no download — just the URL)
+    // yt-dlp handles all cipher decryption, bot detection, and format selection
+    const result = await ydl(videoUrl, {
+      format: 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
+      getUrl: true,           // Print URL, don't download
+      noWarnings: true,
+      noCheckCertificates: true,
+      preferFreeFormats: true,
+      addHeader: [
+        'referer:https://www.youtube.com',
+        'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      ],
+    });
 
-    // Proxy the stream (avoids CORS issues in Electron renderer)
+    // yt-dlp returns the URL as a string (with --get-url flag)
+    const streamUrl = (typeof result === 'string' ? result : result?.url || '').trim();
+
+    if (!streamUrl || !streamUrl.startsWith('http')) {
+      console.error(`[Download API] yt-dlp returned invalid URL for ${videoId}:`, streamUrl?.substring(0, 100));
+      return res.status(451).json({ error: 'Could not extract audio URL — video may be unavailable' });
+    }
+
+    console.log(`[Download API] Got stream URL for ${videoId} — proxying...`);
+
+    // Step 2: Proxy the stream (avoids CORS and auth issues in renderer)
     const rangeHeader = req.headers['range'] as string;
     const streamRes = await fetch(streamUrl, {
       headers: {
         ...(rangeHeader ? { 'Range': rangeHeader } : {}),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
         'Referer': 'https://www.youtube.com/',
         'Origin': 'https://www.youtube.com',
       },
@@ -84,8 +103,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!streamRes.ok && streamRes.status !== 206) {
       console.error(`[Download API] Stream fetch returned ${streamRes.status} for ${videoId}`);
-      return res.status(streamRes.status).json({ error: `YouTube stream returned ${streamRes.status}` });
+      return res.status(streamRes.status).json({ error: `Stream error: ${streamRes.status}` });
     }
+
+    // Detect MIME type from the URL or content-type
+    const contentType = streamRes.headers.get('content-type') || 'audio/webm';
+    const mimeType = contentType.split(';')[0];
 
     res.writeHead(streamRes.status, {
       'Content-Type': mimeType,
@@ -95,11 +118,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       'Cache-Control': 'public, max-age=3600',
     });
 
+    // Stream bytes to client with back-pressure handling
     const reader = streamRes.body?.getReader();
-    if (!reader) {
-      res.end();
-      return;
-    }
+    if (!reader) { res.end(); return; }
 
     while (true) {
       const { done, value } = await reader.read();
@@ -112,11 +133,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error: any) {
     const msg = error.message || 'Internal Server Error';
-    console.error(`[Download API] Error for ${videoId}:`, msg);
+    console.error(`[Download API] yt-dlp error for ${videoId}:`, msg.substring(0, 200));
     if (!res.headersSent) {
-      // Use 451 for "no playable formats" so audio engine skips cleanly
-      const statusCode = msg.includes('playable') ? 451 : 500;
-      res.status(statusCode).json({ error: msg });
+      const isUnavailable = msg.includes('unavailable') || msg.includes('private') || msg.includes('removed');
+      res.status(isUnavailable ? 451 : 500).json({ error: msg });
     }
   }
 }

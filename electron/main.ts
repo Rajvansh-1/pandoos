@@ -228,6 +228,14 @@ app.whenReady().then(async () => {
     event.returnValue = apiUrl;
   });
 
+  // Pre-warm yt-dlp: run a version check in the background so the binary is cached
+  // and ready when the first song needs the fallback. Runs silently, never blocks startup.
+  import('youtube-dl-exec').then((mod: any) => {
+    const ydl = mod.default || mod;
+    ydl('--version', {}).catch(() => {}); // silently ignore any errors
+    console.log('[main] yt-dlp pre-warm triggered');
+  }).catch(() => {});
+
   // Open a URL in the system's default browser (for deep-link OAuth)
   ipcMain.on('open-external', (_event, url: string) => {
     shell.openExternal(url).catch(err => console.error('[IPC] open-external error:', err));
