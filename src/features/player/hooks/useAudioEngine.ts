@@ -54,13 +54,7 @@ function getOrCreateYTPlayer(
 
   const create = () => {
     if (!window.YT?.Player) return;
-    // Detect if running inside Electron (local server on 127.0.0.1 or localhost)
-    const isElectron = !!(window as any).electronAPI;
-
-    // Use actual origin, otherwise iframe postMessage security fails in browsers
-    const playerOrigin = window.location.origin;
-
-    console.log('[🐼 AudioEngine] Creating YT Player singleton... origin:', playerOrigin);
+    console.log('[🐼 AudioEngine] Creating YT Player singleton...');
     _ytPlayer = new window.YT.Player('yt-player-root', {
       height: '200',
       width: '200',
@@ -69,7 +63,7 @@ function getOrCreateYTPlayer(
         controls: 0,
         disablekb: 1,
         playsinline: 1,
-        origin: playerOrigin,
+        origin: window.location.origin,
       },
       events: {
         onReady: (e) => _activeDelegate?.onReady(e),
@@ -257,7 +251,6 @@ export function useAudioEngine() {
       usePlayerStore.getState().setIsLoading(false);
       const d = audio.duration;
       if (d > 0 && Number.isFinite(d)) usePlayerStore.getState().setDuration(d);
-
       
       // Initialize AudioContext on first play if needed
       if (!audioContextRef.current) {
@@ -298,18 +291,8 @@ export function useAudioEngine() {
 
       if (usePlayerStore.getState().isPlaying) {
          audio.playbackRate = usePlayerStore.getState().playbackSpeed;
-         audio.play().catch((err) => {
-           if (err.name !== 'AbortError') {
-             console.error('[AudioEngine] HTML5 Audio play error:', err);
-           }
-         });
+         audio.play().catch(console.error);
       }
-    };
-    audio.onerror = () => {
-      if (activeEngineRef.current !== 'local') return;
-      console.error('[AudioEngine] HTML5 Audio network/decode error:', audio.error);
-      usePlayerStore.getState().setIsLoading(false);
-      setTimeout(usePlayerStore.getState().nextTrack, 1000);
     };
     audio.onplay = () => {
       if (activeEngineRef.current !== 'local') return;
@@ -428,55 +411,18 @@ export function useAudioEngine() {
       },
       onError: async (event) => {
         if (activeEngineRef.current !== 'youtube') return;
-        const errorCode = event.data;
-        console.error('[AudioEngine] YouTube Player Error:', errorCode);
-        // YT error codes:
-        //   2   = invalid videoId
-        //   5   = HTML5 player error (try retry)
-        //   100 = video removed / private
-        //   101 = embedding disabled (owner setting)
-        //   150 = embedding disabled (same as 101, different check)
-
+        console.error('YouTube Player Error:', event.data);
         const state = usePlayerStore.getState();
         const current = state.currentTrack;
         if (!current) { state.setIsLoading(false); setTimeout(state.nextTrack, 1000); return; }
-
-        // For errors 101/150 (embedding disabled) — fall straight to proxy, no retry
-        if (errorCode === 101 || errorCode === 150) {
-          console.log('[AudioEngine] Embedding disabled — falling back to proxy stream for', current.videoId);
-          activeEngineRef.current = 'local';
-          const a = audioRef.current;
-          if (a) {
-            const proxyUrl = getApiUrl(`/api/download?videoId=${current.videoId}`);
-            a.src = proxyUrl;
-            a.load();
-            if (state.isPlaying) {
-              a.play().catch((err) => {
-                if (err.name !== 'AbortError') {
-                  console.error('[AudioEngine] Proxy play failed:', err);
-                }
-              });
-            }
-          }
-          return;
+        console.log('Falling back to proxy stream for', current.videoId);
+        activeEngineRef.current = 'local';
+        const a = audioRef.current;
+        if (a) {
+          a.src = getApiUrl(`/api/download?videoId=${current.videoId}`);
+          a.load();
+          if (state.isPlaying) a.play().catch(console.error);
         }
-
-        // For error 5 (HTML5 error) — try one cueVideoById retry
-        if (errorCode === 5 && _ytReady && _ytPlayer) {
-          console.log('[AudioEngine] HTML5 error — retrying with cueVideoById for', current.videoId);
-          _ytPlayer.cueVideoById(current.videoId);
-          setTimeout(() => {
-            if (_ytReady && _ytPlayer && activeEngineRef.current === 'youtube') {
-              _ytPlayer.playVideo();
-            }
-          }, 800);
-          return;
-        }
-
-        // For any other error — skip to next track
-        console.warn('[AudioEngine] Unhandled YT error', errorCode, '— skipping track');
-        state.setIsLoading(false);
-        setTimeout(state.nextTrack, 1000);
       }
     };
 
@@ -517,15 +463,15 @@ export function useAudioEngine() {
 
     usePlayerStore.getState().setIsLoading(true);
 
-    // Safety net: force-clear isLoading after 15s if player events never fire
+    // Safety net: force-clear isLoading after 8s if player events never fire
     if (loadingTimeoutRef.current !== null) clearTimeout(loadingTimeoutRef.current);
     loadingTimeoutRef.current = window.setTimeout(() => {
       loadingTimeoutRef.current = null;
       if (usePlayerStore.getState().isLoading) {
-        console.warn('[AudioEngine] Loading timeout (15s) — force-clearing isLoading');
+        console.warn('[AudioEngine] Loading timeout — force-clearing isLoading');
         usePlayerStore.getState().setIsLoading(false);
       }
-    }, 15000);
+    }, 8000);
 
     // ── EAGER YOUTUBE LOAD (bypasses async user-gesture expiration) ──
     // We must call loadVideoById immediately so the browser's transient activation

@@ -182,12 +182,7 @@ export function HomePage() {
           artists.push({
             artistId: t.artistId,
             name: t.artist,
-            // Use the track's album art as a fallback artist image — it's an actual
-            // image (YouTube thumbnail) which is far better than showing just a letter.
-            // The real artist photo will be overwritten if a proper artist result comes first.
-            thumbnails: t.albumArt
-              ? [{ url: t.albumArt, width: 226, height: 226 }]
-              : [],
+            thumbnails: [] // Empty array triggers fallback
           });
         }
       });

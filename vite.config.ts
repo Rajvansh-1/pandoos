@@ -98,7 +98,7 @@ export default defineConfig({
             rollupOptions: {
               // Externalize ytdl-core so it loads as native CJS from node_modules.
               // Bundling it with Rollup breaks its internal require() calls.
-              external: ['@distube/ytdl-core', 'm3u8stream', 'miniget', 'sax', 'ytmusic-api', 'youtube-dl-exec'],
+              external: ['@distube/ytdl-core', 'm3u8stream', 'miniget', 'sax', 'ytmusic-api'],
               output: {
                 format: 'esm',
                 entryFileNames: '[name].js',

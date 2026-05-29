@@ -1,7 +1,7 @@
 {
   "name": "pandoos",
   "private": true,
-  "version": "2.0.9",
+  "version": "2.0.10",
   "description": "Pandoos Music Desktop App",
   "author": {
     "name": "Rajvansh",
@@ -41,8 +41,7 @@
       "node_modules/m3u8stream/**/*",
       "node_modules/miniget/**/*",
       "node_modules/sax/**/*",
-      "node_modules/ytmusic-api/**/*",
-      "node_modules/youtube-dl-exec/**/*"
+      "node_modules/ytmusic-api/**/*"
     ],
     "asarUnpack": [
       "dist-electron/preload.cjs",
@@ -50,18 +49,7 @@
       "node_modules/m3u8stream/**/*",
       "node_modules/miniget/**/*",
       "node_modules/sax/**/*",
-      "node_modules/ytmusic-api/**/*",
-      "node_modules/youtube-dl-exec/**/*"
-    ],
-    "extraResources": [
-      {
-        "from": "node_modules/youtube-dl-exec/bin/",
-        "to": "bin/",
-        "filter": [
-          "yt-dlp*",
-          "yt-dlp.exe"
-        ]
-      }
+      "node_modules/ytmusic-api/**/*"
     ],
     "win": {
       "target": [
@@ -154,7 +142,6 @@
     "react-router-dom": "^7.15.1",
     "sax": "^1.6.0",
     "tailwind-merge": "^3.6.0",
-    "youtube-dl-exec": "^3.1.7",
     "ytmusic-api": "^5.3.1",
     "zod": "^4.4.3",
     "zustand": "^5.0.13"

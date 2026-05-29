@@ -10,7 +10,6 @@ import { useRecommendEngine } from '@/hooks/useRecommendEngine';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { BadgeRevealModal } from '@/features/profile/BadgeRevealModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
-import { useHardwareBack } from '@/hooks/useHardwareBack';
 // Capacitor native hook disabled — PWA is the mobile strategy
 // import { useCapacitorNative } from '@/hooks/useCapacitorNative';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -79,7 +78,6 @@ export function App() {
   useMediaSession();
   useRecommendEngine();
   useKeyboardShortcuts();
-  useHardwareBack(); // Intercept mobile hardware back button for modals
 
   useEffect(() => {
     initializeAuth();

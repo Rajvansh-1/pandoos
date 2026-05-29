@@ -50,47 +50,16 @@ const MIME_TYPES: Record<string, string> = {
 
 export function startLocalApiServer(): Promise<number> {
   return new Promise((resolve) => {
-    // Resolve dist folder relative to THIS file at runtime.
-    //
-    // In DEV:       dist-electron/api-server.js  →  ../dist  ✅
-    //
-    // In PACKAGED:  Electron puts the web app at:
-    //   app.asar/dist/           (inside the archive)
-    //   app.asar/dist-electron/  (also inside the archive)
-    //   app.asar.unpacked/dist-electron/preload.cjs  (unpacked)
-    //
-    // import.meta.url in a packaged build is a file:// URL pointing INSIDE app.asar.
-    // path.resolve(__dirname, '../dist') still works because Node can read asar files
-    // transparently via the asar protocol patch Electron applies.
-    //
-    // However if BOTH the server and the dist folder end up in the same asar we can
-    // still read them.  The only failure case is if resourcesPath is set differently.
-    // We try multiple candidate paths and use the first one that contains index.html.
-
+    // Resolve dist folder relative to THIS file at runtime
+    // In packaged app: app.asar/dist-electron/api-server → dist is app.asar/dist
     const serverFileUrl = import.meta.url;
     const serverFilePath = fileURLToPath(serverFileUrl);
     const serverDir = path.dirname(serverFilePath);
-
-    // Candidate paths in priority order
-    const distCandidates = [
-      path.resolve(serverDir, '..', 'dist'),                         // dev & standard asar
-      path.resolve(process.resourcesPath || '', 'app', 'dist'),      // some packagers
-      path.resolve(process.resourcesPath || '', 'dist'),             // alternate layout
-      path.resolve(serverDir, 'dist'),                               // same folder fallback
-    ];
-
-    let distPath = distCandidates[0]; // default
-    for (const candidate of distCandidates) {
-      if (fs.existsSync(path.join(candidate, 'index.html'))) {
-        distPath = candidate;
-        break;
-      }
-    }
+    const distPath = path.resolve(serverDir, '..', 'dist');
 
     console.log('[API Server] serverDir:', serverDir);
-    console.log('[API Server] distPath resolved to:', distPath);
+    console.log('[API Server] distPath:', distPath);
     console.log('[API Server] index.html exists:', fs.existsSync(path.join(distPath, 'index.html')));
-
 
     const server = http.createServer(async (req, res) => {
       // CORS headers
@@ -119,24 +88,9 @@ export function startLocalApiServer(): Promise<number> {
           // Serve static files from dist folder
           let filePath = path.join(distPath, pathname === '/' ? 'index.html' : pathname);
 
-          // Detect if this is a request for a real asset (js, css, image, font, etc.)
-          // These must NEVER fall back to index.html — that causes the MIME type error.
-          const requestedExt = path.extname(pathname).toLowerCase();
-          const isAssetRequest = requestedExt.length > 0 && requestedExt !== '.html';
-
-          if (isAssetRequest) {
-            // Asset file: serve it directly or return 404 (never serve HTML for JS/CSS)
-            if (!fs.existsSync(filePath)) {
-              console.error(`[API Server] Asset not found: ${filePath}`);
-              res.writeHead(404, { 'Content-Type': 'text/plain' });
-              res.end(`404: Asset not found: ${pathname}`);
-              return;
-            }
-          } else {
-            // HTML navigation route: SPA fallback — serve index.html for any unknown route
-            if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-              filePath = path.join(distPath, 'index.html');
-            }
+          // SPA Fallback — any unknown route serves index.html
+          if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+            filePath = path.join(distPath, 'index.html');
           }
 
           const ext = path.extname(filePath).toLowerCase();

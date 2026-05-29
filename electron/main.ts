@@ -45,23 +45,8 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 //  1. App opens system browser → Google login → Supabase redirects to pandoos://login-callback#access_token=...
 //  2. OS hands the URL back to this app via 'open-url' (macOS) or 'second-instance' (Windows/Linux)
 //  3. We extract the tokens and send them to the renderer via IPC
-//
-// CRITICAL for dev mode on Windows:
-//   Without passing execPath + [mainScript], Windows registers ONLY the electron binary.
-//   When the URL returns, Electron gets:  electron.exe "pandoos://login-callback#token..."
-//   and tries to LOAD the URL as the app entry point → "Unable to find Electron app" error.
-//   Passing the main script ensures Windows registers:
-//     electron.exe "path/to/main.js" "pandoos://..."
-//   so the URL is correctly passed as argv[2] to the second-instance handler.
-if (app.isPackaged) {
-  // Production: just register the .exe — no extra args needed
-  if (!app.isDefaultProtocolClient('pandoos')) {
-    app.setAsDefaultProtocolClient('pandoos');
-  }
-} else {
-  // Dev: must pass execPath + [main script] so Windows knows where the app is
-  const mainScript = path.resolve(process.argv[1]);
-  app.setAsDefaultProtocolClient('pandoos', process.execPath, [mainScript]);
+if (!app.isDefaultProtocolClient('pandoos')) {
+  app.setAsDefaultProtocolClient('pandoos');
 }
 
 /** Parse and forward a deep-link URL to the renderer */
@@ -139,20 +124,6 @@ function createWindow() {
     console.error(`[Window] Failed to load: ${url} — ${code} ${desc}`);
     mainWindow?.webContents.openDevTools();
   });
-
-  // ── YouTube Embedding Bypass ───────────────────────────────────────────────
-  // YouTube checks the 'Origin' and 'Referer' headers to enforce embedding restrictions.
-  // By intercepting requests to youtube.com inside Electron and spoofing these
-  // headers, we trick YouTube into thinking the player is running natively on youtube.com.
-  // This bypasses Error 150/101 for 95% of restricted videos, letting them play instantly.
-  mainWindow.webContents.session.webRequest.onBeforeSendHeaders(
-    { urls: ['*://*.youtube.com/*', '*://*.youtube-nocookie.com/*'] },
-    (details, callback) => {
-      details.requestHeaders['Origin'] = 'https://www.youtube.com';
-      details.requestHeaders['Referer'] = 'https://www.youtube.com/';
-      callback({ requestHeaders: details.requestHeaders });
-    }
-  );
   // ───────────────────────────────────────────────────────────────────────────
 
   // Completely close the app when the main window is closed
@@ -241,14 +212,6 @@ app.whenReady().then(async () => {
   ipcMain.on('get-api-url', (event) => {
     event.returnValue = apiUrl;
   });
-
-  // Pre-warm yt-dlp: run a version check in the background so the binary is cached
-  // and ready when the first song needs the fallback. Runs silently, never blocks startup.
-  import('youtube-dl-exec').then((mod: any) => {
-    const ydl = mod.default || mod;
-    ydl('--version', {}).catch(() => {}); // silently ignore any errors
-    console.log('[main] yt-dlp pre-warm triggered');
-  }).catch(() => {});
 
   // Open a URL in the system's default browser (for deep-link OAuth)
   ipcMain.on('open-external', (_event, url: string) => {
