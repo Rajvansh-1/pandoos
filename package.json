@@ -45,11 +45,7 @@
     ],
     "asarUnpack": [
       "dist-electron/preload.cjs",
-      "node_modules/@distube/ytdl-core/**/*",
-      "node_modules/m3u8stream/**/*",
-      "node_modules/miniget/**/*",
-      "node_modules/sax/**/*",
-      "node_modules/ytmusic-api/**/*"
+      "node_modules/**/*"
     ],
     "win": {
       "target": [

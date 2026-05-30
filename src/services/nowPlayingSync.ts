@@ -78,7 +78,7 @@ async function writeNowPlaying(): Promise<void> {
       progress: _progress,
       device_name: DEVICE_NAME,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id' });
+    });
   } catch { /* silent */ }
 }
 

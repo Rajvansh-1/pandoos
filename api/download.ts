@@ -32,28 +32,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'No audio format found' });
     }
 
-    res.setHeader('Content-Type', 'audio/mpeg'); // Most are webm/m4a but we stream as raw audio
+    res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Content-Disposition', `attachment; filename="${videoId}.mp3"`);
-    // Remove the content-length so it uses chunked transfer encoding, preventing Vercel from blocking large files
     
-    // Pipe the stream directly to the response
+    // Create the stream
     const stream = ytdl.downloadFromInfo(info, { format: audioFormat });
     
-    stream.on('error', (err) => {
-      console.error('YTDL Stream Error:', err);
+    stream.on('error', (err: any) => {
+      console.error('[Download API] YTDL Stream Error:', err.message || err);
       if (!res.headersSent) {
-        res.status(500).json({ error: 'Failed to stream audio' });
+        res.status(500).json({ error: err.message || 'Failed to stream audio' });
       } else {
-        res.end();
+        res.end(); // Ensure response ends cleanly if headers were sent
       }
     });
 
+    // Pipe directly, Node handles chunking automatically
     stream.pipe(res);
 
   } catch (error: any) {
-    console.error('Download API Error:', error);
+    console.error('[Download API] Catch Error:', error.message || error);
     if (!res.headersSent) {
-      res.status(500).json({ error: error.stack || error.message || 'Internal Server Error' });
+      res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
   }
 }

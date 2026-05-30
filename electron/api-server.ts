@@ -159,8 +159,9 @@ export function startLocalApiServer(): Promise<number> {
     const PORT = 15432;
     server.on('error', (e: any) => {
       if (e.code === 'EADDRINUSE') {
-        console.warn(`Port ${PORT} is in use, falling back to random port for Pandoos... (Google Login might fail)`);
-        server.listen(0, '127.0.0.1');
+        console.error(`[Fatal] Port ${PORT} is in use. Cannot start Pandoos API server. Ensure no other instances are running.`);
+        // We do NOT fallback to port 0 anymore because it breaks Supabase CORS and Google OAuth origins.
+        process.exit(1);
       }
     });
 
