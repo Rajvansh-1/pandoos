@@ -421,27 +421,38 @@ export function useAudioEngine() {
           return;
         }
 
-        // ── Desktop: proxy through local api-server (ytdl-core, no native binary needed) ──
-        // This is the robust fallback for tracks that still slip through Error 150.
-        // The header spoof in main.ts prevents 99% of errors — this handles the rest.
+        // ── Desktop: resolve via BrowserView extractor (Error 152/150 bypass) ──
+        // This is the production-safe fallback that uses executeJavaScript to bypass
+        // the autoplay policy that blocks URL=autoplay=1.
         const electronAPI = (window as any).electronAPI;
-        if (electronAPI?.getApiUrl) {
+        if (electronAPI?.resolveStreamUrl) {
           console.log(`[🐼 AudioEngine] YT Error ${event.data} — falling back to proxy for ${current.videoId}`);
-          activeEngineRef.current = 'local';
-          const a = audioRef.current;
-          if (a) {
-            a.src = getApiUrl(`/api/download?videoId=${current.videoId}`);
-            a.load();
-            if (state.isPlaying) {
-              a.play().catch((err) => {
-                if (err.name !== 'AbortError') {
-                  console.error('[🐼 AudioEngine] Proxy play failed — skipping:', err);
-                  state.setIsLoading(false);
-                  setTimeout(state.nextTrack, 1500);
+          
+          try {
+            const result = await electronAPI.resolveStreamUrl(current.videoId);
+            if (result?.success && result.url) {
+              console.log(`[🐼 AudioEngine] Extractor resolved ✅ — switching to HTML5 audio`);
+              activeEngineRef.current = 'local';
+              const a = audioRef.current;
+              if (a) {
+                a.src = result.url;
+                a.load();
+                if (state.isPlaying) {
+                  a.play().catch((err) => {
+                    if (err.name !== 'AbortError') {
+                      console.error('[🐼 AudioEngine] Proxy play failed — skipping:', err);
+                      state.setIsLoading(false);
+                      setTimeout(state.nextTrack, 1500);
+                    }
+                  });
                 }
-              });
+                return;
+              }
+            } else {
+               console.warn('[🐼 AudioEngine] Extractor failed:', result?.error);
             }
-            return;
+          } catch (err) {
+            console.error('[🐼 AudioEngine] resolveStreamUrl IPC error:', err);
           }
         }
 

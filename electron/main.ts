@@ -3,6 +3,7 @@ import { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, d
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { startLocalApiServer } from './api-server';
+import { initExtractor, resolveStreamUrl } from './youtube-extractor';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -233,6 +234,18 @@ if (!gotTheLock) {
 }
 
 app.whenReady().then(async () => {
+  // ── IPC: Resolve a restricted video's direct stream URL via BrowserView extractor ──
+  // Called by useAudioEngine when YouTube IFrame fires Error 152/150/101
+  ipcMain.handle('resolve-stream-url', async (_event, videoId: string) => {
+    try {
+      const url = await resolveStreamUrl(videoId);
+      return { success: true, url };
+    } catch (err: any) {
+      console.error(`[IPC] resolve-stream-url failed for ${videoId}:`, err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
   // Start the embedded local API server
   const apiPort = await startLocalApiServer();
   const apiUrl = `http://127.0.0.1:${apiPort}`;
@@ -254,6 +267,9 @@ app.whenReady().then(async () => {
   });
 
   createWindow();
+  // ── Initialize the persistent hidden BrowserView for Error 152 bypass ──────
+  // Must be called AFTER createWindow() so mainWindow is available
+  if (mainWindow) initExtractor(mainWindow);
   createTray();
   registerShortcuts();
 

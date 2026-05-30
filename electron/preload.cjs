@@ -47,9 +47,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Remove the oauth-callback listener when no longer needed
-  removeOAuthCallback: () => {
+  removeOAuthListener: () => {
     ipcRenderer.removeAllListeners('oauth-callback');
   },
 
+  // ── Stream URL Resolution (Error 152 bypass) ────────────────────────
+  resolveStreamUrl: (videoId) => ipcRenderer.invoke('resolve-stream-url', videoId),
 });
-
