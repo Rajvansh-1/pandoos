@@ -51,10 +51,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('oauth-callback');
   },
 
-  // ── Stream URL Resolution (Error 150 bypass) ────────────────────────
-  // Resolves a direct CDN audio URL for videos where YouTube IFrame errors.
-  // Uses InnerTube ANDROID_MUSIC client via isolated session in main process.
-  // Returns null if not in Electron or if resolution fails.
-  resolveStreamUrl: (videoId) => ipcRenderer.invoke('resolve-stream-url', videoId),
 });
 

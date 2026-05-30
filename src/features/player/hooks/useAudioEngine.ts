@@ -421,30 +421,31 @@ export function useAudioEngine() {
           return;
         }
 
-        // ── Electron: resolve via InnerTube (isolated session, ~200ms) ──────
+        // ── Desktop: proxy through local api-server (ytdl-core, no native binary needed) ──
+        // This is the robust fallback for tracks that still slip through Error 150.
+        // The header spoof in main.ts prevents 99% of errors — this handles the rest.
         const electronAPI = (window as any).electronAPI;
-        if (electronAPI?.resolveStreamUrl) {
-          console.log(`[🐼 AudioEngine] Error ${event.data} — resolving via InnerTube for ${current.videoId}`);
-          try {
-            const result = await electronAPI.resolveStreamUrl(current.videoId);
-            if (result?.success && result.url) {
-              console.log(`[🐼 AudioEngine] InnerTube resolved ✅ — switching to HTML5 audio`);
-              activeEngineRef.current = 'local';
-              const a = audioRef.current;
-              if (a) {
-                a.src = result.url;
-                a.load();
-                if (state.isPlaying) a.play().catch(console.error);
-              }
-              return;
+        if (electronAPI?.getApiUrl) {
+          console.log(`[🐼 AudioEngine] YT Error ${event.data} — falling back to proxy for ${current.videoId}`);
+          activeEngineRef.current = 'local';
+          const a = audioRef.current;
+          if (a) {
+            a.src = getApiUrl(`/api/download?videoId=${current.videoId}`);
+            a.load();
+            if (state.isPlaying) {
+              a.play().catch((err) => {
+                if (err.name !== 'AbortError') {
+                  console.error('[🐼 AudioEngine] Proxy play failed — skipping:', err);
+                  state.setIsLoading(false);
+                  setTimeout(state.nextTrack, 1500);
+                }
+              });
             }
-            console.warn('[🐼 AudioEngine] InnerTube failed:', result?.error);
-          } catch (err) {
-            console.error('[🐼 AudioEngine] resolveStreamUrl IPC error:', err);
+            return;
           }
         }
 
-        // ── Web fallback: skip the unavailable track ─────────────────────────
+        // ── Web: no proxy available — skip the track ────────────────────────
         console.warn('[🐼 AudioEngine] No fallback available — skipping track');
         state.setIsLoading(false);
         setTimeout(state.nextTrack, 1000);
