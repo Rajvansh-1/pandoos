@@ -51,6 +51,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('oauth-callback');
   },
 
-  // ── Stream URL Resolution (Error 152 bypass) ────────────────────────
-  resolveStreamUrl: (videoId) => ipcRenderer.invoke('resolve-stream-url', videoId),
+  // ── Hidden Native Player (music.youtube.com) ────────────────────────
+  hiddenPlayer: {
+    sendCommand: (command, args) => ipcRenderer.send('hidden-player-command', command, args),
+    onStateChange: (callback) => {
+      const listener = (_event, state) => callback(state);
+      ipcRenderer.on('hidden-player-state', listener);
+      return () => ipcRenderer.removeListener('hidden-player-state', listener);
+    }
+  }
 });

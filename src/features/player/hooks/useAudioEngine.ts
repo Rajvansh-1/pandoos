@@ -45,16 +45,74 @@ let _activeDelegate: {
 } | null = null;
 
 function getOrCreateYTPlayer(
-  onReady: (event: YT.PlayerEvent) => void,
-  onStateChange: (event: YT.OnStateChangeEvent) => void,
-  onError: (event: YT.OnErrorEvent) => void,
+  onReady: (event: any) => void,
+  onStateChange: (event: any) => void,
+  onError: (event: any) => void,
 ): void {
-  if (_ytInitDone) return; // already creating or created
+  if (_ytInitDone) return;
   _ytInitDone = true;
 
+  const electronAPI = typeof window !== 'undefined' ? (window as any).electronAPI : null;
+
+  // ── DESKTOP: Hidden Native Player Adapter ────────────────────────────────
+  if (electronAPI?.hiddenPlayer) {
+    console.log('[🐼 AudioEngine] Using Hidden Native Player (Desktop)');
+    
+    class HiddenPlayerAdapter {
+      _currentTime = 0;
+      _duration = 0;
+      _playerState = -1; // UNSTARTED
+      
+      constructor() {
+        electronAPI.hiddenPlayer.onStateChange((state: any) => {
+          if (state.event === 'timeupdate') {
+            this._currentTime = state.currentTime;
+            this._duration = state.duration;
+            if (state.paused && this._playerState === 1) {
+               this._playerState = 2; // PAUSED
+               _activeDelegate?.onStateChange({ data: 2 } as any);
+            } else if (!state.paused && this._playerState !== 1) {
+               this._playerState = 1; // PLAYING
+               _activeDelegate?.onStateChange({ data: 1 } as any);
+            }
+          } else if (state.event === 'ended') {
+            this._playerState = 0; // ENDED
+            _activeDelegate?.onStateChange({ data: 0 } as any);
+          }
+        });
+      }
+
+      playVideo() { electronAPI.hiddenPlayer.sendCommand('play'); }
+      pauseVideo() { electronAPI.hiddenPlayer.sendCommand('pause'); }
+      seekTo(t: number) { electronAPI.hiddenPlayer.sendCommand('seek', t); }
+      setVolume(v: number) { electronAPI.hiddenPlayer.sendCommand('volume', v / 100); }
+      mute() {}
+      unMute() {}
+      setPlaybackRate() {}
+      getPlaybackRate() { return 1; }
+      getDuration() { return this._duration; }
+      getCurrentTime() { return this._currentTime; }
+      getPlayerState() { return this._playerState; }
+      loadVideoById(id: string) { 
+         this._playerState = 3; // BUFFERING
+         _activeDelegate?.onStateChange({ data: 3 } as any);
+         electronAPI.hiddenPlayer.sendCommand('load', id); 
+      }
+    }
+
+    _ytPlayer = new HiddenPlayerAdapter() as any;
+    
+    // Simulate immediate readiness
+    setTimeout(() => {
+      _activeDelegate?.onReady({ target: _ytPlayer } as any);
+    }, 100);
+    return;
+  }
+
+  // ── WEB: YouTube IFrame API ──────────────────────────────────────────────
   const create = () => {
     if (!window.YT?.Player) return;
-    console.log('[🐼 AudioEngine] Creating YT Player singleton...');
+    console.log('[🐼 AudioEngine] Creating YT Player singleton (Web)...');
     _ytPlayer = new window.YT.Player('yt-player-root', {
       height: '200',
       width: '200',
@@ -421,40 +479,12 @@ export function useAudioEngine() {
           return;
         }
 
-        // ── Desktop: resolve via BrowserView extractor (Error 152/150 bypass) ──
-        // This is the production-safe fallback that uses executeJavaScript to bypass
-        // the autoplay policy that blocks URL=autoplay=1.
-        const electronAPI = (window as any).electronAPI;
-        if (electronAPI?.resolveStreamUrl) {
-          console.log(`[🐼 AudioEngine] YT Error ${event.data} — falling back to proxy for ${current.videoId}`);
-          
-          try {
-            const result = await electronAPI.resolveStreamUrl(current.videoId);
-            if (result?.success && result.url) {
-              console.log(`[🐼 AudioEngine] Extractor resolved ✅ — switching to HTML5 audio`);
-              activeEngineRef.current = 'local';
-              const a = audioRef.current;
-              if (a) {
-                a.src = result.url;
-                a.load();
-                if (state.isPlaying) {
-                  a.play().catch((err) => {
-                    if (err.name !== 'AbortError') {
-                      console.error('[🐼 AudioEngine] Proxy play failed — skipping:', err);
-                      state.setIsLoading(false);
-                      setTimeout(state.nextTrack, 1500);
-                    }
-                  });
-                }
-                return;
-              }
-            } else {
-               console.warn('[🐼 AudioEngine] Extractor failed:', result?.error);
-            }
-          } catch (err) {
-            console.error('[🐼 AudioEngine] resolveStreamUrl IPC error:', err);
-          }
-        }
+        // ── Desktop: handled by Hidden Native Player adapter now ──
+        // The adapter should never throw YT Error 150/152 since it's the official site.
+        // If an error still occurs, we just skip.
+        console.warn('[🐼 AudioEngine] YouTube Error — skipping track');
+        state.setIsLoading(false);
+        setTimeout(state.nextTrack, 1000);
 
         // ── Web: no proxy available — skip the track ────────────────────────
         console.warn('[🐼 AudioEngine] No fallback available — skipping track');
