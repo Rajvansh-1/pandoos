@@ -159,8 +159,11 @@ export function startLocalApiServer(): Promise<number> {
     const PORT = 15432;
     server.on('error', (e: any) => {
       if (e.code === 'EADDRINUSE') {
-        console.error(`[Fatal] Port ${PORT} is in use. Cannot start Pandoos API server. Ensure no other instances are running.`);
-        // We do NOT fallback to port 0 anymore because it breaks Supabase CORS and Google OAuth origins.
+        const { dialog } = require('electron');
+        dialog.showErrorBox(
+          'Pandoos API Error',
+          `Port ${PORT} is already in use by another application or a background instance of Pandoos.\n\nPlease close any existing Pandoos processes or dev servers and try again.`
+        );
         process.exit(1);
       }
     });
