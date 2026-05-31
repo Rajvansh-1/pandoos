@@ -81,10 +81,11 @@ export function HomePage() {
 
   // Taste profile
   const topGenres = useTasteStore(s => s.topGenres);
+  const topArtists = useTasteStore(s => s.topArtists);
   const recentArtists = useTasteStore(s => s.recentArtists);
   const lovedIds = useTasteStore(s => s.lovedIds);
 
-  const isPersonalized = topGenres.length > 0 || recentArtists.length > 0;
+  const isPersonalized = topGenres.length > 0 || recentArtists.length > 0 || topArtists.length > 0;
 
   // Quick picks from history - ensure tracks are valid, playable, and uniquely deduplicated
   const quickPicks = useMemo(() => {
@@ -108,9 +109,16 @@ export function HomePage() {
     return customQuery;
   }, [topGenres, customQuery]);
 
-  const recentArtist = recentArtists[0] ?? (history[0]?.artist ?? null);
+  // Use recent artists, or fallback to onboarding topArtists, or history
+  const recentArtist = recentArtists[0] ?? topArtists[0] ?? (history[0]?.artist ?? null);
+  const secondArtist = topArtists.length > 1 && topArtists[1] !== recentArtist ? topArtists[1] : null;
+
   const artistDisplayName = recentArtist
     ? recentArtist.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    : null;
+    
+  const secondArtistDisplayName = secondArtist
+    ? secondArtist.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
     : null;
 
   const nowVibeQuery = useMemo(() => {
@@ -125,6 +133,7 @@ export function HomePage() {
   const { data: forYouData, isLoading: isForYouLoading, fetchNextPage: fetchForYou, hasNextPage: hasForYouMore, isFetchingNextPage: isForYouFetching } = useInfiniteSection({ query: isPersonalized ? forYouQuery : '' });
   const { data: moodData, isLoading: isMoodLoading, fetchNextPage: fetchMood, hasNextPage: hasMoodMore, isFetchingNextPage: isMoodFetching } = useInfiniteSection({ query: customQuery });
   const { data: artistData, isLoading: isArtistLoading, fetchNextPage: fetchArtist, hasNextPage: hasArtistMore, isFetchingNextPage: isArtistFetching } = useInfiniteSection({ query: recentArtist ? `${recentArtist} top songs` : '' });
+  const { data: secondArtistData, isLoading: isSecondArtistLoading, fetchNextPage: fetchSecondArtist, hasNextPage: hasSecondArtistMore, isFetchingNextPage: isSecondArtistFetching } = useInfiniteSection({ query: secondArtist ? `${secondArtist} best hits` : '' });
   
   // Podcasts & Artists
   const { data: podcastsData, isLoading: isPodcastsLoading, fetchNextPage: fetchPodcasts, hasNextPage: hasPodcastsMore, isFetchingNextPage: isPodcastsFetching } = useInfiniteSection({ query: 'top trending hindi english podcasts', enabled: shouldLoadMore });
@@ -193,9 +202,10 @@ export function HomePage() {
     extractFromTracks(moodData?.pages?.map(p => p.songs).flat());
     extractFromTracks(bollyData?.pages?.map(p => p.songs).flat());
     extractFromTracks(nowVibeData?.pages?.map(p => p.songs).flat());
+    extractFromTracks(secondArtistData?.pages?.map(p => p.songs).flat());
     
     return artists.slice(0, 15);
-  }, [forYouData, moodData, nowVibeData, artistData, trendingTracks, bollyData]);
+  }, [forYouData, moodData, nowVibeData, artistData, secondArtistData, trendingTracks, bollyData]);
 
   // Deduplicate tracks
   const deduplicatedLanes = useMemo(() => {
@@ -217,6 +227,7 @@ export function HomePage() {
       forYou: dedupe(forYouData),
       oracle: dedupe(moodData),
       artist: dedupe(artistData),
+      secondArtist: dedupe(secondArtistData),
       podcasts: dedupe(podcastsData),
       tseries: dedupe(tseriesData),
       bollywood: dedupe(bollyData),
@@ -226,7 +237,7 @@ export function HomePage() {
       trending: dedupe(trendingTracks),
     };
   }, [
-    quickPicks, nowVibeData, forYouData, moodData, artistData,
+    quickPicks, nowVibeData, forYouData, moodData, artistData, secondArtistData,
     podcastsData, tseriesData, bollyData, desiData, sufiData, chillData, trendingTracks
   ]);
 
@@ -416,8 +427,8 @@ export function HomePage() {
         {/* BECAUSE YOU LISTENED TO X */}
         {artistDisplayName && deduplicatedLanes.artist && deduplicatedLanes.artist.length > 0 && (
           <ContentRow
-            title={`Echoes of ${artistDisplayName}`}
-            subtitle="The timeline shifts based on your last adventure."
+            title={recentArtists.length > 0 ? `Echoes of ${artistDisplayName}` : `Inspired by ${artistDisplayName}`}
+            subtitle="The timeline shifts based on your vibes."
             gradient="from-cyan-600 to-blue-700"
             emotion="chill"
             icon={Compass}
@@ -426,6 +437,24 @@ export function HomePage() {
             fetchNextPage={fetchArtist}
             hasNextPage={hasArtistMore}
             isFetchingNextPage={isArtistFetching}
+            onPlay={handlePlayTrack}
+            lovedIds={lovedIds}
+          />
+        )}
+
+        {/* SECOND FAVORITE ARTIST ROW */}
+        {secondArtistDisplayName && deduplicatedLanes.secondArtist && deduplicatedLanes.secondArtist.length > 0 && (
+          <ContentRow
+            title={`More of ${secondArtistDisplayName}`}
+            subtitle="Your favorites, instantly queued."
+            gradient="from-fuchsia-600 to-pink-800"
+            emotion="happy"
+            icon={Heart}
+            tracks={deduplicatedLanes.secondArtist}
+            isLoading={isSecondArtistLoading}
+            fetchNextPage={fetchSecondArtist}
+            hasNextPage={hasSecondArtistMore}
+            isFetchingNextPage={isSecondArtistFetching}
             onPlay={handlePlayTrack}
             lovedIds={lovedIds}
           />

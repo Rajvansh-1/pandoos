@@ -29,8 +29,11 @@ export function TopBar() {
       <div className="flex items-center justify-between h-[var(--top-bar-height)] px-4">
 
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Pandoos" className="w-10 h-10 object-contain" />
+        <div 
+          className="flex items-center gap-2 cursor-pointer touch-highlight active:scale-95 transition-transform"
+          onClick={() => navigate('/')}
+        >
+          <img src="/logo.png" alt="Pandoos" className="w-10 h-10 object-contain drop-shadow-md" />
           <span className="font-display font-bold text-xl tracking-tight text-white">
             Pandoos
           </span>

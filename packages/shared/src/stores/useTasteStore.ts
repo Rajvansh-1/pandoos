@@ -35,6 +35,7 @@ interface TasteActions {
   isSkipped(videoId: string): boolean;
   resetTaste(): void;
   setTopGenres(genres: string[]): void;
+  setTopArtists(artists: string[]): void;
 }
 
 type TasteStore = TasteState & TasteActions;
@@ -158,6 +159,15 @@ export const useTasteStore = create<TasteStore>()(
           // Seed genre affinity so recommendations work immediately
           genres.forEach(g => {
             state.genreAffinity[g] = 5;
+          });
+        });
+      },
+
+      setTopArtists(artists) {
+        set(state => {
+          state.topArtists = artists;
+          artists.forEach(a => {
+            state.artistAffinity[a.toLowerCase()] = 5;
           });
         });
       },

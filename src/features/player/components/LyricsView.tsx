@@ -320,15 +320,45 @@ export function LyricsView() {
   }
 
   if (result?.plain) {
+    const plainText = typeof result.plain === 'string' 
+      ? result.plain 
+      : Array.isArray(result.plain as any) 
+        ? (result.plain as any).join('\n') 
+        : String(result.plain || '');
+    const plainLines = plainText.split('\n');
     return (
       <div className="relative w-full h-full overflow-hidden">
         {renderProviderSelector()}
+        {/* Top fade gradient */}
+        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/30 to-transparent z-10 pointer-events-none" />
         {/* Bottom fade */}
-        <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/40 to-transparent z-10 pointer-events-none" />
-        <div className="w-full h-full overflow-y-auto scroll-container px-6 py-10">
-          <p className="whitespace-pre-line text-base sm:text-lg font-semibold text-white/70 leading-loose text-center">
-            {result.plain}
-          </p>
+        <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/50 to-transparent z-10 pointer-events-none" />
+        
+        <div 
+          className="w-full h-full overflow-y-auto scroll-container px-5 py-0 no-select"
+          style={{ paddingTop: '20%', paddingBottom: '30%' }}
+        >
+          <div className="flex flex-col gap-4 md:gap-6">
+            {plainLines.map((lineText: string, i: number) => (
+              <p
+                key={i}
+                className={`
+                  py-1 leading-tight
+                  font-display font-black tracking-tight
+                  text-2xl sm:text-3xl lg:text-4xl text-white/90 drop-shadow-md
+                  ${lineText.trim() === '' ? 'min-h-[1.5rem]' : ''}
+                `}
+              >
+                {lineText.trim() === '' ? (
+                  <span className="inline-flex items-center gap-1 opacity-20">
+                    <Music2 size={20} />
+                  </span>
+                ) : (
+                  lineText
+                )}
+              </p>
+            ))}
+          </div>
         </div>
       </div>
     );

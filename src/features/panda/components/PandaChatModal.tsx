@@ -203,14 +203,14 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
                       <p className="text-xs text-white/50 truncate mt-0.5">{msg.trackPayload.artist}</p>
                     </div>
                   </div>
-                  <button onClick={() => playTrack(msg.trackPayload!, msg.playlistPayload || [msg.trackPayload!])} className="w-full py-2.5 bg-gradient-to-r from-brand-primary/30 to-brand-secondary/20 hover:from-brand-primary/50 hover:to-brand-secondary/40 text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 border-t border-white/8">
+                  <button onClick={() => { playTrack(msg.trackPayload!, msg.playlistPayload || [msg.trackPayload!]); onClose(); }} className="w-full py-2.5 bg-gradient-to-r from-brand-primary/30 to-brand-secondary/20 hover:from-brand-primary/50 hover:to-brand-secondary/40 text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 border-t border-white/8">
                     <Play size={12} fill="currentColor" /> Play Now
                   </button>
                 </motion.div>
               )}
 
               {msg.artistPayload && (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-2 w-[260px] bg-white/6 backdrop-blur-xl border border-white/12 rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)] cursor-pointer hover:bg-white/10 transition-colors" onClick={() => openArtist(msg.artistPayload!.artistId)}>
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-2 w-[260px] bg-white/6 backdrop-blur-xl border border-white/12 rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)] cursor-pointer hover:bg-white/10 transition-colors" onClick={() => { openArtist(msg.artistPayload!.artistId); onClose(); }}>
                   <div className="flex items-center gap-3 p-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 relative shadow-md border border-white/10">
                       {msg.artistPayload.thumbnails?.[0]?.url ? (

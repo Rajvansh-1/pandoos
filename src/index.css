@@ -42,7 +42,7 @@
 
     /* ---- Layout ---- */
     --bottom-nav-height: 64px;
-    --mini-player-height: 68px;
+    --mini-player-height: 60px;
     --top-bar-height: 56px;
 
     /* ---- Safe area insets (Capacitor / notch support) ---- */

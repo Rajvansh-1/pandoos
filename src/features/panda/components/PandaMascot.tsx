@@ -15,7 +15,7 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
   const getMouthPath = () => {
     if (emotion === 'heartbroken' || emotion === 'sad') return "M80 145 Q100 130 120 145"; // Frown
     if (emotion === 'angry' || emotion === 'workout') return "M85 145 Q100 135 115 145"; // Angry mouth
-    if (emotion === 'energy' || emotion === 'happy' || emotion === 'bollywood' || emotion === 'romantic') return "M80 135 Q100 165 120 135"; // Big smile
+    if (emotion === 'energy' || emotion === 'happy' || emotion === 'bollywood' || emotion === 'romantic' || emotion === 'singing') return "M80 135 Q100 165 120 135"; // Big smile
     if (emotion === 'chill' || emotion === 'latenight' || emotion === 'desi') return "M85 140 Q100 145 115 140"; // Smirk
     if (emotion === 'sufi' || emotion === 'devotional') return "M85 145 Q100 150 115 145"; // Soft peaceful smile
     if (emotion === 'sleepy') return "M90 140 Q100 145 110 140"; // Relaxed tiny mouth
@@ -70,7 +70,7 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
         <path d="M155 80 C145 65 115 75 120 105 C125 135 160 120 155 80 Z" fill="#111" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
 
         {/* Pupils */}
-        {emotion !== 'sleepy' && emotion !== 'romantic' && emotion !== 'sufi' && emotion !== 'devotional' && emotion !== 'bollywood' && emotion !== 'energy' && (
+        {emotion !== 'sleepy' && emotion !== 'romantic' && emotion !== 'sufi' && emotion !== 'devotional' && emotion !== 'bollywood' && emotion !== 'energy' && emotion !== 'singing' && (
           <motion.g
             animate={
               state === 'loading' ? { scale: [1, 1.2, 1], opacity: [1, 0.5, 1] } :
@@ -120,8 +120,8 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
           </>
         )}
 
-        {/* Sleepy / Sufi / Devotional Eyes (Closed) */}
-        {(emotion === 'sleepy' || emotion === 'sufi' || emotion === 'devotional') && (
+        {/* Sleepy / Sufi / Devotional / Singing Eyes (Closed) */}
+        {(emotion === 'sleepy' || emotion === 'sufi' || emotion === 'devotional' || emotion === 'singing') && (
           <g stroke="#fff" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.6">
             <path d="M55 95 Q 65 105 75 95" />
             <path d="M125 95 Q 135 105 145 95" />
@@ -245,10 +245,36 @@ export function PandaMascot({ className, size = 120, emotion = 'neutral' }: Pand
         <path d="M90 125 Q100 120 110 125 Q105 135 100 135 Q95 135 90 125 Z" fill="#222" />
         <motion.path
           d={getMouthPath()}
-          stroke="#222" strokeWidth="3" strokeLinecap="round" fill={(emotion === 'energy' || emotion === 'happy' || emotion === 'bollywood' || emotion === 'romantic') ? '#ff7b72' : 'none'}
+          stroke="#222" strokeWidth="3" strokeLinecap="round" fill={(emotion === 'energy' || emotion === 'happy' || emotion === 'bollywood' || emotion === 'romantic' || emotion === 'singing') ? '#ff7b72' : 'none'}
           animate={{ d: getMouthPath() }}
           transition={{ duration: 0.3 }}
         />
+
+        {/* Singing Mic */}
+        {emotion === 'singing' && (
+          <motion.g 
+            initial={{ y: 20, rotate: 20 }} 
+            animate={{ y: [20, 15, 20], rotate: [20, 15, 20] }} 
+            transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }} 
+            style={{ transformOrigin: '140px 140px' }}
+          >
+            {/* Mic Handle */}
+            <rect x="135" y="145" width="10" height="30" rx="4" fill="#334155" />
+            <rect x="135" y="140" width="10" height="8" fill="#1e293b" />
+            {/* Mic Head */}
+            <circle cx="140" cy="132" r="12" fill="#94a3b8" />
+            {/* Mic Details */}
+            <path d="M128 132 A12 12 0 0 0 152 132" stroke="#475569" strokeWidth="2" fill="none" />
+            <path d="M132 125 L148 125 M130 132 L150 132 M132 139 L148 139" stroke="#cbd5e1" strokeWidth="1" strokeLinecap="round" opacity="0.5" />
+            {/* Music Note */}
+            <motion.path 
+              d="M150 110 L160 105 L160 120 A5 5 0 1 1 155 125 L155 112 L158 111" 
+              fill="#f472b6" 
+              animate={{ y: [0, -10], opacity: [0, 1, 0] }} 
+              transition={{ repeat: Infinity, duration: 1.5 }} 
+            />
+          </motion.g>
+        )}
 
         {/* Chill Bamboo Leaf */}
         {emotion === 'chill' && (

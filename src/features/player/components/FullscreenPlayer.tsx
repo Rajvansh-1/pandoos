@@ -515,7 +515,7 @@ export function FullscreenPlayer() {
           {MobilePlayerContent}
         </BottomSheet>
       )}
-      <MobileLyricsScreen isOpen={isMobileLyricsOpen} onClose={() => setIsMobileLyricsOpen(false)} />
+      <MobileLyricsScreen isOpen={isMobileLyricsOpen} onClose={() => setIsMobileLyricsOpen(false)} onOpenOptions={() => setIsOptionsOpen(true)} />
       <PlayerOptionsModal isOpen={isOptionsOpen} onClose={() => setIsOptionsOpen(false)} />
     </>
   );
