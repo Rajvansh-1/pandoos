@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Sparkles, TrendingUp, Music, Clock, Zap, Brain, Dumbbell, Moon, Compass, Heart, Radio, Flame, Mic2, Users } from 'lucide-react';
+import { Play, Sparkles, TrendingUp, Music, Clock, Zap, Brain, Dumbbell, Moon, Compass, Heart, Radio, Flame, Mic2, Users, Quote } from 'lucide-react';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import { useSearch, useTrending } from '@/features/search/hooks/useSearch';
 import { useInfiniteSection } from '@/hooks/useInfiniteSection';
@@ -46,6 +46,25 @@ const getGreeting = () => {
   const h = new Date().getHours();
   return h < 12 ? 'Good Morning' : h < 18 ? 'Good Afternoon' : 'Good Evening';
 };
+
+function getLyricQuote(artist: string | undefined) {
+  if (!artist) return null;
+  const lyrics: Record<string, string> = {
+    "Arijit Singh": "Tum hi ho, ab tum hi ho...",
+    "The Weeknd": "I'm a mf starboy...",
+    "Taylor Swift": "It's me, hi, I'm the problem, it's me.",
+    "Diljit Dosanjh": "Oh mitran da naa chalda...",
+    "Ed Sheeran": "We found love right where we are.",
+    "Shreya Ghoshal": "Sun raha hai na tu...",
+    "Badshah": "Abhi toh party shuru hui hai...",
+    "AP Dhillon": "Brown Munde...",
+    "Drake": "I only love my bed and my momma, I'm sorry.",
+  };
+  for (const key of Object.keys(lyrics)) {
+    if (artist.toLowerCase().includes(key.toLowerCase())) return lyrics[key];
+  }
+  return null;
+}
 
 export function HomePage() {
   const [selectedMood, setSelectedMood] = useState(MOODS[0]);
@@ -312,9 +331,20 @@ export function HomePage() {
           </div>
         </motion.div>
 
-        <h2 className="text-2xl md:text-3xl font-display font-black tracking-tight text-white mb-6 text-center drop-shadow-lg">
+        <h2 className="text-2xl md:text-3xl font-display font-black tracking-tight text-white mb-2 text-center drop-shadow-lg">
           Where are we traveling today?
         </h2>
+        
+        {/* Subtle Lyric Quote */}
+        {getLyricQuote(topArtists[0] || recentArtist) && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+            className="flex items-center gap-2 mb-6 text-white/50 text-xs font-serif italic"
+          >
+            <Quote size={10} className="text-brand-primary/70" />
+            "{getLyricQuote(topArtists[0] || recentArtist)}"
+          </motion.div>
+        )}
         
         {/* Compact Search Bar */}
         <form onSubmit={handleChatSubmit} className="relative w-full max-w-lg mb-6">
