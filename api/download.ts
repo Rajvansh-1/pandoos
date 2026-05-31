@@ -40,6 +40,8 @@ export const config = {
   },
 };
 
+const urlCache = new Map<string, { url: string, expiresAt: number }>();
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -52,39 +54,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  let streamUrl = '';
 
   try {
-    const ydl = await getYoutubeDl();
+    // Check in-memory cache first (valid for 4 hours)
+    const cached = urlCache.get(videoId);
+    if (cached && cached.expiresAt > Date.now()) {
+      streamUrl = cached.url;
+      console.log(`[Download API] Using cached stream URL for ${videoId}`);
+    } else {
+      const ydl = await getYoutubeDl();
 
-    if (!ydl) {
-      return res.status(503).json({ error: 'yt-dlp not available in this environment' });
-    }
+      if (!ydl) {
+        return res.status(503).json({ error: 'yt-dlp not available in this environment' });
+      }
 
-    console.log(`[Download API] Extracting audio URL for ${videoId} via yt-dlp...`);
+      console.log(`[Download API] Extracting audio URL for ${videoId} via yt-dlp...`);
 
-    const result = await ydl(videoUrl, {
-      format: 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
-      getUrl: true,
-      noWarnings: true,
-      noCheckCertificates: true,
-      preferFreeFormats: true,
-      addHeader: [
-        'referer:https://www.youtube.com/',
-        'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      ],
-    });
+      const result = await ydl(videoUrl, {
+        format: 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
+        getUrl: true,
+        noWarnings: true,
+        noCheckCertificates: true,
+        preferFreeFormats: true,
+        noCacheDir: true, // Crucial: prevents disk cache lockups after long usage
+        addHeader: [
+          'referer:https://www.youtube.com/',
+          'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        ],
+      });
 
-    const streamUrl = (typeof result === 'string' ? result : result?.url || '').trim();
+      streamUrl = (typeof result === 'string' ? result : result?.url || '').trim();
 
-    if (!streamUrl || !streamUrl.startsWith('http')) {
-      console.error(`[Download API] yt-dlp returned invalid URL for ${videoId}:`, streamUrl?.substring(0, 100));
-      return res.status(451).json({ error: 'Could not extract audio URL — video may be unavailable' });
+      if (!streamUrl || !streamUrl.startsWith('http')) {
+        console.error(`[Download API] yt-dlp returned invalid URL for ${videoId}:`, streamUrl?.substring(0, 100));
+        return res.status(451).json({ error: 'Could not extract audio URL — video may be unavailable' });
+      }
+
+      // Cache the URL for 4 hours (YouTube stream URLs expire after ~6 hours)
+      urlCache.set(videoId, { url: streamUrl, expiresAt: Date.now() + 4 * 60 * 60 * 1000 });
     }
 
     console.log(`[Download API] Got stream URL for ${videoId} — proxying...`);
 
-    const rangeHeader = req.headers['range'] as string;
+    const abortController = new AbortController();
+    
+    // If the user skips a song, the browser aborts the request. We MUST cancel the fetch!
+    req.on('close', () => {
+      console.log(`[Download API] Client disconnected for ${videoId}, aborting fetch...`);
+      abortController.abort();
+    });
+
     const streamRes = await fetch(streamUrl, {
+      signal: abortController.signal,
       headers: {
         ...(rangeHeader ? { 'Range': rangeHeader } : {}),
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -110,12 +132,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const reader = streamRes.body?.getReader();
     if (!reader) { res.end(); return; }
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) { res.end(); break; }
-      const canContinue = res.write(Buffer.from(value));
-      if (!canContinue) {
-        await new Promise(resolve => (res as any).once('drain', resolve));
+    try {
+      while (true) {
+        if (req.destroyed || abortController.signal.aborted) {
+          await reader.cancel();
+          break;
+        }
+        
+        const { done, value } = await reader.read();
+        if (done) { res.end(); break; }
+        
+        if (value) {
+          const canContinue = res.write(Buffer.from(value));
+          if (!canContinue) {
+            await new Promise(resolve => (res as any).once('drain', resolve));
+          }
+        }
+      }
+    } catch (streamErr: any) {
+      if (streamErr.name === 'AbortError') {
+        console.log(`[Download API] Stream successfully aborted for ${videoId}`);
+      } else {
+        throw streamErr; // Re-throw to be caught by outer catch block
       }
     }
 
