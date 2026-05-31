@@ -78,10 +78,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         noCheckCertificates: true,
         preferFreeFormats: true,
         noCacheDir: true, // Crucial: prevents disk cache lockups after long usage
-        addHeader: [
-          'referer:https://www.youtube.com/',
-          'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        ],
       });
 
       streamUrl = (typeof result === 'string' ? result : result?.url || '').trim();
@@ -164,10 +160,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   } catch (error: any) {
     const msg = error.message || 'Internal Server Error';
-    console.error(`[Download API] yt-dlp error for ${videoId}:`, msg.substring(0, 200));
+    console.error(`\n\n[Download API] CRITICAL ERROR for ${videoId}:`, error);
+    console.error(error.stack);
+    console.error('\n\n');
     if (!res.headersSent) {
       const isUnavailable = msg.toLowerCase().includes('unavailable') || msg.toLowerCase().includes('private') || msg.toLowerCase().includes('sign in');
-      res.status(isUnavailable ? 451 : 500).json({ error: msg });
+      res.status(isUnavailable ? 451 : 500).json({ error: msg, stack: error.stack });
     }
   }
 }
