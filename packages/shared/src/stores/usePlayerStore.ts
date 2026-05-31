@@ -217,8 +217,9 @@ export const usePlayerStore = create<PlayerStore>()(
         set((state) => {
           const { queue, queueIndex, isLooping } = state;
           if (isLooping) {
-            // Restart current track — audio engine reacts to progress reset
+            // Restart current track — audio engine reacts to seekVersion change
             state.progress = 0;
+            state.seekVersion += 1;
             state.isPlaying = true;
             return;
           }

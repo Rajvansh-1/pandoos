@@ -6,6 +6,7 @@ import { LyricsView } from './LyricsView';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { SeekBar } from './SeekBar';
 import { PlayerControls } from './PlayerControls';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 
 interface MobileLyricsScreenProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface MobileLyricsScreenProps {
 
 export function MobileLyricsScreen({ isOpen, onClose }: MobileLyricsScreenProps) {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+  useHardwareBack(isOpen, onClose);
 
   if (!currentTrack) return null;
 

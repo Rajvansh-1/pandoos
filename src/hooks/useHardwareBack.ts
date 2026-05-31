@@ -8,8 +8,13 @@ import { useEffect, useRef, useState } from 'react';
  */
 export function useHardwareBack(isOpen: boolean, onClose: () => void) {
   const isPopped = useRef(false);
+  const onCloseRef = useRef(onClose);
   // Keep the stateId stable for the lifecycle of the component
   const [stateId] = useState(() => Math.random().toString(36).substring(7));
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -30,7 +35,7 @@ export function useHardwareBack(isOpen: boolean, onClose: () => void) {
       // Otherwise, the state is no longer ours (we popped back past our state)
       // This means the user pressed back while we were the active modal.
       isPopped.current = true;
-      onClose();
+      onCloseRef.current();
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -48,5 +53,5 @@ export function useHardwareBack(isOpen: boolean, onClose: () => void) {
         }
       }
     };
-  }, [isOpen, onClose, stateId]);
+  }, [isOpen, stateId]);
 }

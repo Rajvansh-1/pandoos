@@ -4,6 +4,7 @@ import { ChevronDown, MoreVertical, Heart, X, Play, Shuffle, GripVertical, Trash
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { useTasteStore } from '@/stores/useTasteStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { useColorExtractor } from '@/features/player/hooks/useColorExtractor';
 import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/library/hooks/useLibrary';
 import { BottomSheet } from '@/components/ui/BottomSheet';
@@ -17,6 +18,7 @@ import { PlayerOptionsModal } from './PlayerOptionsModal';
 import { LyricsView } from './LyricsView';
 import { MobileLyricsScreen } from './MobileLyricsScreen';
 import { TrackImage } from '@/components/shared/TrackImage';
+import { MarqueeText } from '@/components/shared/MarqueeText';
 import { cn } from '@/utils/cn';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Track } from '@/types/track';
@@ -203,21 +205,37 @@ export function FullscreenPlayer() {
         </div>
         <div className="flex-grow max-h-[6vh] shrink" />
         <div className="w-full flex flex-col items-center justify-center gap-5 pb-6 px-6 shrink-0">
-          <div className="flex flex-col w-full text-center items-center">
-            <h2 className="text-2xl font-bold text-white truncate">{currentTrack?.title ?? 'Not Playing'}</h2>
-            <p 
-              className="text-base text-white/80 truncate mt-1 cursor-pointer hover:underline hover:text-white active:scale-95 transition-all relative z-50 px-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                const artistId = currentTrack?.artistId;
-                if (artistId) {
-                  useUIStore.getState().openArtist(artistId);
-                }
-              }}
-            >
-              {currentTrack?.artist ?? 'Select a track'}
-            </p>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex flex-col min-w-0 flex-1 text-left mr-4">
+              <MarqueeText 
+                text={currentTrack?.title ?? 'Not Playing'} 
+                className="text-2xl font-bold text-white" 
+              />
+              <p 
+                className="text-base text-white/80 truncate mt-1 cursor-pointer hover:underline hover:text-white active:scale-95 transition-all relative z-50 px-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const artistId = currentTrack?.artistId;
+                  if (artistId) {
+                    closePlayer();
+                    useUIStore.getState().openArtist(artistId);
+                  } else {
+                    useToastStore.getState().addToast('Artist page not available for this track', 'error');
+                  }
+                }}
+              >
+                {currentTrack?.artist ?? 'Select a track'}
+              </p>
+            </div>
+            {currentTrack && (
+               <button 
+                 onClick={() => isLiked ? unlikeTrack.mutate(currentTrack.videoId) : likeTrack.mutate(currentTrack)} 
+                 className="p-3 rounded-full hover:bg-white/10 transition-colors shrink-0 active:scale-90"
+               >
+                 <Heart size={28} className={isLiked ? "text-[#ff5f56]" : "text-white/40"} fill={isLiked ? "currentColor" : "none"} />
+               </button>
+            )}
           </div>
           <div className="w-full mt-2"><SeekBar /></div>
           <div className="w-full pb-4 pt-2 flex items-center justify-center"><PlayerControls /></div>
@@ -380,16 +398,22 @@ export function FullscreenPlayer() {
                     {/* Track Info & Controls */}
                     <div className="w-full max-w-[500px] mt-6 flex flex-col items-center shrink-0">
                   <div className="flex items-center justify-between w-full mb-4">
-                    <div className="flex flex-col min-w-0">
-                      <h2 className="text-3xl font-display font-extrabold text-white truncate drop-shadow-md">{currentTrack?.title ?? 'Not Playing'}</h2>
-                      <p 
-                        className="text-lg text-white/60 truncate font-medium mt-1 cursor-pointer hover:underline hover:text-white active:scale-95 transition-all self-start relative z-50"
+                    <div className="flex flex-col flex-1 min-w-0 mr-4">
+              <MarqueeText 
+                text={currentTrack?.title ?? 'Not Playing'} 
+                className="text-3xl font-display font-extrabold text-white drop-shadow-md" 
+              />
+              <p 
+                className="text-lg text-white/60 truncate font-medium mt-1 cursor-pointer hover:underline hover:text-white active:scale-95 transition-all self-start relative z-50"
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
                           const artistId = currentTrack?.artistId;
                           if (artistId) {
+                            closePlayer();
                             useUIStore.getState().openArtist(artistId);
+                          } else {
+                            useToastStore.getState().addToast('Artist page not available for this track', 'error');
                           }
                         }}
                       >

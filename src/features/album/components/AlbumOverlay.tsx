@@ -89,7 +89,7 @@ export function AlbumOverlay() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 50 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className="fixed inset-0 z-[310] flex flex-col bg-[#080808]"
+          className="fixed inset-0 z-[1010] flex flex-col bg-[#080808]"
         >
           {/* Floating header */}
           <motion.div

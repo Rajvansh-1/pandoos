@@ -224,7 +224,7 @@ export function ArtistOverlay() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 50 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className="fixed inset-0 z-[300] flex flex-col bg-[#080808]"
+          className="fixed inset-0 z-[1000] flex flex-col bg-[#080808]"
         >
           {/* ── Sticky floating header ── */}
           <motion.div
