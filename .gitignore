@@ -33,3 +33,5 @@ release/
 # Test scripts
 scripts/test-ytdl.ts
 .vercel
+bin/
+yt-dlp.exe

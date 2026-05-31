@@ -1,12 +1,42 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import ytdlCore from '@distube/ytdl-core';
+import fs from 'fs';
+import path from 'path';
 
-// Handle potential ESM interop issues where CJS default export is nested under .default
-const ytdl = (ytdlCore as any).default || ytdlCore;
+let youtubeDlFn: any = null;
+
+async function getYoutubeDl() {
+  if (youtubeDlFn) return youtubeDlFn;
+  try {
+    const { create } = (await import('youtube-dl-exec')) as any;
+    
+    // In packaged app, process.resourcesPath is available and bin/ is in extraResources
+    const resourcesPath = (process as any).resourcesPath;
+    let binaryPath;
+    
+    if (resourcesPath) {
+      binaryPath = path.join(resourcesPath, 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : (process.platform === 'darwin' ? 'yt-dlp_macos' : 'yt-dlp'));
+    } else {
+      // In dev mode (vite server)
+      binaryPath = path.join(process.cwd(), 'bin', process.platform === 'win32' ? 'yt-dlp.exe' : (process.platform === 'darwin' ? 'yt-dlp_macos' : 'yt-dlp'));
+    }
+
+    if (fs.existsSync(binaryPath)) {
+      youtubeDlFn = create(binaryPath);
+    } else {
+      // Fallback to auto-detect if the binary isn't strictly there
+      youtubeDlFn = (await import('youtube-dl-exec') as any).default;
+    }
+
+    return youtubeDlFn;
+  } catch (e) {
+    console.error('[Download API] Failed to load youtube-dl-exec:', e);
+    return null;
+  }
+}
 
 export const config = {
   api: {
-    responseLimit: '15mb', // Audio files shouldn't exceed 15mb for a 5min song
+    responseLimit: '50mb', // Audio files might be larger
   },
 };
 
@@ -21,39 +51,80 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing videoId parameter' });
   }
 
-  const url = `https://www.youtube.com/watch?v=${videoId}`;
+  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
   try {
-    const agent = ytdl.createAgent();
-    const info = await ytdl.getInfo(url, { agent });
-    const audioFormat = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' });
+    const ydl = await getYoutubeDl();
 
-    if (!audioFormat) {
-      return res.status(404).json({ error: 'No audio format found' });
+    if (!ydl) {
+      return res.status(503).json({ error: 'yt-dlp not available in this environment' });
     }
 
-    res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Content-Disposition', `attachment; filename="${videoId}.mp3"`);
-    
-    // Create the stream
-    const stream = ytdl.downloadFromInfo(info, { format: audioFormat });
-    
-    stream.on('error', (err: any) => {
-      console.error('[Download API] YTDL Stream Error:', err.message || err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: err.message || 'Failed to stream audio' });
-      } else {
-        res.end(); // Ensure response ends cleanly if headers were sent
-      }
+    console.log(`[Download API] Extracting audio URL for ${videoId} via yt-dlp...`);
+
+    const result = await ydl(videoUrl, {
+      format: 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
+      getUrl: true,
+      noWarnings: true,
+      noCheckCertificates: true,
+      preferFreeFormats: true,
+      addHeader: [
+        'referer:https://www.youtube.com/',
+        'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      ],
     });
 
-    // Pipe directly, Node handles chunking automatically
-    stream.pipe(res);
+    const streamUrl = (typeof result === 'string' ? result : result?.url || '').trim();
+
+    if (!streamUrl || !streamUrl.startsWith('http')) {
+      console.error(`[Download API] yt-dlp returned invalid URL for ${videoId}:`, streamUrl?.substring(0, 100));
+      return res.status(451).json({ error: 'Could not extract audio URL — video may be unavailable' });
+    }
+
+    console.log(`[Download API] Got stream URL for ${videoId} — proxying...`);
+
+    const rangeHeader = req.headers['range'] as string;
+    const streamRes = await fetch(streamUrl, {
+      headers: {
+        ...(rangeHeader ? { 'Range': rangeHeader } : {}),
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.youtube.com/',
+      },
+    });
+
+    if (!streamRes.ok && streamRes.status !== 206) {
+      console.error(`[Download API] Stream fetch returned ${streamRes.status} for ${videoId}`);
+      return res.status(streamRes.status).json({ error: `Stream error: ${streamRes.status}` });
+    }
+
+    const contentType = streamRes.headers.get('content-type') || 'audio/webm';
+    
+    res.writeHead(streamRes.status, {
+      'Content-Type': contentType,
+      'Content-Length': streamRes.headers.get('content-length') || '',
+      'Content-Range': streamRes.headers.get('content-range') || '',
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'public, max-age=3600',
+    });
+
+    const reader = streamRes.body?.getReader();
+    if (!reader) { res.end(); return; }
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { res.end(); break; }
+      const canContinue = res.write(Buffer.from(value));
+      if (!canContinue) {
+        await new Promise(resolve => (res as any).once('drain', resolve));
+      }
+    }
 
   } catch (error: any) {
-    console.error('[Download API] Catch Error:', error.message || error);
+    const msg = error.message || 'Internal Server Error';
+    console.error(`[Download API] yt-dlp error for ${videoId}:`, msg.substring(0, 200));
     if (!res.headersSent) {
-      res.status(500).json({ error: error.message || 'Internal Server Error' });
+      const isUnavailable = msg.toLowerCase().includes('unavailable') || msg.toLowerCase().includes('private') || msg.toLowerCase().includes('sign in');
+      res.status(isUnavailable ? 451 : 500).json({ error: msg });
     }
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "pandoos",
   "private": true,
-  "version": "2.0.20",
+  "version": "3.0.1",
   "description": "Pandoos Music Desktop App",
   "author": {
     "name": "Rajvansh",
@@ -23,7 +23,7 @@
     "dist:win": "npm run generate-icon && npm run build && electron-builder --win",
     "dist:mac": "npm run generate-icon && npm run build && electron-builder --mac",
     "dist:linux": "npm run generate-icon && npm run build && electron-builder --linux",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package && node scripts/download-yt-dlp.cjs"
   },
   "build": {
     "appId": "com.pandoos.music",
@@ -37,6 +37,15 @@
       "dist/**/*",
       "dist-electron/**/*",
       "public/logo.png"
+    ],
+    "extraResources": [
+      {
+        "from": "bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
+      }
     ],
     "asarUnpack": [
       "dist-electron/preload.cjs"
@@ -125,6 +134,7 @@
     "miniget": "^4.2.3",
     "node-vibrant": "^4.0.4",
     "patch-package": "^8.0.1",
+    "play-dl": "^1.9.7",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-helmet-async": "^3.0.0",
@@ -132,6 +142,8 @@
     "react-router-dom": "^7.15.1",
     "sax": "^1.6.0",
     "tailwind-merge": "^3.6.0",
+    "youtube-dl-exec": "^3.1.7",
+    "youtubei.js": "^17.0.1",
     "ytmusic-api": "^5.3.1",
     "zod": "^4.4.3",
     "zustand": "^5.0.13"
