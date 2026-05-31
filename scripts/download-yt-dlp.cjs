@@ -17,7 +17,9 @@ const getFilename = () => {
 
 const filename = getFilename();
 const destPath = path.join(binDir, filename);
-const url = `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${filename}`;
+// Use the nightly builds since the stable repository is months out of date 
+// and fails on new YouTube ciphers.
+const url = `https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/${filename}`;
 
 console.log(`Downloading ${filename} from ${url}...`);
 
