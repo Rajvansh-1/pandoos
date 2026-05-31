@@ -6,6 +6,7 @@ import { usePlaylists, useAddTrackToPlaylist, useCreatePlaylist } from '@/featur
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import type { Track } from '@/types/track';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 
 interface Props {
   isOpen: boolean;
@@ -50,6 +51,8 @@ export function AddToPlaylistModal({ isOpen, onClose, track }: Props) {
     });
     onClose();
   };
+
+  useHardwareBack(isOpen, onClose);
 
   if (!isOpen) return null;
 

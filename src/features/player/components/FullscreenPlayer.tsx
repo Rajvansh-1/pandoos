@@ -21,6 +21,7 @@ import { cn } from '@/utils/cn';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Track } from '@/types/track';
 import { getRecommendations } from '@/services/recommendEngine';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 
 function DesktopQueueItem({ track, absoluteIndex, queue, playTrack, removeFromQueue, handleDragEnd }: any) {
   const dragControls = useDragControls();
@@ -101,6 +102,8 @@ export function FullscreenPlayer() {
   const isPlayerOpen = useUIStore((state) => state.isPlayerOpen);
   const closePlayer = useUIStore((state) => state.closePlayer);
   const sleepTimerEnd = usePlayerStore((state) => state.sleepTimerEnd);
+
+  useHardwareBack(isPlayerOpen, closePlayer);
 
   const { data: isLiked } = useIsTrackLiked(currentTrack?.videoId || '');
   const likeTrack = useLikeTrack();

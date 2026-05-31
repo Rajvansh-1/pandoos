@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, SlidersHorizontal } from 'lucide-react';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { cn } from '@/utils/cn';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 
 interface EqualizerModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ const BAND_FREQS = ['60', '230', '910', '3.6k', '14k'];
 
 export function EqualizerModal({ isOpen, onClose }: EqualizerModalProps) {
   const { equalizer, setEqualizer } = useSettingsStore();
+
+  useHardwareBack(isOpen, onClose);
 
   const handleBandChange = (index: number, value: number) => {
     const newBands = [...equalizer.bands];

@@ -9,6 +9,7 @@ import { usePandaStore } from '@/stores/usePandaStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 
 interface PandaChatModalProps {
   isOpen: boolean;
@@ -39,6 +40,8 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   const [lastProcessedMsg, setLastProcessedMsg] = useState('');
+
+  useHardwareBack(isOpen, onClose);
 
   const handleSend = useCallback(async (text: string) => {
     if (!text.trim()) return;

@@ -6,6 +6,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { useNavigate } from 'react-router-dom';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 
 interface Props {
   isOpen: boolean;
@@ -30,6 +31,8 @@ export function SettingsModal({ isOpen, onClose }: Props) {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
+
+  useHardwareBack(isOpen, onClose);
 
   if (!isOpen) return null;
 

@@ -7,6 +7,7 @@ import {
 import { useUIStore } from '@/stores/useUIStore';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useArtist } from '../hooks/useArtist';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useIsArtistFollowed, useFollowArtist, useUnfollowArtist } from '@/features/library/hooks/useLibrary';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import type { Track } from '@/types/track';
@@ -172,6 +173,8 @@ export function ArtistOverlay() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [headerSolid, setHeaderSolid] = useState(false);
   const [showAllSongs, setShowAllSongs] = useState(false);
+
+  useHardwareBack(!!activeArtistId, closeArtist);
 
   // ── Real field names from ytmusic-api ──
   const topSongs: any[]      = artist?.topSongs ?? [];

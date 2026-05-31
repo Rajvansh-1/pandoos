@@ -4,6 +4,7 @@ import { ArrowLeft, Play, Shuffle, X, Clock, Music } from 'lucide-react';
 import { useUIStore } from '@/stores/useUIStore';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useAlbum } from '../hooks/useAlbum';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import type { Track } from '@/types/track';
 import { cn } from '@/utils/cn';
@@ -40,6 +41,8 @@ export function AlbumOverlay() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const [headerSolid, setHeaderSolid] = useState(false);
+
+  useHardwareBack(!!activeAlbumId, closeAlbum);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     setHeaderSolid(e.currentTarget.scrollTop > 250);

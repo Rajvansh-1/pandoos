@@ -11,6 +11,7 @@ import { useOfflineStore } from '@/stores/useOfflineStore';
 import { PlaybackSpeedControl } from './PlaybackSpeedControl';
 import { EqualizerModal } from './EqualizerModal';
 import { SlidersHorizontal } from 'lucide-react';
+import { useHardwareBack } from '@/hooks/useHardwareBack';
 
 interface PlayerOptionsModalProps {
   isOpen: boolean;
@@ -35,6 +36,8 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
   const [showSleepMenu, setShowSleepMenu] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isEqualizerModalOpen, setIsEqualizerModalOpen] = useState(false);
+
+  useHardwareBack(isOpen, onClose);
 
   if (!currentTrack) return null;
 
