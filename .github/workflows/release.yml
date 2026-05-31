@@ -50,6 +50,7 @@ jobs:
       UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
       YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       YOUTUBE_API_KEY_2: ${{ secrets.YOUTUBE_API_KEY_2 }}
+      YOUTUBE_DL_SKIP_DOWNLOAD: "true"
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
