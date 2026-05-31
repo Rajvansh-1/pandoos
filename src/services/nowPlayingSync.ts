@@ -55,6 +55,8 @@ export function updateNowPlayingState(track: Track | null, isPlaying: boolean, p
   _progress = progress;
 }
 
+let _authBackoffUntil = 0; // Timestamp until which writes are suppressed after auth failure
+
 function startWriteLoop(): void {
   if (writeInterval) clearInterval(writeInterval);
   writeNowPlaying();
@@ -67,8 +69,12 @@ export function forceNowPlayingWrite(): void {
 
 async function writeNowPlaying(): Promise<void> {
   if (!_userId || !_lastTrack) return;
+
+  // Respect auth backoff window — don't hammer Supabase after a 403/401
+  if (Date.now() < _authBackoffUntil) return;
+
   try {
-    await supabase.from('now_playing').upsert({
+    const { error } = await supabase.from('now_playing').upsert({
       user_id: _userId,
       video_id: _lastTrack.videoId,
       title: _lastTrack.title,
@@ -79,7 +85,24 @@ async function writeNowPlaying(): Promise<void> {
       device_name: DEVICE_NAME,
       updated_at: new Date().toISOString(),
     });
-  } catch { /* silent */ }
+
+    if (error) {
+      // 403 / 401 = auth token expired or RLS blocking. Back off for 15 seconds
+      // so the Supabase client's autoRefreshToken can silently renew the JWT.
+      const isAuthError =
+        (error as any).status === 403 ||
+        (error as any).status === 401 ||
+        error.code === 'PGRST301' ||
+        (error.message ?? '').toLowerCase().includes('jwt');
+      if (isAuthError) {
+        _authBackoffUntil = Date.now() + 15_000;
+        // Silently suppress — no console.error spam. Will auto-resume.
+        return;
+      }
+      // Other errors: log once but keep going
+      console.warn('[NowPlayingSync] write error:', error.message ?? error);
+    }
+  } catch { /* network error — silent */ }
 }
 
 export async function getOtherDeviceNowPlaying(

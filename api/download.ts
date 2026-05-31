@@ -98,7 +98,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log(`[Download API] Got stream URL for ${videoId} — proxying...`);
 
     const abortController = new AbortController();
-    
+
+    // Read the Range header from the incoming request for proper seeking/streaming support.
+    // BUG FIX: rangeHeader was used below but never declared, causing a ReferenceError
+    // that the outer catch block turned into a 500 on every proxy fallback request.
+    const rangeHeader = (req.headers as any)?.['range'] ?? (req.headers as any)?.['Range'] ?? '';
+
     // If the user skips a song, the browser aborts the request. We MUST cancel the fetch!
     req.on('close', () => {
       console.log(`[Download API] Client disconnected for ${videoId}, aborting fetch...`);

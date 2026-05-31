@@ -28,12 +28,14 @@ export function getApiUrl(path: string): string {
     return `https://pandoos.vercel.app${path}`;
   }
 
-  // 3. Electron Desktop — runtime check is safe here since file:// is a unique protocol
-  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+  // 3. Electron Desktop — detect via electronAPI injected by preload.cjs
+  // NOTE: Do NOT use window.location.protocol === 'file:' — in production Electron loads
+  // via http://127.0.0.1:15432, so the protocol is 'http:', never 'file:'.
+  if (typeof window !== 'undefined' && !!(window as any).electronAPI) {
     const electronApiUrl = (window as any).electronAPI?.getApiUrl?.();
     if (electronApiUrl) return `${electronApiUrl}${path}`;
-    // Electron fallback: use Vercel
-    return `https://pandoos.vercel.app${path}`;
+    // Electron fallback: relative URL resolves to http://127.0.0.1:15432
+    return path;
   }
 
   // 4. Web browser — relative path (Vite dev proxy in dev, Vercel routing in production)
