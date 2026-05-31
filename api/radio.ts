@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       initialized = true;
     }
 
-    const suggestions = await ytmusic.getUpNext(videoId);
+    const suggestions = await ytmusic.getUpNexts(videoId);
 
     const mappedItems = suggestions.map(song => ({
       id: { videoId: song.videoId },

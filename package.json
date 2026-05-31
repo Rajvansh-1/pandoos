@@ -36,20 +36,10 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "public/logo.png",
-      "node_modules/@distube/ytdl-core/**/*",
-      "node_modules/m3u8stream/**/*",
-      "node_modules/miniget/**/*",
-      "node_modules/sax/**/*",
-      "node_modules/ytmusic-api/**/*"
+      "public/logo.png"
     ],
     "asarUnpack": [
-      "dist-electron/preload.cjs",
-      "node_modules/@distube/ytdl-core/**/*",
-      "node_modules/m3u8stream/**/*",
-      "node_modules/miniget/**/*",
-      "node_modules/sax/**/*",
-      "node_modules/ytmusic-api/**/*"
+      "dist-electron/preload.cjs"
     ],
     "win": {
       "target": [
