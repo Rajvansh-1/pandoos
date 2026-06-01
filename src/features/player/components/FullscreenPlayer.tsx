@@ -218,7 +218,6 @@ export function FullscreenPlayer() {
                   e.preventDefault();
                   const artistId = currentTrack?.artistId;
                   if (artistId) {
-                    closePlayer();
                     useUIStore.getState().openArtist(artistId);
                   } else {
                     useToastStore.getState().addToast('Artist page not available for this track', 'error');
@@ -410,7 +409,6 @@ export function FullscreenPlayer() {
                           e.preventDefault();
                           const artistId = currentTrack?.artistId;
                           if (artistId) {
-                            closePlayer();
                             useUIStore.getState().openArtist(artistId);
                           } else {
                             useToastStore.getState().addToast('Artist page not available for this track', 'error');
