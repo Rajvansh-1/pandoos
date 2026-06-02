@@ -5,7 +5,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [3.1.3] - 2026-06-02 🐼 The Pandoos Magic Update
+## [3.1.4] - 2026-06-02 🐼 The Pandoos Magic Update
 
 Welcome to the **Pandoos Magic Update**! Our pandas have been working overtime to bring you a smoother, more magical listening experience across all your devices.
 
@@ -16,6 +16,14 @@ Welcome to the **Pandoos Magic Update**! Our pandas have been working overtime t
 ### 🚑 Bug Fixes & Improvements
 - **The Great Content Fix:** Did your Artist and Album pages suddenly go blank recently? Our panda backend had a little hiccup syncing your music data. We've completely upgraded our resilient music engine—all your albums, top songs, and "Fans Also Like" sections are back and loading faster than ever! 🚀
 - **Performance Boosts:** Behind-the-scenes optimizations to make navigating between tracks and albums feel buttery smooth.
+
+### 📥 How to Install
+Ready to feel the music? Downloading is easier than ever:
+1. **Windows Users:** Download the `Pandoos.Music.Setup.exe` file below and run it to install.
+2. **Mac Users:** Grab the `.dmg` file below, open it, and drag Pandoos to your Applications folder.
+3. **Linux Users:** Download the `.AppImage` or `.deb` file based on your distribution.
+
+*Keep vibing and let the music take over! 🐼💜*
 
 ---
 

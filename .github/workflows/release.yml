@@ -89,6 +89,7 @@ jobs:
         run: npm run build
 
       - name: Build & Publish Release Assets
+        shell: bash
         run: |
           if [ -n "$SECRET_CSC_LINK" ]; then
             export CSC_LINK="$SECRET_CSC_LINK"
