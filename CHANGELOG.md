@@ -5,6 +5,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [3.1.2] - 2026-06-02 🍏 macOS CI Build Fix
+
+### Fix
+- Fixed a bug in the GitHub Actions `release.yml` workflow where an empty `CSC_LINK` (code signing certificate) secret was causing the macOS `electron-builder` job to fail. It was interpreting the empty string as a directory path, resulting in the `/Users/runner/work/pandoos/pandoos not a file` error.
+
+---
+
 ## [3.1.1] - 2026-06-02 🚑 UI Data Shape Hotfix
 
 ### What Broke

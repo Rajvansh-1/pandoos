@@ -67,9 +67,6 @@ jobs:
       YOUTUBE_API_KEY:   ${{ secrets.YOUTUBE_API_KEY }}
       YOUTUBE_API_KEY_2: ${{ secrets.YOUTUBE_API_KEY_2 }}
       YOUTUBE_DL_SKIP_DOWNLOAD: "true"
-      # macOS code signing (optional — if CSC_LINK secret is set, app will be signed)
-      CSC_LINK:     ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
     strategy:
       fail-fast: false
       matrix:
@@ -91,5 +88,13 @@ jobs:
       - name: Build Web + Electron
         run: npm run build
 
-      - name: Build & Publish Release Assets
+      - name: Build & Publish Release Assets (Signed)
+        if: secrets.CSC_LINK != ''
+        run: npx electron-builder --publish always
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+      - name: Build & Publish Release Assets (Unsigned)
+        if: secrets.CSC_LINK == ''
         run: npx electron-builder --publish always
