@@ -1,0 +1,64 @@
+# Changelog
+
+All notable changes to Pandoos are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+---
+
+## [3.1.0] - 2026-06-02 🛡️ Resilience Update
+
+### 🔴 Critical Fix — YouTube Music API (all users affected on v3.0.8)
+
+YouTube silently restructured their private InnerTube API response between June 1–2 2026.
+The `playlistItemData.videoId` field was removed from search results and moved to a nested
+location inside the `overlay` content object. This caused **every song returned by search**
+to have an empty `videoId`, breaking album art, playback, and React rendering on all platforms.
+
+### What Broke
+- 🖼️ All song thumbnails / album art showed as broken images
+- ▶️ No songs could play — audio fetch failed with empty videoId
+- ⚛️ React internal error `Expected static flag was missing` spammed the console
+- 🏠 Home screen (Oracle, Trending) showed empty/broken cards
+
+### Root Cause
+`ytmusic-api@5.3.1` uses hard-coded paths like `traverseString(item, "playlistItemData", "videoId")`.
+When YouTube removed that key, the result was `""` for every song.
+
+### Fix
+- **NEW** `api/ytmusic-adapter.ts` — A dedicated YouTube Music adapter built directly on
+  `youtubei.js` (a lower-level, more actively maintained InnerTube client). All API handlers
+  now import from this single file.
+- **5-layer fallback chain** for `videoId` extraction — YouTube would need to remove the ID
+  from *all* five possible locations simultaneously for the extraction to fail. This is
+  essentially impossible since the ID must exist somewhere for playback to work.
+- **`patch-package` safety net** — The fix is also backported to `ytmusic-api`'s `SongParser`
+  via a committed patch file that auto-applies on `npm install`.
+- **Redis cache keys bumped** — All stale cached responses with empty videoIds are
+  automatically bypassed by the new v4/v5 cache key versions.
+
+### New Features
+- ✨ **In-app update banner** — When a new version is available, a beautiful non-intrusive
+  banner slides in at the top of the screen. Shows three states: "downloading", "ready", and
+  a "Restart Now" button. No more jarring native OS dialogs.
+
+### Files Changed
+```
+api/ytmusic-adapter.ts  [NEW] — Single source of truth for all YT Music API calls
+api/search.ts           — Now uses adapter (cache key: v5)
+api/oracle.ts           — Now uses adapter
+api/trending.ts         — Now uses adapter (cache key: v4)
+api/radio.ts            — Now uses adapter (cache key: v4)
+api/artist.ts           — Now uses adapter (cache key: v4)
+api/album.ts            — Now uses adapter (cache key: v4)
+electron/main.ts        — Granular update events (available/downloading/ready)
+electron/preload.cjs    — Exposed update IPC channels to renderer
+src/components/shared/UpdateBanner.tsx  [NEW] — In-app update notification UI
+src/components/layout/DesktopLayout.tsx — Mounts UpdateBanner
+patches/ytmusic-api+5.3.1.patch         — Clean fallback patch for ytmusic-api
+```
+
+---
+
+## [3.0.8] - Previous Release
+
+- Initial stable release with Supabase sync, YT Music playback, Oracle vibes, etc.

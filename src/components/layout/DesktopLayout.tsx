@@ -8,6 +8,7 @@ import { useUIStore } from '@/stores/useUIStore';
 import { MiniPlayer } from '@/features/player/components/MiniPlayer';
 import { FullscreenPlayer } from '@/features/player/components/FullscreenPlayer';
 import { PandaChatModal } from '@/features/panda/components/PandaChatModal';
+import { UpdateBanner } from '@/components/shared/UpdateBanner';
 
 export function DesktopLayout() {
   const currentTrack = usePlayerStore((state) => state.currentTrack);
@@ -17,6 +18,9 @@ export function DesktopLayout() {
 
   return (
     <div className="flex h-screen w-full bg-surface-base overflow-hidden relative">
+      {/* Update notification — shows when electron-updater detects a new version */}
+      <UpdateBanner />
+
       {/* Aurora Background covering the whole app */}
       <div className="fixed inset-0 mood-bg -z-20 pointer-events-none" />
 

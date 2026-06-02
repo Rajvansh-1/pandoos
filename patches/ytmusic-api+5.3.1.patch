@@ -1,0 +1,54 @@
+diff --git a/node_modules/ytmusic-api/dist/index.js b/node_modules/ytmusic-api/dist/index.js
+index f2f618e..fb7d29c 100644
+--- a/node_modules/ytmusic-api/dist/index.js
++++ b/node_modules/ytmusic-api/dist/index.js
+@@ -1506,7 +1506,7 @@ var SongParser = class _SongParser {
+     return checkType_default(
+       {
+         type: "SONG",
+-        videoId: traverseString(item, "playlistItemData", "videoId"),
++        videoId: traverseString(item, "playlistItemData", "videoId") || (JSON.stringify(item).match(/"videoId":"([a-zA-Z0-9_-]{11})"/)?.[1] || ""),
+         name: traverseString(title, "text"),
+         artist: {
+           name: traverseString(artist, "text"),
+@@ -1738,7 +1738,12 @@ var VideoParser = class {
+     const title = flexColumns.find(isTitle) || flexColumns[0];
+     const artist = flexColumns.find(isArtist) || flexColumns[1];
+     const duration = fixedcolumns.find(isDuration);
+-    const videoId1 = traverseString(item, "playNavigationEndpoint", "videoId");
++    let videoId1 = traverseString(item, "playNavigationEndpoint", "videoId");
++    if (!videoId1) {
++        const str = JSON.stringify(item);
++        const match = str.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
++        if (match) videoId1 = match[1];
++    }
+     const videoId2 = traverseList(item, "thumbnails")[0].url.match(/https:\/\/i\.ytimg\.com\/vi\/(.+)\//);
+     if (videoId1 == "" && videoId2 == null) {
+       return;
+diff --git a/node_modules/ytmusic-api/dist/index.mjs b/node_modules/ytmusic-api/dist/index.mjs
+index eb5c37d..f544b42 100644
+--- a/node_modules/ytmusic-api/dist/index.mjs
++++ b/node_modules/ytmusic-api/dist/index.mjs
+@@ -1506,7 +1506,7 @@ var SongParser = class _SongParser {
+     return checkType_default(
+       {
+         type: "SONG",
+-        videoId: traverseString(item, "playlistItemData", "videoId"),
++        videoId: traverseString(item, "playlistItemData", "videoId") || (JSON.stringify(item).match(/"videoId":"([a-zA-Z0-9_-]{11})"/)?.[1] || ""),
+         name: traverseString(title, "text"),
+         artist: {
+           name: traverseString(artist, "text"),
+@@ -1738,7 +1738,12 @@ var VideoParser = class {
+     const title = flexColumns.find(isTitle) || flexColumns[0];
+     const artist = flexColumns.find(isArtist) || flexColumns[1];
+     const duration = fixedcolumns.find(isDuration);
+-    const videoId1 = traverseString(item, "playNavigationEndpoint", "videoId");
++    let videoId1 = traverseString(item, "playNavigationEndpoint", "videoId");
++    if (!videoId1) {
++        const str = JSON.stringify(item);
++        const match = str.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
++        if (match) videoId1 = match[1];
++    }
+     const videoId2 = traverseList(item, "thumbnails")[0].url.match(/https:\/\/i\.ytimg\.com\/vi\/(.+)\//);
+     if (videoId1 == "" && videoId2 == null) {
+       return;

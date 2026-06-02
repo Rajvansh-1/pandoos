@@ -12,29 +12,41 @@ let autoUpdater: any = null;
 if (app.isPackaged) {
   import('electron-updater').then(({ autoUpdater: updater }) => {
     autoUpdater = updater;
-    autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = true;
-    
+    autoUpdater.autoDownload = true;       // Download silently in background
+    autoUpdater.autoInstallOnAppQuit = true; // Install automatically on next quit
+
+    // ── Signal 1: update found, starting download ─────────────────────────
     autoUpdater.on('update-available', () => {
+      console.log('[Updater] Update available — downloading silently…');
       mainWindow?.webContents.send('update-available');
     });
-    autoUpdater.on('update-downloaded', () => {
-      const choice = dialog.showMessageBoxSync(mainWindow!, {
-        type: 'info',
-        title: 'Update Ready',
-        message: '🐼 A new version of Pandoos is ready! Restart to install.',
-        buttons: ['Restart Now', 'Later'],
-        defaultId: 0,
-      });
-      if (choice === 0) autoUpdater.quitAndInstall();
+
+    // ── Signal 2: download progress ───────────────────────────────────────
+    autoUpdater.on('download-progress', () => {
+      mainWindow?.webContents.send('update-downloading');
     });
-    
-    // Check for updates 5 seconds after launch
-    setTimeout(() => autoUpdater.checkForUpdates(), 5000);
-    // Then every hour
-    setInterval(() => autoUpdater.checkForUpdates(), 60 * 60 * 1000);
-  }).catch(() => { /* updater not available */ });
+
+    // ── Signal 3: ready to install ────────────────────────────────────────
+    autoUpdater.on('update-downloaded', () => {
+      console.log('[Updater] Update downloaded — notifying renderer.');
+      // Send to the in-app React banner first
+      mainWindow?.webContents.send('update-ready');
+    });
+
+    autoUpdater.on('error', (err: Error) => {
+      console.error('[Updater] Error:', err.message);
+    });
+
+    // Check 5 s after launch, then every hour
+    setTimeout(() => autoUpdater.checkForUpdates().catch(console.error), 5_000);
+    setInterval(() => autoUpdater.checkForUpdates().catch(console.error), 60 * 60 * 1_000);
+  }).catch(() => { /* updater not available in this environment */ });
 }
+
+// ── Handle "Restart & Install" from the React banner ──────────────────────────
+ipcMain.on('update-restart', () => {
+  autoUpdater?.quitAndInstall();
+});
 
 
 // app.disableHardwareAcceleration();

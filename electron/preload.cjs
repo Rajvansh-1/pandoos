@@ -48,5 +48,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeOAuthCallback: () => {
     ipcRenderer.removeAllListeners('oauth-callback');
   },
+
+  // ── Auto-Updater ──────────────────────────────────────────────────────
+  // Called by main when electron-updater signals a new version is found
+  onUpdateAvailable:  (cb) => ipcRenderer.on('update-available',  () => cb()),
+  // Called during the download phase
+  onUpdateDownloading:(cb) => ipcRenderer.on('update-downloading', () => cb()),
+  // Called when the installer is fully downloaded and ready
+  onUpdateReady:      (cb) => ipcRenderer.on('update-ready',      () => cb()),
+  // Tell main to quit and install the waiting update
+  restartAndInstall:  ()  => ipcRenderer.send('update-restart'),
+  // Clean up all update listeners (called in React useEffect cleanup)
+  removeUpdateListeners: () => {
+    ipcRenderer.removeAllListeners('update-available');
+    ipcRenderer.removeAllListeners('update-downloading');
+    ipcRenderer.removeAllListeners('update-ready');
+  },
 });
 

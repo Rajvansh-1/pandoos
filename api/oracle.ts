@@ -1,12 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import YTMusic from 'ytmusic-api';
+import { searchSongs } from './ytmusic-adapter.js';
 
-const ytmusic = new YTMusic();
-
-// Keep a persistent connection for consecutive hot invocations
-let isInitialized = false;
-
-// Fallback vibes if Gemini is missing or fails
 const FALLBACK_VIBES = [
   { title: "Trending Bollywood Hits", query: "latest bollywood hits" },
   { title: "Focus & Flow Lofi", query: "lofi hip hop focus" },
@@ -15,19 +9,13 @@ const FALLBACK_VIBES = [
 ];
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Crucial: Cache the response globally on Vercel Edge nodes for 6 hours!
-  // This means Gemini is only hit 4 times a day, $0 cost, and zero latency for users.
   res.setHeader('Cache-Control', 'public, s-maxage=21600, stale-while-revalidate=86400');
-  
-  try {
-    if (!isInitialized) {
-      await ytmusic.initialize();
-      isInitialized = true;
-    }
 
+  try {
     let vibes = FALLBACK_VIBES;
     const apiKey = process.env.GEMINI_API_KEY;
 
+    // ── Gemini Vibe Generation ─────────────────────────────────────────────
     if (apiKey) {
       try {
         const prompt = `You are a master music curator. The current date/time is ${new Date().toISOString()}.
@@ -67,42 +55,41 @@ Return ONLY a valid JSON object in this exact structure:
       }
     }
 
-    // Now execute the searches against YTMusic for the generated vibes
+    // ── YTMusic Search (via resilient adapter) ─────────────────────────────
     const oraclePlaylists = await Promise.all(
       vibes.map(async (vibe) => {
         try {
-          const songs = await ytmusic.searchSongs(vibe.query);
-          
-          const mappedTracks = songs.slice(0, 15).map(song => ({
+          const songs = await searchSongs(vibe.query, 15);
+
+          const mappedTracks = songs.map(song => ({
             id: song.videoId,
             videoId: song.videoId,
-            title: song.name,
-            artist: song.artist?.name || 'Unknown Artist',
-            albumArt: song.thumbnails?.[1]?.url || song.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg`,
-            duration: song.duration || 0,
-            source: 'youtube',
-            artistId: song.artist?.artistId || song.artist?.browseId || null,
-            albumId: song.album?.albumId || song.album?.browseId || null,
+            title: song.title,
+            artist: song.artist,
+            albumArt: song.thumbnailUrl,
+            duration: song.duration,
+            source: 'youtube' as const,
+            artistId: song.artistId,
+            albumId: song.albumId,
           }));
 
           return {
             id: vibe.title.toLowerCase().replace(/\s+/g, '-'),
             title: vibe.title,
             query: vibe.query,
-            songs: mappedTracks
+            songs: mappedTracks,
           };
         } catch (e) {
+          console.error(`Oracle: failed to search for "${vibe.query}":`, e);
           return null;
         }
       })
     );
 
-    // Filter out any failed searches
     const validPlaylists = oraclePlaylists.filter(Boolean);
-
     res.status(200).json({ oracle: validPlaylists });
   } catch (error: any) {
-    console.error('Oracle API Error:', error);
+    console.error('[Oracle API] Error:', error);
     res.status(500).json({ error: 'Failed to generate oracle vibes' });
   }
 }

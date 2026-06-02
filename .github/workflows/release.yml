@@ -9,49 +9,65 @@ permissions:
   contents: write
 
 jobs:
-  # Step 1: Create the GitHub Release first so build jobs can upload to it
+  # ─── Step 1: Create the GitHub Release ────────────────────────────────────
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     outputs:
-      release-id: ${{ steps.create.outputs.id }}
+      release-id: ${{ steps.create.outputs.result }}
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
+
+      - name: Read CHANGELOG entry for this tag
+        id: changelog
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          # Extract everything between this version's header and the next '## ['
+          BODY=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          echo "BODY<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create Release
         id: create
         uses: actions/github-script@v7
         with:
+          result-encoding: string
           script: |
-            const tag = context.ref.replace('refs/tags/', '');
+            const tag   = context.ref.replace('refs/tags/', '');
+            const body  = `${{ steps.changelog.outputs.BODY }}`;
             const release = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tag,
-              name: `🐼 Pandoos Music ${tag}`,
-              body: `## 🐼 Pandoos Music ${tag}\n\nBuilding installers... assets will appear below shortly.`,
-              draft: false,
+              owner:      context.repo.owner,
+              repo:       context.repo.repo,
+              tag_name:   tag,
+              name:       `🐼 Pandoos Music ${tag}`,
+              body:       body || `## 🐼 Pandoos Music ${tag}\n\nBuilding installers… assets appear below shortly.`,
+              draft:      false,
               prerelease: false,
             });
-            return release.data.id;
-          result-encoding: string
+            return String(release.data.id);
 
-  # Step 2: Build on all 3 platforms and upload assets
+  # ─── Step 2: Build on Windows, macOS, Linux ───────────────────────────────
   build:
     name: Build on ${{ matrix.os }}
     needs: create-release
     runs-on: ${{ matrix.os }}
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      GH_TOKEN:               ${{ secrets.GITHUB_TOKEN }}
+      VITE_SUPABASE_URL:      ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-      VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
-      VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
-      VITE_YOUTUBE_API_KEY_2: ${{ secrets.VITE_YOUTUBE_API_KEY_2 }}
-      UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+      VITE_GOOGLE_CLIENT_ID:  ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+      UPSTASH_REDIS_REST_URL:   ${{ secrets.UPSTASH_REDIS_REST_URL }}
       UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
-      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      YOUTUBE_API_KEY:   ${{ secrets.YOUTUBE_API_KEY }}
       YOUTUBE_API_KEY_2: ${{ secrets.YOUTUBE_API_KEY_2 }}
       YOUTUBE_DL_SKIP_DOWNLOAD: "true"
     strategy:
+      fail-fast: false   # Don't cancel all platforms if one fails
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
 
@@ -59,16 +75,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build App
+      - name: Build Web + Electron
         run: npm run build
 
-      - name: Build and Upload Release Assets
+      - name: Build & Publish Release Assets
         run: npx electron-builder --publish always

@@ -1,8 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import YTMusic from 'ytmusic-api';
-
-const ytmusic = new YTMusic();
-let initialized = false;
+import { searchYTMusic } from './ytmusic-adapter.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const query = (req.query.q || req.query.query) as string;
@@ -11,10 +8,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Query parameter "q" is required' });
   }
 
-  const cacheKey = `pandoos:ytm_search_v4:${query.toLowerCase().trim()}`;
+  const cacheKey = `pandoos:ytm_search_v5:${query.toLowerCase().trim()}`;
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
+  // ── Redis cache read ──────────────────────────────────────────────────────
   if (upstashUrl && upstashToken) {
     try {
       const cacheRes = await fetch(`${upstashUrl}/get/${encodeURIComponent(cacheKey)}`, {
@@ -23,7 +21,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (cacheRes.ok) {
         const cacheData = await cacheRes.json();
         if (cacheData.result) {
-          const resultObj = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
+          const resultObj = typeof cacheData.result === 'string'
+            ? JSON.parse(cacheData.result)
+            : cacheData.result;
           res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
           return res.status(200).json({ ...resultObj, cached: true });
         }
@@ -33,39 +33,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── Search ────────────────────────────────────────────────────────────────
   try {
-    if (!initialized) {
-      await ytmusic.initialize();
-      initialized = true;
-    }
+    const { songs, artists } = await searchYTMusic(query);
 
-    const [songResults, artistResults] = await Promise.all([
-      ytmusic.searchSongs(query).catch(() => []),
-      ytmusic.searchArtists(query).catch(() => [])
-    ]);
-
-    const mappedSongs = songResults.map(song => ({
+    const mappedSongs = songs.map(song => ({
       id: { videoId: song.videoId },
       snippet: {
-        title: song.name,
-        channelTitle: song.artist?.name || 'Unknown Artist',
+        title: song.title,
+        channelTitle: song.artist,
         thumbnails: {
-          high: { url: song.thumbnails?.[1]?.url || song.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg` }
+          high: { url: song.thumbnailUrl }
         },
         publishedAt: new Date().toISOString(),
-        artistId: song.artist?.artistId || song.artist?.browseId || null,
-        albumId: song.album?.albumId || song.album?.browseId || null,
+        artistId: song.artistId,
+        albumId: song.albumId,
       }
-    })).slice(0, 15);
+    }));
 
-    const mappedArtists = artistResults.map(artist => ({
-      artistId: artist.artistId || artist.browseId,
+    const mappedArtists = artists.map(artist => ({
+      artistId: artist.artistId,
       name: artist.name,
-      thumbnails: artist.thumbnails || []
-    })).slice(0, 5);
+      thumbnails: [{ url: artist.thumbnailUrl }],
+    }));
 
     const responseObj = { items: mappedSongs, artists: mappedArtists };
 
+    // ── Redis cache write ─────────────────────────────────────────────────
     if (upstashUrl && upstashToken && (mappedSongs.length > 0 || mappedArtists.length > 0)) {
       fetch(`${upstashUrl}/set/${encodeURIComponent(cacheKey)}?ex=86400`, {
         method: 'POST',
@@ -77,6 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
     return res.status(200).json({ ...responseObj, cached: false });
   } catch (error: any) {
+    console.error('[Search API] Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }

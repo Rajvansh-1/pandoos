@@ -1,14 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import YTMusic from 'ytmusic-api';
-
-const ytmusic = new YTMusic();
-let initialized = false;
+import { searchSongs } from './ytmusic-adapter.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const cacheKey = `pandoos:ytm_trending_v3`;
+  const cacheKey = `pandoos:ytm_trending_v4`;
   const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
   const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
+  // ── Redis cache read ──────────────────────────────────────────────────────
   if (upstashUrl && upstashToken) {
     try {
       const cacheRes = await fetch(`${upstashUrl}/get/${encodeURIComponent(cacheKey)}`, {
@@ -17,7 +15,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (cacheRes.ok) {
         const cacheData = await cacheRes.json();
         if (cacheData.result) {
-          const items = typeof cacheData.result === 'string' ? JSON.parse(cacheData.result) : cacheData.result;
+          const items = typeof cacheData.result === 'string'
+            ? JSON.parse(cacheData.result)
+            : cacheData.result;
           res.setHeader('Cache-Control', 'public, s-maxage=43200, stale-while-revalidate=21600');
           return res.status(200).json({ items, cached: true });
         }
@@ -27,28 +27,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── Trending fetch ────────────────────────────────────────────────────────
   try {
-    if (!initialized) {
-      await ytmusic.initialize();
-      initialized = true;
-    }
+    const songs = await searchSongs('latest trending songs', 15);
 
-    const results = await ytmusic.searchSongs('latest trending songs');
-
-    const mappedItems = results.map(song => ({
+    const mappedItems = songs.map(song => ({
       id: { videoId: song.videoId },
       snippet: {
-        title: song.name,
-        channelTitle: song.artist?.name || 'Unknown Artist',
+        title: song.title,
+        channelTitle: song.artist,
         thumbnails: {
-          high: { url: song.thumbnails?.[1]?.url || song.thumbnails?.[0]?.url || `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg` }
+          high: { url: song.thumbnailUrl }
         },
         publishedAt: new Date().toISOString(),
-        artistId: song.artist?.artistId || song.artist?.browseId || null,
-        albumId: song.album?.albumId || song.album?.browseId || null,
+        artistId: song.artistId,
+        albumId: song.albumId,
       }
-    })).slice(0, 15);
+    }));
 
+    // ── Redis cache write ─────────────────────────────────────────────────
     if (upstashUrl && upstashToken && mappedItems.length > 0) {
       fetch(`${upstashUrl}/set/${encodeURIComponent(cacheKey)}?ex=43200`, {
         method: 'POST',
@@ -60,6 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Cache-Control', 'public, s-maxage=43200, stale-while-revalidate=21600');
     return res.status(200).json({ items: mappedItems, cached: false });
   } catch (error: any) {
+    console.error('[Trending API] Error:', error.message);
     return res.status(500).json({ error: error.message });
   }
 }
