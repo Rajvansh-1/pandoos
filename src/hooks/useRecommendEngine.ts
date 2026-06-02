@@ -16,7 +16,7 @@ export function useRecommendEngine() {
   const queue = usePlayerStore(s => s.queue);
   const queueIndex = usePlayerStore(s => s.queueIndex);
   const history = usePlayerStore(s => s.history);
-  const prependToQueue = usePlayerStore(s => s.prependToQueue);
+  const addTracksToQueue = usePlayerStore(s => s.addTracksToQueue);
 
   const skippedIds = useTasteStore(s => s.skippedIds);
   const getAffinityScore = useTasteStore(s => s.getAffinityScore);
@@ -50,9 +50,9 @@ export function useRecommendEngine() {
     if (prefetchFiredRef.current) return;
     if (progress < 0.6) return;
 
-    // Only pre-fetch if queue is about to run out (<=2 tracks left)
+    // Only pre-fetch if queue is about to run out
     const tracksLeft = queue.length - queueIndex - 1;
-    if (tracksLeft > 2) return;
+    if (tracksLeft > 10) return;
 
     prefetchFiredRef.current = true;
     fetchedForRef.current = currentTrack.videoId;
@@ -62,10 +62,10 @@ export function useRecommendEngine() {
       history,
       skippedIds,
       getAffinityScore,
-      count: 5,
+      count: 20,
     }).then((recommendations: Track[]) => {
       if (recommendations.length > 0) {
-        prependToQueue(recommendations);
+        addTracksToQueue(recommendations);
       }
     }).catch(() => {
       // Silent fail — user still hears the current queue

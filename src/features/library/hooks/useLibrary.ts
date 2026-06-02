@@ -85,7 +85,7 @@ export function useCreatePlaylist() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlists(userId) });
+      // DO NOT invalidate to prevent UI bouncing
     },
   });
 }
@@ -97,9 +97,15 @@ export function useDeletePlaylist() {
 
   return useMutation({
     mutationFn: (playlistId: string) => deletePlaylist(playlistId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlists(userId) });
+    onSuccess: (_, deletedId) => {
+      queryClient.setQueryData(QUERY_KEYS.playlists(userId), (old: any[] | undefined) => {
+        if (!old) return [];
+        return old.filter(p => p.id !== deletedId);
+      });
     },
+    onSettled: () => {
+      // DO NOT invalidate to prevent UI bouncing
+    }
   });
 }
 
@@ -111,8 +117,10 @@ export function useUpdatePlaylistDetails() {
   return useMutation({
     mutationFn: ({ playlistId, name, description }: { playlistId: string; name: string; description?: string }) => 
       updatePlaylistDetails(playlistId, name, description),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlists(userId) });
+    onSuccess: (_, variables) => {
+      queryClient.setQueryData(QUERY_KEYS.playlists(userId), (old: any[] | undefined) => {
+        return old ? old.map((p) => p.id === variables.playlistId ? { ...p, name: variables.name, description: variables.description || p.description } : p) : [];
+      });
     },
   });
 }
@@ -140,8 +148,15 @@ export function useAddTrackToPlaylist() {
     mutationFn: ({ playlistId, track, position }: { playlistId: string; track: Track; position: number }) =>
       addTrackToPlaylist(playlistId, track, position),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlist(variables.playlistId) });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlists(userId) }); // Update trackCount in UI
+      // Optimistically update playlist tracks
+      queryClient.setQueryData(QUERY_KEYS.playlist(variables.playlistId), (old: any[] | undefined) => {
+        if (!old) return [variables.track];
+        return [...old, variables.track];
+      });
+      // Optimistically update trackCount
+      queryClient.setQueryData(QUERY_KEYS.playlists(userId), (old: any[] | undefined) => {
+        return old ? old.map(p => p.id === variables.playlistId ? { ...p, trackCount: p.trackCount + 1 } : p) : [];
+      });
     },
   });
 }
@@ -155,8 +170,14 @@ export function useRemoveTrackFromPlaylist() {
     mutationFn: ({ playlistId, videoId }: { playlistId: string; videoId: string }) =>
       removeTrackFromPlaylist(playlistId, videoId),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlist(variables.playlistId) });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.playlists(userId) }); // Update trackCount in UI
+      // Optimistically update playlist tracks
+      queryClient.setQueryData(QUERY_KEYS.playlist(variables.playlistId), (old: any[] | undefined) => {
+        return old ? old.filter(t => t.videoId !== variables.videoId) : [];
+      });
+      // Optimistically update trackCount
+      queryClient.setQueryData(QUERY_KEYS.playlists(userId), (old: any[] | undefined) => {
+        return old ? old.map(p => p.id === variables.playlistId ? { ...p, trackCount: Math.max(0, p.trackCount - 1) } : p) : [];
+      });
     },
   });
 }
@@ -201,8 +222,7 @@ export function useLikeTrack() {
     },
     onSettled: (_, __, track) => {
       useGamificationStore.getState().likeSong(track.videoId);
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.likedSongs(userId) });
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.likedSongs(userId), 'check', track.videoId] });
+      // DO NOT invalidate here. Let optimistic update persist to prevent UI bouncing
     },
   });
 }
@@ -226,8 +246,7 @@ export function useUnlikeTrack() {
     },
     onSettled: (_, __, videoId) => {
       useGamificationStore.getState().unlikeSong(videoId);
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.likedSongs(userId) });
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.likedSongs(userId), 'check', videoId] });
+      // DO NOT invalidate here. Let optimistic update persist to prevent UI bouncing
     },
   });
 }
@@ -268,10 +287,15 @@ export function useFollowArtist() {
     },
     onSuccess: (_, artist) => {
       addToast(`Followed ${artist.name}`, 'success');
+      // Update the artists list optimistically
+      queryClient.setQueryData(QUERY_KEYS.followedArtists(userId), (old: any[] | undefined) => {
+        if (!old) return [artist];
+        if (old.find(a => a.artistId === artist.artistId)) return old;
+        return [artist, ...old];
+      });
     },
-    onSettled: (_, __, artist) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.followedArtists(userId) });
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.followedArtists(userId), 'check', artist.artistId] });
+    onSettled: () => {
+      // DO NOT invalidate to prevent bounce
     },
   });
 }
@@ -289,12 +313,16 @@ export function useUnfollowArtist() {
       await queryClient.cancelQueries({ queryKey: checkKey });
       queryClient.setQueryData(checkKey, false);
     },
-    onSuccess: () => {
+    onSuccess: (_, artistId) => {
       addToast('Unfollowed artist', 'info');
+      // Update the artists list optimistically
+      queryClient.setQueryData(QUERY_KEYS.followedArtists(userId), (old: any[] | undefined) => {
+        if (!old) return [];
+        return old.filter(a => a.artistId !== artistId);
+      });
     },
-    onSettled: (_, __, artistId) => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.followedArtists(userId) });
-      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.followedArtists(userId), 'check', artistId] });
+    onSettled: () => {
+      // DO NOT invalidate
     },
   });
 }

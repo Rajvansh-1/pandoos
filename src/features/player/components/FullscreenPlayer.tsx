@@ -24,6 +24,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { Track } from '@/types/track';
 import { getRecommendations } from '@/services/recommendEngine';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
+import { useArtistNavigation } from '@/hooks/useArtistNavigation';
 
 function DesktopQueueItem({ track, absoluteIndex, queue, playTrack, removeFromQueue, handleDragEnd }: any) {
   const dragControls = useDragControls();
@@ -130,7 +131,7 @@ export function FullscreenPlayer() {
   const [historyTracks, setHistoryTracks] = useState<Track[]>([]);
 
   // Desktop Tab State
-  const [desktopRightTab, setDesktopRightTab] = useState<'upnext' | 'lyrics'>('upnext');
+  const [desktopRightTab, setDesktopRightTab] = useState<'upnext' | 'lyrics' | 'related'>('upnext');
 
   // Mobile Tab State
   const [mobileTab, setMobileTab] = useState<'upnext' | 'related'>('upnext');
@@ -138,8 +139,10 @@ export function FullscreenPlayer() {
   const [relatedTracks, setRelatedTracks] = useState<Track[]>([]);
   const [isLoadingRelated, setIsLoadingRelated] = useState(false);
 
+  const { navigateToArtist } = useArtistNavigation();
+
   React.useEffect(() => {
-    if (mobileTab === 'related' && currentTrack) {
+    if ((mobileTab === 'related' || desktopRightTab === 'related') && currentTrack) {
       setIsLoadingRelated(true);
       const getAffinityScore = useTasteStore.getState().getAffinityScore;
       const skippedIds = useTasteStore.getState().skippedIds;
@@ -154,7 +157,7 @@ export function FullscreenPlayer() {
         setIsLoadingRelated(false);
       });
     }
-  }, [mobileTab, currentTrack?.videoId]);
+  }, [mobileTab, desktopRightTab, currentTrack?.videoId]);
 
   React.useEffect(() => {
     setHistoryTracks(queue.slice(Math.max(0, queueIndex - 20), queueIndex));
@@ -216,11 +219,8 @@ export function FullscreenPlayer() {
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  const artistId = currentTrack?.artistId;
-                  if (artistId) {
-                    useUIStore.getState().openArtist(artistId);
-                  } else {
-                    useToastStore.getState().addToast('Artist page not available for this track', 'error');
+                  if (currentTrack) {
+                    navigateToArtist(currentTrack.artist, currentTrack.artistId);
                   }
                 }}
               >
@@ -407,11 +407,8 @@ export function FullscreenPlayer() {
                         onClick={(e) => {
                           e.stopPropagation();
                           e.preventDefault();
-                          const artistId = currentTrack?.artistId;
-                          if (artistId) {
-                            useUIStore.getState().openArtist(artistId);
-                          } else {
-                            useToastStore.getState().addToast('Artist page not available for this track', 'error');
+                          if (currentTrack) {
+                            navigateToArtist(currentTrack.artist, currentTrack.artistId);
                           }
                         }}
                       >
@@ -448,6 +445,10 @@ export function FullscreenPlayer() {
                       onClick={() => setDesktopRightTab('lyrics')}
                       className={cn("text-lg font-bold tracking-tight transition-colors", desktopRightTab === 'lyrics' ? "text-white" : "text-white/40 hover:text-white/70")}
                     >Lyrics</button>
+                    <button 
+                      onClick={() => setDesktopRightTab('related')}
+                      className={cn("text-lg font-bold tracking-tight transition-colors", desktopRightTab === 'related' ? "text-white" : "text-white/40 hover:text-white/70")}
+                    >Related</button>
                   </div>
                   {desktopRightTab === 'upnext' && (
                     <button className="text-xs font-semibold text-white/40 hover:text-white uppercase tracking-wider transition-colors">Clear</button>
@@ -491,6 +492,30 @@ export function FullscreenPlayer() {
                       />
                     ))}
                   </Reorder.Group>
+                  </div>
+                ) : desktopRightTab === 'related' ? (
+                  <div className="flex-1 overflow-y-auto scroll-container -mx-2 px-2 flex flex-col">
+                    {isLoadingRelated ? (
+                      <div className="text-white/50 text-sm font-medium tracking-widest uppercase animate-pulse pt-10 text-center">Fetching AI Recommendations...</div>
+                    ) : (
+                      <div className="flex flex-col gap-1 pb-4">
+                        <h4 className="text-xs font-bold text-white/30 uppercase tracking-widest px-2 mb-2">Similar to {currentTrack?.title}</h4>
+                        {relatedTracks.map((track, i) => (
+                          <div key={`desk-rel-${track.videoId}-${i}`} className="flex items-center gap-3 p-2 rounded-xl transition-all group relative overflow-hidden hover:bg-white/10 bg-transparent opacity-80 hover:opacity-100 cursor-pointer" onClick={() => playTrack(track, [track])}>
+                            <div className="relative w-10 h-10 shrink-0 rounded-lg overflow-hidden shadow-md">
+                              <TrackImage videoId={track.videoId} title={track.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Play size={16} className="text-white fill-white" />
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                              <h4 className="text-sm font-bold truncate text-white">{track.title}</h4>
+                              <p className="text-xs text-white/50 truncate">{track.artist}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex-1 overflow-hidden flex flex-col -mx-4 -mb-4">

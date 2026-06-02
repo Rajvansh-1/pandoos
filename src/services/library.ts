@@ -14,6 +14,18 @@ import { supabase } from '@/services/supabase';
 import type { Playlist } from '@/types/playlist';
 import type { Track } from '@/types/track';
 
+// Standard UUID v4 generator fallback
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // ── Local Cache Keys (offline fallback) ─────────────────────
 const CACHE = {
   liked: (uid: string) => `pandoos_liked_v3_${uid}`,
@@ -59,17 +71,24 @@ function trackToLikedRow(userId: string, track: Track) {
 // ════════════════════════════════════════════════════════════
 
 export async function getLikedSongs(userId: string): Promise<Track[]> {
+  if (userId === 'guest') return getCache<Track[]>(CACHE.liked(userId), []);
+
   try {
     const { data, error } = await supabase
       .from('liked_songs')
-      .select('video_id, title, artist, album_art, duration')
+      .select('*')
       .eq('user_id', userId)
       .order('liked_at', { ascending: false });
 
     if (!error && data) {
-      const tracks = data.map(rowToTrack);
-      setCache(CACHE.liked(userId), tracks);
-      return tracks;
+      const remoteTracks = data.map(rowToTrack);
+      const localTracks = getCache<any[]>(CACHE.liked(userId), []);
+      // Keep items that failed to sync to Supabase, but allow cross-device deletions to drop items
+      const localOnly = localTracks.filter(lt => lt._syncFailed && !remoteTracks.some(rt => rt.videoId === lt.videoId));
+      
+      const merged = [...localOnly, ...remoteTracks];
+      setCache(CACHE.liked(userId), merged);
+      return merged as Track[];
     }
     if (error) console.error('[Library] getLikedSongs error:', error);
   } catch (err) { console.error('[Library] getLikedSongs catch:', err); }
@@ -84,17 +103,38 @@ export async function likeTrack(userId: string, track: Track): Promise<void> {
     setCache(CACHE.liked(userId), [track, ...cached]);
   }
 
+  if (userId === 'guest') return;
+
   try {
     const { error } = await supabase.from('liked_songs')
       .upsert(trackToLikedRow(userId, track), { onConflict: 'user_id,video_id' });
-    if (error) console.error('[Library] likeTrack error:', error);
-  } catch (err) { console.error('[Library] likeTrack catch:', err); }
+    if (error) {
+      console.error('[Library] likeTrack error, retrying with minimal fields:', error);
+      const retry = await supabase.from('liked_songs').upsert({
+        user_id: userId,
+        video_id: track.videoId,
+        title: track.title,
+        artist: track.artist
+      }, { onConflict: 'user_id,video_id' });
+      if (retry.error) {
+        console.error('[Library] likeTrack retry failed:', retry.error);
+        const currentCache = getCache<any[]>(CACHE.liked(userId), []);
+        setCache(CACHE.liked(userId), currentCache.map(t => t.videoId === track.videoId ? { ...t, _syncFailed: true } : t));
+      }
+    }
+  } catch (err) { 
+    console.error('[Library] likeTrack catch:', err);
+    const currentCache = getCache<any[]>(CACHE.liked(userId), []);
+    setCache(CACHE.liked(userId), currentCache.map(t => t.videoId === track.videoId ? { ...t, _syncFailed: true } : t));
+  }
 }
 
 export async function unlikeTrack(userId: string, videoId: string): Promise<void> {
   // Optimistic local update
   const cached = getCache<Track[]>(CACHE.liked(userId), []);
   setCache(CACHE.liked(userId), cached.filter(t => t.videoId !== videoId));
+
+  if (userId === 'guest') return;
 
   try {
     const { error } = await supabase.from('liked_songs')
@@ -106,9 +146,11 @@ export async function unlikeTrack(userId: string, videoId: string): Promise<void
 }
 
 export async function isTrackLiked(userId: string, videoId: string): Promise<boolean> {
-  // Check cache first for instant UI response
+  // Check cache first for instant UI response and robust fallback
   const cached = getCache<Track[]>(CACHE.liked(userId), []);
-  if (cached.length > 0) return cached.some(t => t.videoId === videoId);
+  if (cached.some(t => t.videoId === videoId)) return true;
+
+  if (userId === 'guest') return false;
 
   try {
     const { data } = await supabase
@@ -140,6 +182,8 @@ function rowToPlaylist(row: any): Playlist {
 }
 
 export async function getUserPlaylists(userId: string): Promise<Playlist[]> {
+  if (userId === 'guest') return getCache<Playlist[]>(CACHE.playlists(userId), []);
+
   try {
     const { data, error } = await supabase
       .from('playlists')
@@ -148,9 +192,13 @@ export async function getUserPlaylists(userId: string): Promise<Playlist[]> {
       .order('updated_at', { ascending: false });
 
     if (!error && data) {
-      const playlists = data.map(rowToPlaylist);
-      setCache(CACHE.playlists(userId), playlists);
-      return playlists;
+      const remotePlaylists = data.map(rowToPlaylist);
+      const localPlaylists = getCache<any[]>(CACHE.playlists(userId), []);
+      const localOnly = localPlaylists.filter(lp => lp._syncFailed && !remotePlaylists.some(rp => rp.id === lp.id));
+      
+      const merged = [...localOnly, ...remotePlaylists];
+      setCache(CACHE.playlists(userId), merged);
+      return merged as Playlist[];
     }
     if (error) console.error('[Library] getUserPlaylists error:', error);
   } catch (err) { console.error('[Library] getUserPlaylists catch:', err); }
@@ -159,21 +207,36 @@ export async function getUserPlaylists(userId: string): Promise<Playlist[]> {
 }
 
 export async function createPlaylist(userId: string, name: string, description = ''): Promise<Playlist> {
-  const localId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
-  
-  const { data, error } = await supabase
-    .from('playlists')
-    .insert({ user_id: userId, name, description, is_public: false, track_count: 0 })
-    .select()
-    .single();
+  const localId = generateUUID();
+  let playlist: Playlist | null = null;
 
-  let playlist: Playlist;
+  if (userId !== 'guest') {
+    let { data, error } = await supabase
+      .from('playlists')
+      .insert({ user_id: userId, name, description, is_public: false, track_count: 0 })
+      .select()
+      .single();
 
-  if (!error && data) {
-    playlist = rowToPlaylist(data);
-  } else {
-    if (error) console.error('[Library] createPlaylist error:', error);
-    // Offline / Desktop fallback
+    if (error) {
+      console.error('[Library] createPlaylist error, retrying minimal:', error);
+      const retry = await supabase
+        .from('playlists')
+        .insert({ user_id: userId, name })
+        .select()
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    if (!error && data) {
+      playlist = rowToPlaylist(data);
+    } else if (error) {
+      console.error('[Library] createPlaylist final error:', error);
+    }
+  }
+
+  if (!playlist) {
+    // Offline / Guest fallback
     playlist = {
       id: localId,
       userId,
@@ -184,7 +247,8 @@ export async function createPlaylist(userId: string, name: string, description =
       trackCount: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    };
+      _syncFailed: userId !== 'guest' // Mark as syncFailed if we are logged in but it failed
+    } as Playlist & { _syncFailed?: boolean };
   }
 
   // Update cache
@@ -195,9 +259,7 @@ export async function createPlaylist(userId: string, name: string, description =
 }
 
 export async function deletePlaylist(playlistId: string): Promise<void> {
-  // Optimistic local deletion requires userId, but we don't have it here. 
-  // We rely on React Query invalidation, but since we are offline, it might fetch the old cache.
-  // We'll iterate through localStorage to find and remove it.
+  // Optimistic local deletion
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -237,7 +299,7 @@ export async function getPlaylistTracks(playlistId: string): Promise<Track[]> {
   try {
     const { data, error } = await supabase
       .from('playlist_tracks')
-      .select('video_id, title, artist, album_art, duration, position')
+      .select('*')
       .eq('playlist_id', playlistId)
       .order('position', { ascending: true });
 
@@ -272,7 +334,15 @@ export async function addTrackToPlaylist(
       duration: track.duration ?? 0,
       position,
     });
-    if (error) console.error('[Library] addTrackToPlaylist error:', error);
+    if (error) {
+      console.error('[Library] addTrackToPlaylist error, retrying minimal:', error);
+      await supabase.from('playlist_tracks').insert({
+        playlist_id: playlistId,
+        video_id: track.videoId,
+        title: track.title,
+        artist: track.artist,
+      });
+    }
     // track_count auto-updated by Supabase trigger
   } catch (err) { console.error('[Library] addTrackToPlaylist catch:', err); }
 }
@@ -298,21 +368,27 @@ export async function removeTrackFromPlaylist(
 // ════════════════════════════════════════════════════════════
 
 export async function getFollowedArtists(userId: string): Promise<any[]> {
+  if (userId === 'guest') return getCache<any[]>(CACHE.followedArtists(userId), []);
+
   try {
     const { data, error } = await supabase
       .from('followed_artists')
-      .select('artist_id, name, thumbnail_url, followed_at')
+      .select('*')
       .eq('user_id', userId)
       .order('followed_at', { ascending: false });
 
     if (!error && data) {
-      const artists = data.map((row: any) => ({
+      const remoteArtists = data.map((row: any) => ({
         artistId: row.artist_id,
         name: row.name,
         thumbnails: row.thumbnail_url ? [{ url: row.thumbnail_url }] : [],
       }));
-      setCache(CACHE.followedArtists(userId), artists);
-      return artists;
+      const localArtists = getCache<any[]>(CACHE.followedArtists(userId), []);
+      const localOnly = localArtists.filter(la => la._syncFailed && !remoteArtists.some(ra => ra.artistId === la.artistId));
+      
+      const merged = [...localOnly, ...remoteArtists];
+      setCache(CACHE.followedArtists(userId), merged);
+      return merged;
     }
   } catch { /* offline */ }
 
@@ -325,19 +401,41 @@ export async function followArtist(userId: string, artist: any): Promise<void> {
     setCache(CACHE.followedArtists(userId), [artist, ...cached]);
   }
 
+  if (userId === 'guest') return;
+
   try {
-    await supabase.from('followed_artists').upsert({
+    const { error } = await supabase.from('followed_artists').upsert({
       user_id: userId,
       artist_id: artist.artistId,
       name: artist.name,
       thumbnail_url: artist.thumbnails?.[0]?.url ?? null,
     }, { onConflict: 'user_id,artist_id' });
-  } catch { /* will sync */ }
+    
+    if (error) {
+      console.error('[Library] followArtist error, retrying minimal:', error);
+      const retry = await supabase.from('followed_artists').upsert({
+        user_id: userId,
+        artist_id: artist.artistId,
+        name: artist.name
+      }, { onConflict: 'user_id,artist_id' });
+      if (retry.error) {
+        console.error('[Library] followArtist retry failed:', retry.error);
+        const currentCache = getCache<any[]>(CACHE.followedArtists(userId), []);
+        setCache(CACHE.followedArtists(userId), currentCache.map(a => a.artistId === artist.artistId ? { ...a, _syncFailed: true } : a));
+      }
+    }
+  } catch (err) {
+    console.error('[Library] followArtist catch:', err);
+    const currentCache = getCache<any[]>(CACHE.followedArtists(userId), []);
+    setCache(CACHE.followedArtists(userId), currentCache.map(a => a.artistId === artist.artistId ? { ...a, _syncFailed: true } : a));
+  }
 }
 
 export async function unfollowArtist(userId: string, artistId: string): Promise<void> {
   const cached = getCache<any[]>(CACHE.followedArtists(userId), []);
   setCache(CACHE.followedArtists(userId), cached.filter(a => a.artistId !== artistId));
+
+  if (userId === 'guest') return;
 
   try {
     await supabase.from('followed_artists')
@@ -348,6 +446,10 @@ export async function unfollowArtist(userId: string, artistId: string): Promise<
 }
 
 export async function isArtistFollowed(userId: string, artistId: string): Promise<boolean> {
+  // Always check cache first for instant UI response and offline robust fallback
+  const cached = getCache<any[]>(CACHE.followedArtists(userId), []);
+  if (cached.some(a => a.artistId === artistId)) return true;
+
   if (userId === 'guest') return false;
 
   const { data, error } = await supabase

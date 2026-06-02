@@ -7,6 +7,7 @@ import { useIsTrackLiked, useLikeTrack, useUnlikeTrack } from '@/features/librar
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useUIStore } from '@/stores/useUIStore';
 import { cn } from '@/utils/cn';
+import { useArtistNavigation } from '@/hooks/useArtistNavigation';
 
 interface TrackContextMenuProps {
   track: Track;
@@ -19,6 +20,8 @@ export function TrackContextMenu({ track, className, onClose, onRemove }: TrackC
   const [isOpen, setIsOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  const { navigateToArtist } = useArtistNavigation();
 
   const { data: isLiked } = useIsTrackLiked(track.videoId);
   const likeTrack = useLikeTrack();
@@ -95,26 +98,28 @@ export function TrackContextMenu({ track, className, onClose, onRemove }: TrackC
               <span>Save to Playlist</span>
             </button>
 
-            {track.artistId && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsOpen(false);
-                  useUIStore.getState().openArtist(track.artistId!);
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-left text-sm text-white"
-              >
-                <User size={18} className="text-white/70" />
-                <span className="truncate">View Artist</span>
-              </button>
-            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsOpen(false);
+                setTimeout(() => {
+                  navigateToArtist(track.artist, track.artistId);
+                }, 50);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-left text-sm text-white border-t border-white/5"
+            >
+              <User size={18} className="text-white/70" />
+              <span className="truncate">View Artist</span>
+            </button>
 
             {track.albumId && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsOpen(false);
-                  useUIStore.getState().openAlbum(track.albumId!);
+                  setTimeout(() => {
+                    useUIStore.getState().openAlbum(track.albumId!);
+                  }, 50);
                 }}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-left text-sm text-white"
               >

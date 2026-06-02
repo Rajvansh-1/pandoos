@@ -44,15 +44,28 @@ let _isPlaying = false;
 let _progress = 0;
 let _userId: string | null = null;
 
+let _prevTrackId: string | null = null;
+let _prevIsPlaying: boolean | null = null;
+
 export function initNowPlayingSync(userId: string): void {
   _userId = userId;
   startWriteLoop();
 }
 
 export function updateNowPlayingState(track: Track | null, isPlaying: boolean, progress: number): void {
+  const trackChanged = track?.videoId !== _prevTrackId;
+  const stateChanged = isPlaying !== _prevIsPlaying;
+
   _lastTrack = track;
   _isPlaying = isPlaying;
   _progress = progress;
+
+  if (trackChanged || stateChanged) {
+    _prevTrackId = track?.videoId || null;
+    _prevIsPlaying = isPlaying;
+    // Force immediate write on critical state changes
+    forceNowPlayingWrite();
+  }
 }
 
 let _authBackoffUntil = 0; // Timestamp until which writes are suppressed after auth failure
@@ -60,7 +73,7 @@ let _authBackoffUntil = 0; // Timestamp until which writes are suppressed after 
 function startWriteLoop(): void {
   if (writeInterval) clearInterval(writeInterval);
   writeNowPlaying();
-  writeInterval = setInterval(writeNowPlaying, 2000); // 2 second interval
+  writeInterval = setInterval(writeNowPlaying, 10000); // 10 second interval for progress sync
 }
 
 export function forceNowPlayingWrite(): void {

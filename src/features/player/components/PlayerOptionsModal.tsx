@@ -12,6 +12,7 @@ import { PlaybackSpeedControl } from './PlaybackSpeedControl';
 import { EqualizerModal } from './EqualizerModal';
 import { SlidersHorizontal } from 'lucide-react';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
+import { useArtistNavigation } from '@/hooks/useArtistNavigation';
 
 interface PlayerOptionsModalProps {
   isOpen: boolean;
@@ -24,6 +25,8 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
   const clearSleepTimer = usePlayerStore((s) => s.clearSleepTimer);
   const sleepTimerEnd = usePlayerStore((s) => s.sleepTimerEnd);
   
+  const { navigateToArtist } = useArtistNavigation();
+
   const { data: isLiked } = useIsTrackLiked(currentTrack?.videoId || '');
   const likeTrack = useLikeTrack();
   const unlikeTrack = useUnlikeTrack();
@@ -128,27 +131,29 @@ export function PlayerOptionsModal({ isOpen, onClose }: PlayerOptionsModalProps)
                     </button>
 
                     {/* View Artist */}
-                    {currentTrack.artistId && (
-                      <button 
-                        onClick={() => {
-                          onClose();
-                          useUIStore.getState().openArtist(currentTrack.artistId!);
-                        }}
-                        className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-white/[0.04] active:scale-[0.98] transition-all"
-                      >
-                        <User size={24} className="text-white/60" />
-                        <span className="text-base font-medium text-white/80">
-                          View Artist
-                        </span>
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => {
+                        onClose();
+                        setTimeout(() => {
+                          navigateToArtist(currentTrack.artist, currentTrack.artistId);
+                        }, 50);
+                      }}
+                      className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-white/[0.04] active:scale-[0.98] transition-all"
+                    >
+                      <User size={24} className="text-white/60" />
+                      <span className="text-base font-medium text-white/80">
+                        View Artist
+                      </span>
+                    </button>
 
                     {/* View Album */}
                     {currentTrack.albumId && (
                       <button 
                         onClick={() => {
                           onClose();
-                          useUIStore.getState().openAlbum(currentTrack.albumId!);
+                          setTimeout(() => {
+                            useUIStore.getState().openAlbum(currentTrack.albumId!);
+                          }, 50);
                         }}
                         className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl hover:bg-white/[0.04] active:scale-[0.98] transition-all"
                       >

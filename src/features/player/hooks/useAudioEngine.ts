@@ -4,6 +4,7 @@ import { usePlayerStore } from '@/stores/usePlayerStore';
 import { useGamificationStore } from '@/stores/useGamificationStore';
 import { useTasteStore } from '@/stores/useTasteStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { PROGRESS_INTERVAL_MS } from '@/utils/constants';
 import audioClock from '@/services/audioClock';
 import { getTrackBlob } from '@/services/offlineDB';
@@ -135,6 +136,7 @@ export function useAudioEngine() {
       if (storeState.sleepTimerEnd && Date.now() >= storeState.sleepTimerEnd) {
         storeState.pauseTrack();
         storeState.clearSleepTimer();
+        useToastStore.getState().addToast('Sleepy Panda Timer finished. Sweet dreams! 🐼💤', 'info');
         return;
       }
       if (Date.now() < ignoreProgressUpdatesRef.current) return;

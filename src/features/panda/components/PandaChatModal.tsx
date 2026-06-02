@@ -10,6 +10,7 @@ import { useUIStore } from '@/stores/useUIStore';
 import { TrackImage } from '@/components/shared/TrackImage';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useHardwareBack } from '@/hooks/useHardwareBack';
+import { useArtistNavigation } from '@/hooks/useArtistNavigation';
 
 interface PandaChatModalProps {
   isOpen: boolean;
@@ -36,7 +37,7 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const playTrack = usePlayerStore(s => s.playTrack);
-  const openArtist = useUIStore(s => s.openArtist);
+  const { navigateToArtist } = useArtistNavigation();
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   const [lastProcessedMsg, setLastProcessedMsg] = useState('');
@@ -210,7 +211,12 @@ export function PandaChatModal({ isOpen, onClose, initialMessage = '' }: PandaCh
               )}
 
               {msg.artistPayload && (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-2 w-[260px] bg-white/6 backdrop-blur-xl border border-white/12 rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)] cursor-pointer hover:bg-white/10 transition-colors" onClick={() => { openArtist(msg.artistPayload!.artistId); onClose(); }}>
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mt-2 w-[260px] bg-white/6 backdrop-blur-xl border border-white/12 rounded-2xl overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.5)] cursor-pointer hover:bg-white/10 transition-colors" onClick={() => { 
+                  onClose(); 
+                  setTimeout(() => {
+                    navigateToArtist(msg.artistPayload!.name, msg.artistPayload!.artistId); 
+                  }, 50);
+                }}>
                   <div className="flex items-center gap-3 p-3">
                     <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 relative shadow-md border border-white/10">
                       {msg.artistPayload.thumbnails?.[0]?.url ? (
