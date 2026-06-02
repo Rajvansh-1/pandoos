@@ -88,13 +88,13 @@ jobs:
       - name: Build Web + Electron
         run: npm run build
 
-      - name: Build & Publish Release Assets (Signed)
-        if: secrets.CSC_LINK != ''
-        run: npx electron-builder --publish always
+      - name: Build & Publish Release Assets
+        run: |
+          if [ -n "$SECRET_CSC_LINK" ]; then
+            export CSC_LINK="$SECRET_CSC_LINK"
+            export CSC_KEY_PASSWORD="$SECRET_CSC_KEY_PASSWORD"
+          fi
+          npx electron-builder --publish always
         env:
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-
-      - name: Build & Publish Release Assets (Unsigned)
-        if: secrets.CSC_LINK == ''
-        run: npx electron-builder --publish always
+          SECRET_CSC_LINK: ${{ secrets.CSC_LINK }}
+          SECRET_CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
