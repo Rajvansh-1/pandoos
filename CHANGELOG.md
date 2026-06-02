@@ -5,6 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [3.1.1] - 2026-06-02 🚑 UI Data Shape Hotfix
+
+### What Broke
+- In v3.1.0, the **Artist** and **Album** pages stopped rendering their content correctly (missing titles, missing albums, missing "Fans Also Like" section). 
+- The new `youtubei.js` adapter returned a completely different data shape than what the React UI components (`ArtistOverlay.tsx` and `AlbumOverlay.tsx`) were strictly typed to expect.
+
+### Fix
+- **Reverted `api/artist.ts` and `api/album.ts`** to use the original `ytmusic-api` package.
+- Because `ytmusic-api` was successfully patched in v3.1.0 using a RegEx fallback (via `patch-package`), it can now successfully extract video IDs without failing. By reverting back to it, we restore the exact complex data structures (topAlbums, topSingles, similarArtists, etc.) that the frontend expects, instantly fixing the UI rendering.
+- Bumped cache keys to `v5` to clear out the badly-shaped `v3.1.0` cached data.
+
+---
+
 ## [3.1.0] - 2026-06-02 🛡️ Resilience Update
 
 ### 🔴 Critical Fix — YouTube Music API (all users affected on v3.0.8)

@@ -1,0 +1,6 @@
+fix: UI data shape mismatch for Artist and Album pages (v3.1.1)
+
+- Reverted api/artist.ts and api/album.ts back to using ytmusic-api
+- The frontend UI components were strictly typed to expect ytmusic-api's complex nested data structures (topAlbums, similarArtists, etc.). The new youtubei.js adapter broke this shape.
+- Since ytmusic-api is now patched with a fallback regex for extracting videoIds (done in v3.1.0), it works perfectly without crashing.
+- Bumped cache keys to v5 to flush out the malformed v3.1.0 data from Upstash Redis.
