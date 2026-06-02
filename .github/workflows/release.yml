@@ -19,14 +19,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for changelog generation
+          fetch-depth: 0
 
       - name: Read CHANGELOG entry for this tag
         id: changelog
         run: |
           TAG="${{ github.ref_name }}"
           VERSION="${TAG#v}"
-          # Extract everything between this version's header and the next '## ['
           BODY=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
           echo "BODY<<EOF" >> $GITHUB_OUTPUT
           echo "$BODY" >> $GITHUB_OUTPUT
@@ -53,7 +52,7 @@ jobs:
             });
             return String(release.data.id);
 
-  # ─── Step 2: Build on Windows, macOS, Linux ───────────────────────────────
+  # ─── Step 2: Build on all platforms ───────────────────────────────────────
   build:
     name: Build on ${{ matrix.os }}
     needs: create-release
@@ -68,8 +67,11 @@ jobs:
       YOUTUBE_API_KEY:   ${{ secrets.YOUTUBE_API_KEY }}
       YOUTUBE_API_KEY_2: ${{ secrets.YOUTUBE_API_KEY_2 }}
       YOUTUBE_DL_SKIP_DOWNLOAD: "true"
+      # macOS code signing (optional — if CSC_LINK secret is set, app will be signed)
+      CSC_LINK:     ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
     strategy:
-      fail-fast: false   # Don't cancel all platforms if one fails
+      fail-fast: false
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
 

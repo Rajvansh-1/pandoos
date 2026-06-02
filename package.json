@@ -76,21 +76,19 @@
     },
     "mac": {
       "category": "public.app-category.music",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
+        { "target": "dmg",  "arch": ["x64", "arm64"] },
+        { "target": "zip",  "arch": ["x64", "arm64"] }
       ],
       "icon": "build/icon.png"
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        { "target": "AppImage" }
       ],
       "icon": "build/icon.png",
       "category": "Audio"
