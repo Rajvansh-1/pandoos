@@ -4,7 +4,7 @@
  */
 import type { Track } from '@/types/track';
 import { inferTags, tagSimilarity } from '@/services/trackGraph';
-import { searchTracks } from '@/services/youtube';
+import { searchTracks, getRadioTracks } from '@/services/youtube';
 
 interface RecommendOptions {
   currentTrack: Track;
@@ -70,8 +70,10 @@ export function buildSearchQuery(track: Track): string {
   return `${track.artist} top songs`;
 }
 
+
+
 export async function getRecommendations(opts: RecommendOptions): Promise<Track[]> {
-  const { currentTrack, history, skippedIds, getAffinityScore, count = 5 } = opts;
+  const { currentTrack, history, skippedIds, getAffinityScore, count = 20 } = opts;
 
   const currentTags = inferTags(currentTrack.title, currentTrack.artist);
   const historyIds = new Set(history.map(t => t.videoId));
@@ -79,9 +81,10 @@ export async function getRecommendations(opts: RecommendOptions): Promise<Track[
 
   let freshTracks: Track[] = [];
   try {
-    const query = buildSearchQuery(currentTrack);
-    const { songs: results } = await searchTracks(query);
-    freshTracks = results
+    // USE RADIO ENDPOINT INSTEAD OF GENERIC SEARCH FOR INFINITE PERFECT MATCHES
+    const radioResults = await getRadioTracks(currentTrack.videoId);
+    
+    freshTracks = radioResults
       .filter((t: Track) => !skippedIds.includes(t.videoId))
       .map((t: Track) => ({
         track: t,
@@ -95,16 +98,28 @@ export async function getRecommendations(opts: RecommendOptions): Promise<Track[
         ),
       }))
       .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
-      .slice(0, count + 5)
       .map((s: { track: Track }) => s.track);
   } catch {
-    console.warn('Failed to fetch recommendations from YouTube');
+    console.warn('Failed to fetch recommendations from YouTube Radio');
   }
 
-  const finalIds = new Set<string>([currentTrack.videoId]);
+  // Strictly deduplicate based on videoId AND track name (to prevent 'Perfect' cover spam)
+  const finalIds = new Set<string>([currentTrack.videoId, ...historyIds]);
+  const finalTitles = new Set<string>([currentTrack.title.toLowerCase()]);
+  
   const deduped = freshTracks.filter(t => {
     if (finalIds.has(t.videoId)) return false;
+    
+    // Check if a song with a very similar title is already in the queue to prevent repetitive search result spam
+    const normalizedTitle = t.title.toLowerCase().replace(/[\(\[].*?[\)\]]/g, '').trim();
+    const currentNormalized = currentTrack.title.toLowerCase().replace(/[\(\[].*?[\)\]]/g, '').trim();
+    
+    if (normalizedTitle === currentNormalized || finalTitles.has(normalizedTitle)) {
+      return false;
+    }
+    
     finalIds.add(t.videoId);
+    finalTitles.add(normalizedTitle);
     return true;
   });
 

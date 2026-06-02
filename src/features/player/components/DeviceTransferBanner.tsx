@@ -66,10 +66,10 @@ export function DeviceTransferBanner() {
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+        initial={{ opacity: 0, y: 50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -20, scale: 0.95 }}
-        className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] max-w-[calc(100vw-32px)] w-[400px]"
+        exit={{ opacity: 0, y: 50, scale: 0.95 }}
+        className="fixed bottom-24 md:top-20 md:bottom-auto left-1/2 -translate-x-1/2 z-[200] w-[92vw] md:max-w-sm"
       >
         <div className="bg-gradient-to-r from-surface-elevated/95 to-brand-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden group">
           {/* Animated top border */}

@@ -11,6 +11,7 @@ import { useHardwareBack } from '@/hooks/useHardwareBack';
 import { useIsArtistFollowed, useFollowArtist, useUnfollowArtist } from '@/features/library/hooks/useLibrary';
 import { PandaMascot } from '@/features/panda/components/PandaMascot';
 import type { Track } from '@/types/track';
+import { searchTracks } from '@/services/youtube';
 import { cn } from '@/utils/cn';
 
 /* ─── helpers ─── */
@@ -61,16 +62,13 @@ function Equalizer() {
 }
 
 /* ─── Song row ─── */
-function SongRow({ song, index, artistName, onPlay }: {
-  song: any; index: number; artistName: string; onPlay: () => void;
+function SongRow({ track, index, onPlay }: {
+  track: Track; index: number; onPlay: () => void;
 }) {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying    = usePlayerStore((s) => s.isPlaying);
-  const isActive     = currentTrack?.videoId === song.videoId;
+  const isActive     = currentTrack?.videoId === track.videoId;
   const [hovered, setHovered] = useState(false);
-
-  const thumb = song.thumbnails?.[1]?.url ?? song.thumbnails?.[0]?.url
-    ?? `https://i.ytimg.com/vi/${song.videoId}/hqdefault.jpg`;
 
   return (
     <div
@@ -80,7 +78,7 @@ function SongRow({ song, index, artistName, onPlay }: {
       )}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={onPlay}
+      onClick={(e) => { e.stopPropagation(); onPlay(); }}
     >
       {/* index / play indicator */}
       <div className="w-7 text-center shrink-0">
@@ -96,24 +94,19 @@ function SongRow({ song, index, artistName, onPlay }: {
       </div>
 
       {/* thumbnail */}
-      <div className="w-11 h-11 rounded-lg overflow-hidden shrink-0 shadow-md">
-        <img src={thumb} alt={song.name} className="w-full h-full object-cover" loading="lazy" />
+      <div className="w-11 h-11 rounded-lg overflow-hidden shrink-0 shadow-md relative">
+        <img src={track.albumArt} alt={track.title} className="w-full h-full object-cover" loading="lazy" />
       </div>
 
       {/* title + album */}
-      <div className="flex-1 min-w-0">
-        <div className={cn('text-sm font-semibold truncate', isActive ? 'text-brand-primary' : 'text-white')}>
-          {song.name}
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className={cn('text-sm font-semibold truncate leading-tight', isActive ? 'text-brand-primary' : 'text-white')}>
+          {track.title}
         </div>
-        <div className="text-xs text-white/45 truncate mt-0.5">
-          {song.album?.name ?? artistName}
+        <div className="text-[11px] text-white/45 truncate mt-0.5">
+          {track.artist}
         </div>
       </div>
-
-      {/* duration placeholder */}
-      {song.duration && (
-        <span className="text-xs text-white/30 tabular-nums shrink-0">{song.duration}</span>
-      )}
     </div>
   );
 }
@@ -177,14 +170,19 @@ export function ArtistOverlay() {
   useHardwareBack(!!activeArtistId, closeArtist);
 
   // ── Real field names from ytmusic-api ──
-  const topSongs: any[]      = artist?.topSongs ?? [];
+  const rawTopSongs: any[] = artist?.topSongs ?? [];
   const topAlbums: any[]     = artist?.topAlbums ?? [];
   const topSingles: any[]    = artist?.topSingles ?? [];
   const similarArtists: any[] = artist?.similarArtists ?? [];
-
+  
   // Banner thumbnail (landscape). ytmusic-api returns wide banners.
   const bannerUrl = artist?.thumbnails?.[artist.thumbnails?.length - 1]?.url
     ?? artist?.thumbnails?.[0]?.url;
+  
+  // Robustly map songs (don't filter out missing videoIds because ytmusic-api sometimes drops them for artists)
+  const topSongs: Track[] = rawTopSongs.map((s, i) => 
+    songToTrack({ ...s, videoId: s.videoId || s.id || '' }, artist?.name)
+  );
 
   const displayed = showAllSongs ? topSongs : topSongs.slice(0, 5);
 
@@ -192,22 +190,42 @@ export function ArtistOverlay() {
     setHeaderSolid(e.currentTarget.scrollTop > 220);
   };
 
-  const handlePlaySong = (song: any) => {
-    if (!song?.videoId) return;
-    const queue = topSongs.filter((s) => s.videoId).map((s) => songToTrack(s, artist?.name));
-    const idx   = queue.findIndex((t) => t.videoId === song.videoId);
-    if (idx >= 0) playTrack(queue[idx]!, queue);
-    else {
-      const t = songToTrack(song, artist?.name);
-      playTrack(t, [t]);
+  const handlePlaySong = async (track: Track) => {
+    let playTrackObj = track;
+    
+    // If ytmusic-api didn't return a videoId for this song, find it dynamically
+    if (!playTrackObj.videoId) {
+      try {
+        const results = await searchTracks(`${track.title} ${track.artist}`);
+        if (results.songs && results.songs.length > 0 && results.songs[0]?.videoId) {
+          playTrackObj = { ...track, videoId: results.songs[0].videoId, id: results.songs[0].videoId };
+        } else {
+          return; // Could not find track
+        }
+      } catch (e) {
+        console.error('Failed to resolve track videoId', e);
+        return;
+      }
+    }
+
+    const idx = topSongs.findIndex((t) => t.title === track.title);
+    
+    // Reconstruct queue with resolved ID for the clicked track
+    const queue = [...topSongs];
+    if (idx >= 0) {
+      queue[idx] = playTrackObj;
+      playTrack(playTrackObj, queue);
+    } else {
+      playTrack(playTrackObj, [playTrackObj]);
     }
   };
 
-  const handleShuffleAll = () => {
-    const queue = topSongs.filter((s) => s.videoId).map((s) => songToTrack(s, artist?.name));
-    if (!queue.length) return;
-    const shuffled = [...queue].sort(() => Math.random() - 0.5);
-    playTrack(shuffled[0]!, shuffled);
+  const handleShuffleAll = async () => {
+    if (!topSongs.length) return;
+    // Just play the first one and let the user handle others, 
+    // or resolve the first one at least.
+    const first = topSongs[0]!;
+    handlePlaySong(first);
   };
 
   // albumId is the correct field (not browseId) for ytmusic-api albums
@@ -224,7 +242,7 @@ export function ArtistOverlay() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 50 }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-          className="fixed inset-0 z-[1000] flex flex-col bg-[#080808]"
+          className="fixed inset-0 z-40 flex flex-col bg-[#080808]"
         >
           {/* ── Sticky floating header ── */}
           <motion.div
@@ -246,7 +264,7 @@ export function ArtistOverlay() {
           </motion.div>
 
           {/* ── Scrollable body ── */}
-          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
+          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto pb-32">
 
             {/* Loading */}
             {isLoading && (
@@ -346,13 +364,12 @@ export function ArtistOverlay() {
                       )}
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      {displayed.map((song, i) => (
+                      {displayed.map((track, i) => (
                         <SongRow
-                          key={song.videoId ?? i}
-                          song={song}
+                          key={track.videoId || track.title}
+                          track={track}
                           index={i}
-                          artistName={artist.name}
-                          onPlay={() => handlePlaySong(song)}
+                          onPlay={() => handlePlaySong(track)}
                         />
                       ))}
                     </div>

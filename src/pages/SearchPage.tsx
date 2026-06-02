@@ -98,7 +98,7 @@ export function SearchPage() {
                       {recentTracks.map((track) => (
                         <button
                           key={track.id}
-                          onClick={() => playTrack(track, recentTracks)}
+                          onClick={() => playTrack(track, [track])}
                           className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 touch-highlight text-left group transition-colors"
                         >
                           <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-sm relative">
@@ -182,7 +182,7 @@ export function SearchPage() {
                     <button
                       key={track.id}
                       onClick={() => {
-                        playTrack(track, results.songs);
+                        playTrack(track, [track]);
                         addTrack(track);
                       }}
                       className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 touch-highlight text-left group transition-colors"

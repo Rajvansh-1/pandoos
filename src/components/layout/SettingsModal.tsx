@@ -233,7 +233,7 @@ export function SettingsModal({ isOpen, onClose }: Props) {
             <section className="pt-4 border-t border-white/5 text-center pb-8">
               <img src="/logo.png" alt="Pandoos Logo" className="w-12 h-12 mx-auto mb-3 opacity-80" />
               <h3 className="text-white font-display font-bold">Pandoos Music</h3>
-              <p className="text-xs text-white/40 mt-1 mb-4">Version 2.0.1 • Built with Panda Love 🐼</p>
+              <p className="text-xs text-white/40 mt-1 mb-4">Version 4.0.0 • Built with Panda Love 🐼</p>
               
               <div className="flex items-center justify-center gap-4 text-xs text-brand-primary mt-2">
                 <button 

@@ -172,7 +172,19 @@ alter table user_taste_profile disable row level security;
 
 
 -- ────────────────────────────────────────────────────────────
--- 8. ENABLE REALTIME (cross-device sync)
+-- 8. GAMIFICATION PROFILES
+-- ────────────────────────────────────────────────────────────
+create table if not exists gamification_profiles (
+  user_id text primary key,
+  gamification_data jsonb default '{}'::jsonb,
+  updated_at timestamp with time zone default timezone('utc', now()) not null
+);
+
+alter table gamification_profiles enable row level security;
+create policy "Users can manage their own gamification" on gamification_profiles for all using (auth.uid()::text = user_id);
+
+-- ────────────────────────────────────────────────────────────
+-- 9. ENABLE REALTIME (cross-device sync)
 -- Drop the publication first to avoid any "already member" errors
 -- ────────────────────────────────────────────────────────────
 drop publication if exists supabase_realtime;
@@ -183,4 +195,5 @@ create publication supabase_realtime for table
   followed_artists, 
   now_playing, 
   listening_history, 
-  user_taste_profile;
+  user_taste_profile,
+  gamification_profiles;

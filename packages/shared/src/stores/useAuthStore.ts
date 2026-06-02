@@ -5,6 +5,7 @@ import type { PandoosUser } from '@/types/user';
 import { supabase } from '@/services/supabase';
 import { onUserLogin, unsubscribeFromLibraryChanges } from '@/services/syncService';
 import { initNowPlayingSync, stopNowPlayingSync } from '@/services/nowPlayingSync';
+import { initGamificationSync, stopGamificationSync } from '@/services/syncGamification';
 
 interface AuthStoreState {
   user: PandoosUser | null;
@@ -95,10 +96,12 @@ export const useAuthStore = create<AuthStore>()(
             // User just logged in — trigger cloud sync and realtime subscription
             onUserLogin(newSession.user.id).catch(console.warn);
             initNowPlayingSync(newSession.user.id);
+            initGamificationSync(newSession.user.id);
           } else {
             // User logged out — stop sync
             unsubscribeFromLibraryChanges();
             stopNowPlayingSync();
+            stopGamificationSync();
           }
         });
       } catch (error) {
@@ -173,6 +176,7 @@ export const useAuthStore = create<AuthStore>()(
         });
         onUserLogin(data.session.user.id).catch(console.warn);
         initNowPlayingSync(data.session.user.id);
+        initGamificationSync(data.session.user.id);
       }
     },
 

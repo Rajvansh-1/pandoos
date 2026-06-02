@@ -5,6 +5,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [4.0.0] - 2026-06-02 🐼 The Gamification & Sync Update
+
+Welcome to the **Pandoos Gamification Update**! Your music streaming is now more rewarding and robust.
+
+### ✨ What's New!
+- **Pandoos Profiles & Gamification:** A completely overhauled interactive Profile Page featuring unlockable Badges, Ranks (from Baby Panda to Zenith Panda), detailed listener stats, and beautiful celebratory UI animations for earning new achievements!
+- **Share Your Vibes:** Earned a new badge? You can now instantly share your achievements natively or across Twitter, WhatsApp, and Facebook with gorgeous custom-designed share buttons!
+- **Smarter Recommendations:** The "Up Next" queue is now highly personalized using an advanced graph-based recommendation engine, replacing generic or repetitive songs with music tailored to your real-time taste!
+- **Real-Time Cross-Device Sync:** Seamlessly move your listening sessions across Web, Desktop, and Mobile! Your loved songs, created playlists, and followed artists now perfectly sync to Supabase thanks to massive backend data-flow upgrades.
+
+### 🛠️ Bug Fixes & Improvements
+- **Artist Page Playback:** Fixed an issue where Popular Songs on Artist pages were sometimes missing or would not play when clicked due to missing track IDs.
+- **Better Stability:** Reconnected and reinforced Row Level Security and Realtime broadcast for all users in the Supabase schema, ensuring user data privacy and instant cross-device updates!
+- **Global App Versioning:** Updated all instances of the application version consistently to v4.0.0 across the entire UI.
+
 ## [3.1.4] - 2026-06-02 🐼 The Pandoos Magic Update
 
 Welcome to the **Pandoos Magic Update**! Our pandas have been working overtime to bring you a smoother, more magical listening experience across all your devices.
