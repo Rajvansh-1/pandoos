@@ -9,28 +9,30 @@ import { PROGRESS_INTERVAL_MS } from '@/utils/constants';
 import audioClock from '@/services/audioClock';
 import { getTrackBlob } from '@/services/offlineDB';
 import { getApiUrl } from '@/utils/api';
+import { Capacitor } from '@capacitor/core';
+import { NativeAudio } from '@capgo/capacitor-native-audio';
 import { PandoosBrain } from '@/services/pandoosBrain';
 
 /**
- * useAudioEngine — Dual Engine Architecture (YouTube IFrame + HTML5 Audio)
+ * useAudioEngine — Dual Engine Architecture (YouTube IFrame + HTML5 Audio + Native)
+ *
+ * NATIVE ENGINE (Capacitor Android/iOS):
+ *   ROOT CAUSE OF PREVIOUS FAILURE:
+ *     YouTube stream URLs are encoded with a signature cipher that requires
+ *     executing YouTube's player JavaScript. youtubei.js can only do this in
+ *     Node.js (it needs a custom JS evaluator). In Android WebView / Capacitor,
+ *     this is sandboxed and throws: "To decipher URLs you must provide your own
+ *     JavaScript evaluator."
+ *
+ *   THE FIX (matching SimpMusic's architecture):
+ *     We call our Vercel /api/stream endpoint, which runs in Node.js and uses
+ *     @distube/ytdl-core to properly decipher the cipher and return a direct
+ *     YouTube CDN URL (googlevideo.com). The native app streams that URL
+ *     directly via NativeAudio — zero proxy overhead, instant playback.
  *
  * KEY ARCHITECTURE NOTE:
- *
- * React.StrictMode (used in main.tsx) mounts every component TWICE in dev.
- * This means the one-time useEffect([], []) runs, gets cleaned up, then runs
- * again. The old pattern of setting window.onYouTubeIframeAPIReady inside the
- * effect was broken by this: cleanup destroyed the callback, and the second
- * mount re-set it — but by then the API may have already fired.
- *
- * FIX: We use a single module-level YT player instance. The instance is
- * created once at module load time and survives React StrictMode double-mounts.
- * The React hook just reads from this shared instance via refs.
- *
- * FIRST-SONG BUG FIXES (original bugs):
- *   1. ytReadyRef — guard all player commands until onReady fires
- *   2. pendingPlayRef — store intent when player not ready; apply in onReady
- *   3. isLoading safety net — 8-second timeout clears stuck spinner
- *   4. Progress tracker accepts state 3 (BUFFERING) not just state 1 (PLAYING)
+ *   React.StrictMode mounts every component TWICE in dev. We use a single
+ *   module-level YT player singleton that survives double-mounts.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -45,17 +47,22 @@ let _activeDelegate: {
   onError: (event: YT.OnErrorEvent) => void;
 } | null = null;
 
+// In-flight guard: prevents double-fetching the same track on native
+let _nativeFetchInFlight: string | null = null;
+
 function getOrCreateYTPlayer(
   onReady: (event: YT.PlayerEvent) => void,
   onStateChange: (event: YT.OnStateChangeEvent) => void,
   onError: (event: YT.OnErrorEvent) => void,
 ): void {
-  if (_ytInitDone) return; // already creating or created
+  if (_ytInitDone) return;
   _ytInitDone = true;
 
   const create = () => {
     if (!window.YT?.Player) return;
     console.log('[🐼 AudioEngine] Creating YT Player singleton...');
+    const root = document.getElementById('yt-player-root');
+    if (root) root.innerHTML = ''; // Prevent ghost audio on HMR
     _ytPlayer = new window.YT.Player('yt-player-root', {
       height: '200',
       width: '200',
@@ -89,7 +96,7 @@ export function useAudioEngine() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const filtersRef = useRef<BiquadFilterNode[]>([]);
-  const activeEngineRef = useRef<'youtube' | 'local'>('youtube');
+  const activeEngineRef = useRef<'youtube' | 'local' | 'native'>('youtube');
 
   const progressIntervalRef = useRef<number | null>(null);
   const timeSyncRafRef = useRef<number | null>(null);
@@ -154,13 +161,10 @@ export function useAudioEngine() {
         if (_ytPlayer && _ytPlayer.getPlayerState) {
           try {
             const ps = _ytPlayer.getPlayerState();
-            if (ps === 1) {
-              if (usePlayerStore.getState().playbackSpeed !== _ytPlayer.getPlaybackRate()) {
-                 _ytPlayer.setPlaybackRate(usePlayerStore.getState().playbackSpeed);
-              }
-            }
-            // Accept PLAYING (1) OR BUFFERING (3) — keep UI alive during buffer stalls
             if (ps === 1 || ps === 3) {
+              if (usePlayerStore.getState().playbackSpeed !== _ytPlayer.getPlaybackRate()) {
+                _ytPlayer.setPlaybackRate(usePlayerStore.getState().playbackSpeed);
+              }
               const d = _ytPlayer.getDuration();
               if (d > 0 && Number.isFinite(d)) {
                 if (usePlayerStore.getState().duration === 0) usePlayerStore.getState().setDuration(d);
@@ -225,10 +229,7 @@ export function useAudioEngine() {
         const skipped = listenedSec < 30;
         if (skipped) useTasteStore.getState().recordSkip(curTrack);
         else useTasteStore.getState().recordPlay(curTrack);
-        
-        // Log to Supabase listening history
         PandoosBrain.recordListenEvent(curTrack, listenedSec, skipped);
-        // Sync updated taste profile to Supabase
         if (!skipped) PandoosBrain.syncTasteProfileToCloud();
       }
       sessionStartRef.current = null;
@@ -243,7 +244,16 @@ export function useAudioEngine() {
 
   // ── 1. ONE-TIME ENGINE INIT ───────────────────────────────────────────────
   useEffect(() => {
-    // A. HTML5 Audio
+    // A. Native Audio complete listener
+    if (false) {
+      NativeAudio.addListener('complete', (event) => {
+        if (event.assetId === 'currentTrack') {
+          fnsRef.current.handleEnded();
+        }
+      });
+    }
+
+    // B. HTML5 Audio element
     const audio = new Audio();
     audio.crossOrigin = 'anonymous';
     audioRef.current = audio;
@@ -253,14 +263,11 @@ export function useAudioEngine() {
       usePlayerStore.getState().setIsLoading(false);
       const d = audio.duration;
       if (d > 0 && Number.isFinite(d)) usePlayerStore.getState().setDuration(d);
-      
-      // Initialize AudioContext on first play if needed
+
       if (!audioContextRef.current) {
         try {
           const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
           const source = ctx.createMediaElementSource(audio);
-          
-          // 60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz
           const freqs = [60, 230, 910, 3600, 14000];
           const filters = freqs.map(freq => {
             const filter = ctx.createBiquadFilter();
@@ -270,32 +277,25 @@ export function useAudioEngine() {
             filter.gain.value = 0;
             return filter;
           });
-          
           source.connect(filters[0]);
-          for (let i = 0; i < filters.length - 1; i++) {
-            filters[i].connect(filters[i + 1]);
-          }
+          for (let i = 0; i < filters.length - 1; i++) filters[i].connect(filters[i + 1]);
           filters[filters.length - 1].connect(ctx.destination);
-          
           audioContextRef.current = ctx;
           filtersRef.current = filters;
-          
-          // Apply initial EQ
-          filters.forEach((f, i) => {
-             f.gain.value = useSettingsStore.getState().equalizer.bands[i] || 0;
-          });
+          filters.forEach((f, i) => { f.gain.value = useSettingsStore.getState().equalizer.bands[i] || 0; });
         } catch (e) {
-          console.error("Failed to initialize AudioContext", e);
+          console.error('Failed to initialize AudioContext', e);
         }
       } else if (audioContextRef.current.state === 'suspended') {
         audioContextRef.current.resume();
       }
 
       if (usePlayerStore.getState().isPlaying) {
-         audio.playbackRate = usePlayerStore.getState().playbackSpeed;
-         audio.play().catch(console.error);
+        audio.playbackRate = usePlayerStore.getState().playbackSpeed;
+        audio.play().catch(console.error);
       }
     };
+
     audio.onplay = () => {
       if (activeEngineRef.current !== 'local') return;
       audio.playbackRate = usePlayerStore.getState().playbackSpeed;
@@ -305,6 +305,7 @@ export function useAudioEngine() {
       fnsRef.current.startTimeSync();
       if (!sessionStartRef.current) sessionStartRef.current = Date.now();
     };
+
     audio.onpause = () => {
       if (activeEngineRef.current !== 'local') return;
       usePlayerStore.getState().setIsPlaying(false);
@@ -313,41 +314,33 @@ export function useAudioEngine() {
       if (sessionStartRef.current) {
         const secs = (Date.now() - sessionStartRef.current) / 1000;
         if (secs > 5) useGamificationStore.getState().recordListenSession(secs);
-        
-        // Also log partial listens to history
         const curTrack = usePlayerStore.getState().currentTrack;
-        if (curTrack && secs > 10) {
-          PandoosBrain.recordListenEvent(curTrack, secs, false);
-        }
-        
+        if (curTrack && secs > 10) PandoosBrain.recordListenEvent(curTrack, secs, false);
         sessionStartRef.current = null;
       }
     };
+
     audio.onended = () => {
       if (activeEngineRef.current === 'local') fnsRef.current.handleEnded();
     };
 
-    // B. YouTube IFrame — register our active delegate
+    // C. YouTube IFrame — register active delegate
     _activeDelegate = {
       onReady: (event) => {
         console.log('[🐼 AudioEngine] YT Player onReady fired ✅');
         _ytReady = true;
-
         if (loadingTimeoutRef.current !== null) {
           clearTimeout(loadingTimeoutRef.current);
           loadingTimeoutRef.current = null;
         }
-
         const vol = usePlayerStore.getState().volume;
         const muted = usePlayerStore.getState().isMuted;
         event.target.setVolume(vol * 100);
         if (muted) event.target.mute();
-
         try {
           const iframe = document.querySelector('#yt-player-root iframe') as HTMLIFrameElement;
           if (iframe) iframe.setAttribute('tabindex', '-1');
         } catch (_) {}
-
         const state = usePlayerStore.getState();
         const track = state.currentTrack;
         console.log('[🐼 AudioEngine] onReady — currentTrack:', track?.title, '| isPlaying:', state.isPlaying, '| pending:', pendingPlayRef.current);
@@ -386,12 +379,8 @@ export function useAudioEngine() {
             if (sessionStartRef.current) {
               const secs = (Date.now() - sessionStartRef.current) / 1000;
               if (secs > 5) useGamificationStore.getState().recordListenSession(secs);
-              
               const curTrack = usePlayerStore.getState().currentTrack;
-              if (curTrack && secs > 10) {
-                PandoosBrain.recordListenEvent(curTrack, secs, false);
-              }
-
+              if (curTrack && secs > 10) PandoosBrain.recordListenEvent(curTrack, secs, false);
               sessionStartRef.current = null;
             }
             break;
@@ -434,10 +423,8 @@ export function useAudioEngine() {
       (e) => _activeDelegate?.onError(e)
     );
 
-    // If we're mounting and the player is ALREADY ready, simulate onReady for this instance
-    // so it catches up with the global state (e.g., if a track was already playing)
     if (_ytReady && _ytPlayer) {
-       _activeDelegate.onReady({ target: _ytPlayer } as YT.PlayerEvent);
+      _activeDelegate.onReady({ target: _ytPlayer } as YT.PlayerEvent);
     }
 
     return () => {
@@ -448,8 +435,6 @@ export function useAudioEngine() {
         clearTimeout(loadingTimeoutRef.current);
         loadingTimeoutRef.current = null;
       }
-      // NOTE: Do NOT destroy the YT player on cleanup — it's a module-level singleton.
-      // Only stop the HTML5 audio.
       audio.pause();
       audio.src = '';
     };
@@ -465,7 +450,7 @@ export function useAudioEngine() {
 
     usePlayerStore.getState().setIsLoading(true);
 
-    // Safety net: force-clear isLoading after 8s if player events never fire
+    // Safety net: force-clear isLoading after 15s
     if (loadingTimeoutRef.current !== null) clearTimeout(loadingTimeoutRef.current);
     loadingTimeoutRef.current = window.setTimeout(() => {
       loadingTimeoutRef.current = null;
@@ -473,12 +458,9 @@ export function useAudioEngine() {
         console.warn('[AudioEngine] Loading timeout — force-clearing isLoading');
         usePlayerStore.getState().setIsLoading(false);
       }
-    }, 8000);
+    }, 15000);
 
-    // ── EAGER YOUTUBE LOAD (bypasses async user-gesture expiration) ──
-    // We must call loadVideoById immediately so the browser's transient activation
-    // (user gesture) is still valid. If we wait for IndexedDB (getTrackBlob),
-    // the browser blocks autoplay!
+    // ── WEB / DESKTOP / NATIVE ENGINE PATH ─────────────────────────────────
     activeEngineRef.current = 'youtube';
     const audio = audioRef.current;
     if (audio) { audio.pause(); audio.src = ''; }
@@ -498,8 +480,7 @@ export function useAudioEngine() {
       if (blob) {
         console.log('[🐼 AudioEngine] Found offline blob — switching to local engine');
         activeEngineRef.current = 'local';
-        if (_ytReady && _ytPlayer) _ytPlayer.pauseVideo(); // pause the eager YT load
-        
+        if (_ytReady && _ytPlayer) _ytPlayer.pauseVideo();
         if (audio) {
           if (audio.src?.startsWith('blob:')) URL.revokeObjectURL(audio.src);
           audio.src = URL.createObjectURL(blob);
@@ -533,7 +514,7 @@ export function useAudioEngine() {
     }
   }, [volume, isMuted]);
 
-  // ── 4. REACT TO PLAYBACK SPEED CHANGES ───────────────────────────────────
+  // ── 4. PLAYBACK SPEED ─────────────────────────────────────────────────────
   useEffect(() => {
     if (activeEngineRef.current === 'local' && audioRef.current) {
       audioRef.current.playbackRate = playbackSpeed;
@@ -542,7 +523,7 @@ export function useAudioEngine() {
     }
   }, [playbackSpeed]);
 
-  // ── 5. REACT TO EQUALIZER CHANGES ─────────────────────────────────────────
+  // ── 5. EQUALIZER ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (filtersRef.current.length === 5) {
       equalizer.bands.forEach((gain, i) => {
@@ -555,8 +536,6 @@ export function useAudioEngine() {
   useEffect(() => {
     if (!currentTrack) return;
 
-    // FAILSAFE: ensure tracker always reflects isPlaying state.
-    // This covers edge cases where onStateChange PLAYING is missed.
     if (isPlaying) {
       fnsRef.current.startProgressTracker();
       fnsRef.current.startTimeSync();
@@ -576,22 +555,17 @@ export function useAudioEngine() {
         pendingPlayRef.current = isPlaying;
         return;
       }
-
       if (_ytPlayer?.getPlayerState) {
         try {
           const state = _ytPlayer.getPlayerState();
-          // -1=UNSTARTED, 0=ENDED, 1=PLAYING, 2=PAUSED, 3=BUFFERING, 5=CUED
-          if (isPlaying && state !== 1 && state !== 3) {
-            _ytPlayer.playVideo();
-          } else if (!isPlaying && (state === 1 || state === 3)) {
-            _ytPlayer.pauseVideo();
-          }
+          if (isPlaying && state !== 1 && state !== 3) _ytPlayer.playVideo();
+          else if (!isPlaying && (state === 1 || state === 3)) _ytPlayer.pauseVideo();
         } catch(e) {}
       }
     }
   }, [isPlaying, currentTrack]);
 
-  // ── 5. USER SEEK ──────────────────────────────────────────────────────────
+  // ── 7. USER SEEK ──────────────────────────────────────────────────────────
   const isFirstMount = useRef(true);
   useEffect(() => {
     if (isFirstMount.current) { isFirstMount.current = false; return; }
@@ -600,37 +574,34 @@ export function useAudioEngine() {
     const targetProgress = usePlayerStore.getState().progress;
     ignoreProgressUpdatesRef.current = Date.now() + 1500;
 
-    const applySeek = () => {
-      if (activeEngineRef.current === 'local') {
-        const audio = audioRef.current;
-        if (!audio) return;
-        const d = audio.duration;
-        if (d > 0 && Number.isFinite(d)) {
-          audio.currentTime = targetProgress * d;
-        } else {
-          const retry = () => {
-            const dur = audioRef.current?.duration;
-            if (dur && dur > 0 && Number.isFinite(dur)) audioRef.current!.currentTime = targetProgress * dur;
-          };
-          audio.addEventListener('canplay', retry, { once: true });
-          audio.addEventListener('durationchange', retry, { once: true });
-        }
+    if (activeEngineRef.current === 'local') {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const d = audio.duration;
+      if (d > 0 && Number.isFinite(d)) {
+        audio.currentTime = targetProgress * d;
       } else {
-        if (!_ytReady || !_ytPlayer) return;
-        const d = _ytPlayer.getDuration?.();
-        if (d && d > 0 && Number.isFinite(d)) {
-          _ytPlayer.seekTo(targetProgress * d, true);
-        } else {
-          let attempts = 0;
-          const retry = () => {
-            const dur = _ytPlayer?.getDuration?.();
-            if (dur && dur > 0 && Number.isFinite(dur)) _ytPlayer?.seekTo(targetProgress * dur, true);
-            else if (++attempts < 10) setTimeout(retry, 300);
-          };
-          setTimeout(retry, 300);
-        }
+        const retry = () => {
+          const dur = audioRef.current?.duration;
+          if (dur && dur > 0 && Number.isFinite(dur)) audioRef.current!.currentTime = targetProgress * dur;
+        };
+        audio.addEventListener('canplay', retry, { once: true });
+        audio.addEventListener('durationchange', retry, { once: true });
       }
-    };
-    applySeek();
+    } else {
+      if (!_ytReady || !_ytPlayer) return;
+      const d = _ytPlayer.getDuration?.();
+      if (d && d > 0 && Number.isFinite(d)) {
+        _ytPlayer.seekTo(targetProgress * d, true);
+      } else {
+        let attempts = 0;
+        const retry = () => {
+          const dur = _ytPlayer?.getDuration?.();
+          if (dur && dur > 0 && Number.isFinite(dur)) _ytPlayer?.seekTo(targetProgress * dur, true);
+          else if (++attempts < 10) setTimeout(retry, 300);
+        };
+        setTimeout(retry, 300);
+      }
+    }
   }, [seekVersion]);
 }

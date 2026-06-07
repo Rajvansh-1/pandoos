@@ -81,14 +81,28 @@
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "target": [
-        { "target": "dmg",  "arch": ["x64", "arm64"] },
-        { "target": "zip",  "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "icon": "build/icon.png"
     },
     "linux": {
       "target": [
-        { "target": "AppImage" }
+        {
+          "target": "AppImage"
+        }
       ],
       "icon": "build/icon.png",
       "category": "Audio"
@@ -110,6 +124,8 @@
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
+    "@capgo/capacitor-media-session": "^8.0.24",
+    "@capgo/capacitor-native-audio": "^8.4.7",
     "@distube/ytdl-core": "^4.16.12",
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^5.2.2",

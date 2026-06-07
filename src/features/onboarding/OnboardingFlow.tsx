@@ -94,25 +94,25 @@ export function OnboardingFlow() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 1.1, filter: "blur(20px)" }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-3xl flex items-center justify-center p-4 overflow-hidden"
+          className="fixed inset-0 z-[100] bg-black/95 sm:bg-black/80 sm:backdrop-blur-xl flex items-center justify-center p-4 overflow-hidden"
         >
           {/* Animated Ambient Orbs */}
           <motion.div 
             animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
             transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-primary rounded-full blur-[120px] pointer-events-none opacity-40" 
+            className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[radial-gradient(circle,hsl(var(--color-primary)/0.6)_0%,transparent_70%)] pointer-events-none" 
           />
           <motion.div 
             animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0.4, 0.2] }}
             transition={{ duration: 10, repeat: Infinity, ease: "linear", delay: 2 }}
-            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-brand-secondary rounded-full blur-[120px] pointer-events-none opacity-30" 
+            className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[radial-gradient(circle,hsl(var(--color-secondary)/0.6)_0%,transparent_70%)] pointer-events-none" 
           />
 
           <motion.div
             initial={{ opacity: 0, y: 40, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ type: "spring", damping: 25, stiffness: 300, delay: 0.1 }}
-            className="w-full max-w-2xl bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-[0_30px_80px_rgba(0,0,0,0.8)] relative z-10 flex flex-col max-h-[90vh]"
+            className="w-full max-w-2xl bg-white/5 sm:backdrop-blur-md border border-white/10 rounded-[2.5rem] p-6 sm:p-8 shadow-[0_30px_80px_rgba(0,0,0,0.8)] relative z-10 flex flex-col max-h-[90vh]"
           >
             {/* Shimmer reflection */}
             <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/5 to-white/0 pointer-events-none rounded-[2.5rem]" />

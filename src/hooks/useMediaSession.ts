@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { usePlayerStore } from '@/stores/usePlayerStore';
 import { getBestThumbnail } from '@/services/youtube';
+import { Capacitor } from '@capacitor/core';
+import { MediaSession } from '@capgo/capacitor-media-session';
 
 /**
  * useMediaSession — Integrates with the browser's Media Session API.
@@ -18,6 +20,29 @@ export function useMediaSession() {
   const prevTrack = usePlayerStore((state) => state.prevTrack);
   
   useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      if (currentTrack) {
+        MediaSession.setMetadata({
+          title: currentTrack.title,
+          artist: currentTrack.artist,
+          album: 'Pandoos Music',
+          artwork: [{ src: currentTrack.albumArt, sizes: '512x512', type: 'image/jpeg' }],
+        }).catch(console.error);
+      }
+      
+      MediaSession.setPlaybackState({
+        playbackState: isPlaying ? 'playing' : 'paused'
+      }).catch(console.error);
+
+      // Register native handlers
+      MediaSession.setActionHandler({ action: 'play' }, () => togglePlayPause()).catch(()=>{});
+      MediaSession.setActionHandler({ action: 'pause' }, () => togglePlayPause()).catch(()=>{});
+      MediaSession.setActionHandler({ action: 'nexttrack' }, () => nextTrack()).catch(()=>{});
+      MediaSession.setActionHandler({ action: 'previoustrack' }, () => prevTrack()).catch(()=>{});
+
+      return;
+    }
+    
     if (!('mediaSession' in navigator)) return;
 
     if (currentTrack) {

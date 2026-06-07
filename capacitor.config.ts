@@ -5,9 +5,12 @@ const config: CapacitorConfig = {
   appName: 'Pandoos',
   webDir: 'dist',
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     SplashScreen: {
       launchShowDuration: 3000,
-      launchAutoHide: false,
+      launchAutoHide: true,
       backgroundColor: "#0A0A0F",
       androidSplashResourceName: "splash",
     },
