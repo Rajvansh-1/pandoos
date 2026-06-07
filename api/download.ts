@@ -93,6 +93,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     console.log(`[Download API] Got stream URL for ${videoId} — proxying...`);
 
+    if (req.query.json === '1') {
+      return res.status(200).json({ url: streamUrl });
+    }
+
     const abortController = new AbortController();
 
     // Read the Range header from the incoming request for proper seeking/streaming support.
